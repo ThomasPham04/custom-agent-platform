@@ -16,7 +16,9 @@ and an Express API that answers with fixtures behind the final REST contract.
 
 ## Run it
 
-Open two Windows PowerShell terminals at the repository root:
+Open two terminals at the repository root.
+
+### Windows PowerShell
 
 ```powershell
 # Terminal 1 — API
@@ -32,13 +34,39 @@ npm install
 npm run dev
 ```
 
+### Bash/POSIX
+
+```bash
+# Terminal 1 — API
+cd AgentPlatform-BackEnd/server
+npm install
+npm run dev
+```
+
+```bash
+# Terminal 2 — UI
+cd AgentPlatform-FrontEnd/client
+npm install
+npm run dev
+```
+
 Open `http://localhost:5173`.
 
 Or with containers:
 
+### Windows PowerShell
+
 ```powershell
 Set-Location .\AgentPlatform-BackEnd\deployment
 Copy-Item .\deploy\env\backend.env.example .\deploy\env\backend.env
+docker compose up --build
+```
+
+### Bash/POSIX
+
+```bash
+cd AgentPlatform-BackEnd/deployment
+cp deploy/env/backend.env.example deploy/env/backend.env
 docker compose up --build
 ```
 

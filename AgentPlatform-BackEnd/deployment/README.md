@@ -5,8 +5,17 @@ through nginx, which proxies `/api` to the API container on the same origin.
 
 ## Run
 
+### Windows PowerShell
+
 ```powershell
 Copy-Item .\deploy\env\backend.env.example .\deploy\env\backend.env
+docker compose up --build
+```
+
+### Bash/POSIX
+
+```bash
+cp deploy/env/backend.env.example deploy/env/backend.env
 docker compose up --build
 ```
 
