@@ -118,6 +118,37 @@ describe('AgentTable', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('opens the actions menu with Enter without selecting the row', async () => {
+    const onSelect = vi.fn();
+    render(<AgentTable {...defaults} agents={[make({})]} onSelect={onSelect} />);
+
+    const actions = screen.getByRole('button', { name: 'Actions for Support Bot' });
+    actions.focus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(screen.getByRole('dialog', { name: 'Actions for Support Bot' })).toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('confirms before deleting from the row menu, since deleting cannot be undone', async () => {
+    const onDelete = vi.fn();
+    const onSelect = vi.fn();
+    render(<AgentTable {...defaults} agents={[make({})]} onDelete={onDelete} onSelect={onSelect} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Support Bot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    // Not deleted yet: the confirmation names the agent first.
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText('Delete Support Bot?')).toBeInTheDocument();
+
+    const confirm = screen.getByRole('dialog', { name: 'Delete Support Bot' });
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+    expect(onDelete).toHaveBeenCalledWith('agent_support');
+    // Confirming must not also open the row.
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('renders skeleton rows while loading and no agent rows', () => {
     render(<AgentTable {...defaults} agents={[]} loading />);
     expect(screen.queryByRole('row', { name: /Support Bot/ })).not.toBeInTheDocument();

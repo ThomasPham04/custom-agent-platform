@@ -51,6 +51,12 @@ export const Popover = ({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      /*
+        Capture phase, so an open popover claims Escape before anything that
+        contains it. A popover inside the agent peek would otherwise close the
+        whole panel: both listeners live on document, and the peek registers
+        first, so a bubble-phase stopPropagation() would come too late.
+      */
       event.stopPropagation();
       onClose();
       trigger?.focus();
@@ -62,10 +68,10 @@ export const Popover = ({
       onClose();
     };
 
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, { capture: true });
     document.addEventListener('pointerdown', onPointerDown);
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, { capture: true });
       document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [open, onClose, anchor]);

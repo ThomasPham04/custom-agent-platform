@@ -76,7 +76,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-meta);
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 .tool-call__duration {
@@ -109,7 +109,7 @@
 .tool-call__caption {
   margin-bottom: var(--space-2);
   font-size: var(--text-meta);
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 .tool-call__caption:not(:first-child) {

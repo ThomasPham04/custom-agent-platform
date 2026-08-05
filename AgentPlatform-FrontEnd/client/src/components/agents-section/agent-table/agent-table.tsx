@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Chip } from '../../ui/chip';
+import { ConfirmDelete } from '../../ui/confirm-delete';
 import { Popover } from '../../ui/popover';
 import { Skeleton } from '../../ui/skeleton';
 import { formatRelativeTime } from '../../../lib/format';
@@ -38,6 +39,7 @@ const AgentRow = ({
 }: AgentRowProps) => {
   const menuRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const visible = agent.toolIds.slice(0, MAX_VISIBLE_TOOLS);
   const overflow = agent.toolIds.length - visible.length;
@@ -50,6 +52,7 @@ const AgentRow = ({
       aria-selected={selected}
       onClick={() => onSelect(agent.id)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         onSelect(agent.id);
@@ -142,12 +145,25 @@ const AgentRow = ({
             onClick={(event) => {
               event.stopPropagation();
               setMenuOpen(false);
-              onDelete(agent.id);
+              // Deleting cannot be undone, so this path confirms too — the same
+              // safeguard the peek's Delete agent button gets.
+              setConfirmOpen(true);
             }}
           >
             Delete
           </button>
         </Popover>
+
+        {/* The row is clickable; clicks inside the confirm must not select it. */}
+        <span onClick={(event) => event.stopPropagation()}>
+          <ConfirmDelete
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            onConfirm={() => onDelete(agent.id)}
+            anchor={menuRef}
+            itemName={agent.name}
+          />
+        </span>
       </td>
     </tr>
   );

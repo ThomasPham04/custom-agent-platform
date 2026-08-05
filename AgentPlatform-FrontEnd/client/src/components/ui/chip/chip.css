@@ -42,7 +42,7 @@
 
 .chip--draft {
   background: transparent;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 .chip__remove {

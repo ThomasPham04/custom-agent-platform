@@ -77,7 +77,7 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
           <p className="agents__error" role="alert">
             {error}{' '}
             <button type="button" className="agents__retry" onClick={() => void reload()}>
-              Try again
+              Reload
             </button>
           </p>
         )}
@@ -99,7 +99,7 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
           </Button>
         </div>
 
-        {!loading && agents.length === 0 && (
+        {!loading && !error && agents.length === 0 && (
           <EmptyState
             icon="▤"
             title="No agents yet."

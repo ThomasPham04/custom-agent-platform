@@ -75,6 +75,16 @@ describe('POST /api/chat/:agentId/messages', () => {
     expect(message.toolCalls[0].status).toBe('ok');
   });
 
+  it('succeeds when the same transient failure is retried', async () => {
+    const content = 'transient fail retry check';
+    const first = await request(app()).post('/api/chat/agent_support/messages').send({ content });
+    const retried = await request(app()).post('/api/chat/agent_support/messages').send({ content });
+
+    expect(first.body.message.status).toBe('error');
+    expect(retried.body.message.status).toBe('done');
+    expect(retried.body.message.toolCalls.every((call) => call.status === 'ok')).toBe(true);
+  });
+
   it('rejects a blank message', async () => {
     const res = await request(app()).post('/api/chat/agent_support/messages').send({ content: '   ' });
     expect(res.status).toBe(400);

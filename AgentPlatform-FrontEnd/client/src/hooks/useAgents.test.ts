@@ -163,6 +163,47 @@ describe('useAgents optimistic update', () => {
     expect(JSON.parse(String(patches[1]![1]!.body))).toEqual({ name: 'Renamed' });
   });
 
+  it('keeps an edit made while an earlier save is still in flight', async () => {
+    // The server replies with the state as of the FIRST patch only. Checking a
+    // second tool before that reply lands must not lose the second tool.
+    let resolveFirst: ((value: Response) => void) | undefined;
+    let attempt = 0;
+
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      if ((init?.method ?? 'GET') === 'GET') return json([agent]);
+      attempt += 1;
+      if (attempt === 1) {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return json({ ...agent, toolIds: ['current_time', 'http_request'] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = await loaded();
+
+    // First edit, flushed immediately but left hanging.
+    act(() => result.current.updateAgent('agent_support', { toolIds: ['current_time'] }));
+    act(() => {
+      void result.current.flushUpdates();
+    });
+
+    // Second edit arrives while the first request is still open.
+    act(() =>
+      result.current.updateAgent('agent_support', { toolIds: ['current_time', 'http_request'] }),
+    );
+    expect(result.current.agents[0]!.toolIds).toEqual(['current_time', 'http_request']);
+
+    // The stale reply lands.
+    await act(async () => {
+      resolveFirst?.(json({ ...agent, toolIds: ['current_time'] }));
+    });
+
+    // The newer edit survives it.
+    expect(result.current.agents[0]!.toolIds).toEqual(['current_time', 'http_request']);
+  });
+
   it('flushes a pending patch without waiting for the debounce', async () => {
     const fetchMock = stubApi({});
     const { result } = await loaded();

@@ -38,6 +38,10 @@ export const useAgents = () => {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mounted = useRef(true);
 
+  // Read through a function so TypeScript does not preserve the `null`
+  // narrowing across an await while another callback can update this ref.
+  const readPending = () => pending.current;
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -70,16 +74,41 @@ export const useAgents = () => {
     const save = pending.current;
     if (!save) return;
 
+    // Claim the patch up front. Edits made while this request is in flight
+    // start a fresh pending entry rather than joining a batch already sent.
+    pending.current = null;
     setSaveState({ kind: 'saving' });
+
     try {
       const updated = await apiPatch<Agent>(`/api/agents/${save.agentId}`, save.patch);
       if (!mounted.current) return;
-      pending.current = null;
-      setAgents((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+
+      setAgents((current) =>
+        current.map((item) => {
+          if (item.id !== updated.id) return item;
+          /*
+            A newer edit can land while this request is in flight — checking two
+            tool boxes in quick succession does exactly that. The server's reply
+            predates it, so replacing the row outright would silently drop the
+            second edit. Layer the still-pending patch back on top.
+          */
+          const queued = readPending();
+          const newer = queued?.agentId === updated.id ? queued.patch : null;
+          return newer ? { ...updated, ...newer } : updated;
+        }),
+      );
       setSaveState({ kind: 'saved', at: new Date().toISOString() });
     } catch (thrown) {
       if (!mounted.current) return;
-      // Keep `pending` so retrySave can send the same patch again.
+
+      // Put the failed patch back so retrySave can send it, without discarding
+      // anything typed since. Newer values win on the overlapping keys.
+      const queued = readPending();
+      const newer = queued?.agentId === save.agentId ? queued : null;
+      pending.current = newer
+        ? { ...newer, patch: { ...save.patch, ...newer.patch }, rollbackTo: save.rollbackTo }
+        : save;
+
       setAgents((current) =>
         current.map((item) => (item.id === save.agentId ? save.rollbackTo : item)),
       );

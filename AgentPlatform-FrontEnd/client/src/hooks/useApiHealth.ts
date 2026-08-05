@@ -3,7 +3,9 @@ import { apiGet } from '../lib/api-client';
 
 export type ApiHealth = 'checking' | 'online' | 'offline';
 
-const DEFAULT_INTERVAL_MS = 15_000;
+// Leave headroom for the failed request and React render so the UI changes
+// within the 15-second availability target even in the worst polling phase.
+const DEFAULT_INTERVAL_MS = 10_000;
 
 /** Drives the sidebar status pill. Pass intervalMs 0 to check exactly once. */
 export const useApiHealth = (intervalMs: number = DEFAULT_INTERVAL_MS): ApiHealth => {

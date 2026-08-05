@@ -28,6 +28,15 @@ const Shell = () => {
     if (!isNarrow) setSidebarOpen(false);
   }, [isNarrow]);
 
+  useEffect(() => {
+    if (!isNarrow || !sidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isNarrow, sidebarOpen]);
+
   return (
     <div className="app">
       <a className="app__skip" href="#workspace-content">

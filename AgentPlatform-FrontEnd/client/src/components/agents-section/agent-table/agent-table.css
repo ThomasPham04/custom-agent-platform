@@ -189,3 +189,36 @@
     display: none;
   }
 }
+
+/*
+  Viewport checks are explicit as well as container-aware. At the drawer and
+  sheet breakpoints the container width jumps when the sidebar leaves flow, so
+  a container query alone can make a hidden column briefly reappear.
+*/
+@media (max-width: 1080px) {
+  .agent-table__col-description,
+  .agent-row__description {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .agent-table__col-status,
+  .agent-row td:nth-child(5) {
+    display: none;
+  }
+}
+
+/*
+  Phone widths. Model and Tools are fixed-width columns, so keeping them here
+  would push the table past the viewport and scroll the whole page sideways.
+  Name and Updated are enough to pick a row; everything else is in the peek.
+*/
+@container agents (max-width: 480px) {
+  .agent-table th:nth-child(3),
+  .agent-row td:nth-child(3),
+  .agent-table th:nth-child(4),
+  .agent-row td:nth-child(4) {
+    display: none;
+  }
+}

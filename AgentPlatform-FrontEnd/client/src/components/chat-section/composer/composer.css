@@ -18,6 +18,8 @@
 
 .composer__field:focus-within {
   border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
 }
 
 /* The wrapper owns the border, so the inner control must stay flat. */
@@ -86,5 +88,5 @@
 .composer__hint {
   margin-top: var(--space-3);
   font-size: var(--text-meta);
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
