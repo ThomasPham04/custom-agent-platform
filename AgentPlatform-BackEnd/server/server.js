@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
+import agentRoutes from './routes/agentRoutes.js';
 import toolRoutes from './routes/toolRoutes.js';
 import { HttpError, ok } from './utils/status.js';
 
@@ -11,6 +12,7 @@ export const createApp = () => {
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/health', (_req, res) => ok(res, { status: 'ok', mode: 'mock' }));
+  app.use('/api/agents', agentRoutes);
   app.use('/api/tools', toolRoutes);
 
   app.use((req, _res, next) => {
