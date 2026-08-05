@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import agentRoutes from './routes/agentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import toolRoutes from './routes/toolRoutes.js';
 import { HttpError, ok } from './utils/status.js';
 
@@ -13,6 +14,7 @@ export const createApp = () => {
 
   app.get('/api/health', (_req, res) => ok(res, { status: 'ok', mode: 'mock' }));
   app.use('/api/agents', agentRoutes);
+  app.use('/api/chat', chatRoutes);
   app.use('/api/tools', toolRoutes);
 
   app.use((req, _res, next) => {
