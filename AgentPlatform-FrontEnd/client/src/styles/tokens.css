@@ -1,7 +1,7 @@
 :root {
   /* Color — §4.1. Warm near-black, never pure black. */
   --ink: #37352f;
-  --ink-muted: #787774;
+  --ink-muted: #6f6e6b;
   --ink-faint: #9b9a97;
   --paper: #ffffff;
   --shell: #f7f7f5;
@@ -10,9 +10,9 @@
   --active: rgba(55, 53, 47, 0.08);
   --scrim: rgba(15, 15, 15, 0.28);
 
-  --signal: #2383e2;
-  --signal-ring: rgba(35, 131, 226, 0.28);
-  --signal-hover: #1b6fc4;
+  --signal: #1b6fc4;
+  --signal-ring: rgba(27, 111, 196, 0.28);
+  --signal-hover: #155fa8;
 
   /* Reserved for tool-call machinery only. Never a button, link, or heading. */
   --trace: #9065b0;
@@ -73,6 +73,8 @@
   --dur-fast: 120ms;
   --dur-mid: 180ms;
   --dur-slow: 240ms;
+  --dur-progress: 700ms;
+  --dur-progress-reduced: 2000ms;
   --ease: cubic-bezier(0.2, 0, 0.2, 1);
 }
 

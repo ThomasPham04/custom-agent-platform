@@ -40,7 +40,7 @@ export const useChat = (agentId: string | null) => {
   );
 
   const run = useCallback(
-    async (id: string, content: string) => {
+    async (id: string, content: string, retry = false) => {
       const placeholderId = localId('msg');
       const now = new Date().toISOString();
 
@@ -64,7 +64,10 @@ export const useChat = (agentId: string | null) => {
 
       let response: { message: Message };
       try {
-        response = await apiPost<{ message: Message }>(`/api/chat/${id}/messages`, { content });
+        response = await apiPost<{ message: Message }>(`/api/chat/${id}/messages`, {
+          content,
+          ...(retry ? { retry: true } : {}),
+        });
       } catch (thrown) {
         if (mounted.current) {
           patchPlaceholder(id, placeholderId, {
@@ -136,7 +139,7 @@ export const useChat = (agentId: string | null) => {
 
     const content = previous.content;
     setThreads((current) => ({ ...current, [agentId]: (current[agentId] ?? []).slice(0, -2) }));
-    await run(agentId, content);
+    await run(agentId, content, true);
   }, [agentId, threads, run]);
 
   const clear = useCallback(() => {

@@ -244,6 +244,7 @@ describe('useChat failure and retry', () => {
     expect(result.current.messages[0]!.content).toBe('what time is it?');
     expect(JSON.parse(String(fetchMock.mock.calls[1]![1]!.body))).toEqual({
       content: 'what time is it?',
+      retry: true,
     });
   });
 });

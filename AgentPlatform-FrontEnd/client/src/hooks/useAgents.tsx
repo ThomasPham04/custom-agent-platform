@@ -35,6 +35,7 @@ export const useAgents = () => {
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
 
   const pending = useRef<PendingSave | null>(null);
+  const failed = useRef<PendingSave | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mounted = useRef(true);
 
@@ -70,13 +71,14 @@ export const useAgents = () => {
   }, [reload]);
 
   /** Sends whatever is pending. Rolls the optimistic edit back on failure. */
-  const send = useCallback(async () => {
-    const save = pending.current;
+  const send = useCallback(async (retry = false) => {
+    const save = retry ? failed.current : pending.current;
     if (!save) return;
 
     // Claim the patch up front. Edits made while this request is in flight
     // start a fresh pending entry rather than joining a batch already sent.
-    pending.current = null;
+    if (retry) failed.current = null;
+    else pending.current = null;
     setSaveState({ kind: 'saving' });
 
     try {
@@ -101,13 +103,14 @@ export const useAgents = () => {
     } catch (thrown) {
       if (!mounted.current) return;
 
-      // Put the failed patch back so retrySave can send it, without discarding
-      // anything typed since. Newer values win on the overlapping keys.
+      // Keep a failed retry separate from another agent's queued edit. If the
+      // newer edit belongs to this agent, fold it into the retry instead.
       const queued = readPending();
       const newer = queued?.agentId === save.agentId ? queued : null;
-      pending.current = newer
+      failed.current = newer
         ? { ...newer, patch: { ...save.patch, ...newer.patch }, rollbackTo: save.rollbackTo }
         : save;
+      if (newer) pending.current = null;
 
       setAgents((current) =>
         current.map((item) => (item.id === save.agentId ? save.rollbackTo : item)),
@@ -147,7 +150,7 @@ export const useAgents = () => {
   }, [send]);
 
   const retrySave = useCallback(() => {
-    void send();
+    void send(true);
   }, [send]);
 
   const createAgent = useCallback(async (): Promise<Agent | null> => {

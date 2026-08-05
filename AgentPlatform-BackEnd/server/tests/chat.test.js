@@ -75,12 +75,16 @@ describe('POST /api/chat/:agentId/messages', () => {
     expect(message.toolCalls[0].status).toBe('ok');
   });
 
-  it('succeeds when the same transient failure is retried', async () => {
+  it('keeps identical normal requests isolated and succeeds only for an explicit retry', async () => {
     const content = 'transient fail retry check';
     const first = await request(app()).post('/api/chat/agent_support/messages').send({ content });
-    const retried = await request(app()).post('/api/chat/agent_support/messages').send({ content });
+    const otherUser = await request(app()).post('/api/chat/agent_support/messages').send({ content });
+    const retried = await request(app())
+      .post('/api/chat/agent_support/messages')
+      .send({ content, retry: true });
 
     expect(first.body.message.status).toBe('error');
+    expect(otherUser.body.message.status).toBe('error');
     expect(retried.body.message.status).toBe('done');
     expect(retried.body.message.toolCalls.every((call) => call.status === 'ok')).toBe(true);
   });

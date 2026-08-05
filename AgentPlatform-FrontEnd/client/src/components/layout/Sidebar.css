@@ -108,7 +108,7 @@
 .sidebar__disclosure {
   display: grid;
   place-items: center;
-  flex: 0 0 18px;
+  flex: 0 0 24px;
   height: 24px;
   border-radius: var(--radius-sm);
   color: var(--ink-faint);

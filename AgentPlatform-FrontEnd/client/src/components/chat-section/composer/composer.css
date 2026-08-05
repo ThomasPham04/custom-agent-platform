@@ -69,7 +69,7 @@
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   border-radius: var(--radius-pill);
-  animation: composer-spin 700ms linear infinite;
+  animation: composer-spin var(--dur-progress) linear infinite;
 }
 
 @keyframes composer-spin {
@@ -81,7 +81,7 @@
 /* Slower, not stopped: this one communicates that work is still in progress. */
 @media (prefers-reduced-motion: reduce) {
   .composer__spinner {
-    animation-duration: 2000ms;
+    animation-duration: var(--dur-progress-reduced);
   }
 }
 

@@ -9,7 +9,6 @@ import {
 import { createId } from '../utils/ids.js';
 
 const MAX_CALLS = 2;
-const failuresAwaitingRetry = new Set();
 
 const shouldFail = (content) => /\bfail/i.test(content);
 
@@ -34,16 +33,12 @@ const failCall = (call) => ({
   status: 'error',
 });
 
-export const executeAgent = (agent, content) => {
+export const executeAgent = (agent, content, { retry = false } = {}) => {
   const toolIds = agent.toolIds.filter((id) => TOOL_FIXTURES[id]).slice(0, MAX_CALLS);
   let toolCalls = toolIds.map(buildCall);
 
-  const failureKey = JSON.stringify([agent.id, content]);
-  const failureRequested = toolCalls.length > 0 && shouldFail(content);
-  const retrying = failureRequested && failuresAwaitingRetry.delete(failureKey);
-  const failing = failureRequested && !retrying;
+  const failing = toolCalls.length > 0 && shouldFail(content) && !retry;
   if (failing) {
-    failuresAwaitingRetry.add(failureKey);
     toolCalls = [...toolCalls.slice(0, -1), failCall(toolCalls.at(-1))];
   }
 

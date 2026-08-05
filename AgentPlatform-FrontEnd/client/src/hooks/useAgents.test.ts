@@ -204,6 +204,45 @@ describe('useAgents optimistic update', () => {
     expect(result.current.agents[0]!.toolIds).toEqual(['current_time', 'http_request']);
   });
 
+  it('keeps another agent queued when an in-flight save fails', async () => {
+    const other = { ...agent, id: 'agent_research', name: 'Research Assistant' };
+    let rejectFirst: ((reason: unknown) => void) | undefined;
+    let patchAttempt = 0;
+
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      if ((init?.method ?? 'GET') === 'GET') return json([agent, other]);
+      patchAttempt += 1;
+      if (patchAttempt === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          rejectFirst = reject;
+        });
+      }
+      return json({ ...other, name: 'Research Renamed' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = await loaded();
+    act(() => result.current.updateAgent('agent_support', { name: 'Support Renamed' }));
+    act(() => {
+      void result.current.flushUpdates();
+    });
+    act(() => result.current.updateAgent('agent_research', { name: 'Research Renamed' }));
+
+    await act(async () => {
+      rejectFirst?.(new TypeError('network down'));
+    });
+    await waitFor(() => expect(result.current.saveState.kind).toBe('error'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    });
+    await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(2));
+
+    const second = patchCalls(fetchMock)[1]!;
+    expect(String(second[0])).toContain('/api/agents/agent_research');
+    expect(JSON.parse(String(second[1]!.body))).toEqual({ name: 'Research Renamed' });
+  });
+
   it('flushes a pending patch without waiting for the debounce', async () => {
     const fetchMock = stubApi({});
     const { result } = await loaded();
