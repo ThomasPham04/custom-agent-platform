@@ -1,5 +1,21 @@
 import { expect, test } from '@playwright/test';
 
+interface CleanupAgent {
+  id: string;
+  name: string;
+}
+
+const isCleanupAgent = (value: unknown): value is CleanupAgent =>
+  typeof value === 'object' &&
+  value !== null &&
+  'id' in value &&
+  typeof value.id === 'string' &&
+  'name' in value &&
+  typeof value.name === 'string';
+
+const isCleanupAgentList = (value: unknown): value is CleanupAgent[] =>
+  Array.isArray(value) && value.every(isCleanupAgent);
+
 /*
   A unique name per run. The API keeps agents in memory and the dev server is
   reused between runs, so a fixed name would collide with leftovers from an
@@ -10,7 +26,13 @@ const AGENT_NAME = `Smoke Agent ${Date.now()}`;
 // Runs even when the test fails partway, so a failure leaves nothing behind.
 test.afterEach(async ({ request }) => {
   const response = await request.get('http://localhost:4000/api/agents');
-  const agents: { id: string; name: string }[] = await response.json();
+  await expect(response).toBeOK();
+  const body: unknown = await response.json();
+  if (!isCleanupAgentList(body)) {
+    throw new Error('Expected the API cleanup endpoint to return agents with string id and name.');
+  }
+
+  const agents = body;
   for (const agent of agents) {
     if (agent.name === AGENT_NAME) {
       await request.delete(`http://localhost:4000/api/agents/${agent.id}`);
@@ -52,7 +74,16 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
   await expect(peek.getByText('HTTP request')).toBeVisible();
 
   // Activate it, then leave the peek.
+  const finalSave = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      response.url().includes('/api/agents/') &&
+      response.request().postData()?.includes('"status":"active"') === true &&
+      response.ok(),
+  );
   await peek.getByRole('combobox', { name: 'Status' }).selectOption('active');
+  await finalSave;
+  await expect(peek.getByText(/^Saved \d{2}:\d{2}:\d{2}$/)).toBeVisible();
   await peek.getByRole('button', { name: 'Close panel' }).click();
   await expect(page.getByRole('dialog', { name: /^Agent / })).toBeHidden();
 
@@ -63,7 +94,9 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
 
   // Survive a reload: the writes really reached the server.
   await page.reload();
-  await expect(page.getByRole('row', { name: new RegExp(AGENT_NAME) })).toBeVisible();
+  const persistedRow = page.getByRole('row', { name: new RegExp(AGENT_NAME) });
+  await expect(persistedRow).toBeVisible();
+  await expect(persistedRow.getByText('Active')).toBeVisible();
 
   // Move to chat through the row menu.
   await page.getByRole('row', { name: new RegExp(AGENT_NAME) }).hover();
@@ -92,7 +125,7 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
     looser match would also hit the JSON payload sitting collapsed in the DOM.
   */
   await expect(
-    page.getByText(/Expand a step above/, { selector: 'p' }),
+    page.locator('.turn__answer > p').filter({ hasText: /Expand a step above/ }),
   ).toBeVisible({ timeout: 5000 });
 
   // Expanding a node reveals the actual payload.
@@ -104,8 +137,13 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
   // The failure path reports what happened and offers a way forward.
   await composer.fill('please fail this run');
   await page.getByRole('button', { name: 'Send message' }).click();
-  await expect(page.getByText(/connection refused/).first()).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  const retry = page.getByRole('button', { name: 'Retry' });
+  const failedAnswer = page
+    .getByRole('article')
+    .filter({ has: retry })
+    .locator('.turn__answer--error > p');
+  await expect(failedAnswer).toHaveText(/connection refused/, { timeout: 5000 });
+  await expect(retry).toBeVisible();
 
   // Clean up so a rerun against a warm server starts from the same place.
   await page.goto('/agents');
