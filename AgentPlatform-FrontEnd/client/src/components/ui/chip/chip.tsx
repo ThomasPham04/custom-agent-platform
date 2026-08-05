@@ -20,7 +20,11 @@ export const Chip = ({
   children,
 }: ChipProps) => (
   <span className={['chip', `chip--${tone}`, mono ? 'mono' : ''].filter(Boolean).join(' ')}>
-    {children}
+    {/*
+      The label needs its own box: text-overflow does not apply to a text node
+      sitting directly inside a flex container, so it would clip mid-glyph.
+    */}
+    <span className="chip__label">{children}</span>
     {onRemove && (
       <button type="button" className="chip__remove" onClick={onRemove} aria-label={removeLabel}>
         <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">

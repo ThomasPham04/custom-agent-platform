@@ -1,0 +1,183 @@
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.agent-table th {
+  padding: 0 var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.agent-table th:first-child,
+.agent-table td:first-child {
+  padding-left: 0;
+}
+
+.agent-table th:nth-child(1) {
+  width: 22%;
+}
+.agent-table th:nth-child(2) {
+  width: 23%;
+}
+.agent-table th:nth-child(3) {
+  width: 15%;
+}
+.agent-table th:nth-child(4) {
+  width: 22%;
+}
+.agent-table th:nth-child(5) {
+  width: 9%;
+}
+.agent-table th:nth-child(6) {
+  width: 9%;
+}
+.agent-table th:nth-child(7) {
+  width: 32px;
+}
+
+.agent-row {
+  height: var(--row-height);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.agent-row td {
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-ui);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.agent-row:hover {
+  background: var(--hover);
+}
+
+.agent-row--selected {
+  background: var(--active);
+}
+
+.agent-row--skeleton {
+  cursor: default;
+}
+
+.agent-row__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--row-height);
+}
+
+.agent-row__icon {
+  flex: 0 0 auto;
+  font-size: var(--text-ui);
+  line-height: 1;
+}
+
+.agent-row__name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.agent-row__description {
+  color: var(--ink-muted);
+}
+
+.agent-row__dash {
+  color: var(--ink-faint);
+}
+
+.agent-row__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.agent-row__overflow {
+  flex: 0 0 auto;
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.agent-row__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-label);
+  color: var(--ink-muted);
+}
+
+.agent-row__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.agent-row__dot--active {
+  background: var(--ok);
+}
+
+.agent-row__dot--draft {
+  background: var(--ink-faint);
+}
+
+.agent-row__updated {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.agent-row__actions {
+  padding: 0;
+  text-align: right;
+}
+
+/*
+  Present for keyboard reach at all times, invisible until the row is engaged,
+  so a resting table stays quiet.
+*/
+.agent-row__menu {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.agent-row:hover .agent-row__menu,
+.agent-row:focus-within .agent-row__menu,
+.agent-row__menu:focus-visible {
+  opacity: 1;
+}
+
+.agent-row__menu:hover {
+  background: var(--active);
+  color: var(--ink);
+}
+
+/* 1080px: description is the first thing a narrower table can lose. */
+@media (max-width: 1080px) {
+  .agent-table__col-description,
+  .agent-row__description {
+    display: none;
+  }
+}
+
+/* 700px: status is derivable from the peek; drop it before the tools. */
+@media (max-width: 700px) {
+  .agent-table__col-status,
+  .agent-row td:nth-child(5) {
+    display: none;
+  }
+}

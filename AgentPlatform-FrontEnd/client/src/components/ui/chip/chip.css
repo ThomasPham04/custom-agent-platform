@@ -10,8 +10,17 @@
   line-height: 1;
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
+  /* Shrink before clipping when several chips share a narrow cell. */
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.chip__label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chip--neutral {
