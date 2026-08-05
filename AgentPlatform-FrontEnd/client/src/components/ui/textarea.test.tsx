@@ -29,14 +29,17 @@ describe('AutoTextarea', () => {
     expect(textarea.style.height).not.toBe('');
   });
 
-  it('caps growth at maxHeight and scrolls past it', () => {
-    // jsdom reports scrollHeight 0, so assert the cap is applied as a style ceiling.
+  it('caps growth at maxHeight', () => {
     render(
       <AutoTextarea label="Prompt" value={'x\n'.repeat(200)} onChange={() => {}} maxHeight={120} />,
     );
-    const textarea = screen.getByLabelText('Prompt') as HTMLTextAreaElement;
-    expect(textarea.style.maxHeight).toBe('120px');
-    expect(textarea.style.overflowY).toBe('auto');
+    expect((screen.getByLabelText('Prompt') as HTMLTextAreaElement).style.maxHeight).toBe('120px');
+  });
+
+  it('hides the scrollbar while the content fits, so an empty field looks clean', () => {
+    // jsdom reports scrollHeight 0, which is the "content fits" case.
+    render(<AutoTextarea label="Message" value="" onChange={() => {}} maxHeight={200} />);
+    expect((screen.getByLabelText('Message') as HTMLTextAreaElement).style.overflowY).toBe('hidden');
   });
 
   it('applies the mono face when asked', () => {

@@ -1,0 +1,90 @@
+.composer {
+  flex: 0 0 auto;
+  padding: var(--space-4) 0 var(--space-6);
+  background: var(--paper);
+}
+
+.composer__field {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.composer__field:focus-within {
+  border-color: var(--signal);
+}
+
+/* The wrapper owns the border, so the inner control must stay flat. */
+.composer__field .textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+.composer__field .textarea__control {
+  background: transparent;
+  border-color: transparent;
+  padding: var(--space-4) var(--space-5);
+}
+
+.composer__field .textarea__control:focus {
+  background: transparent;
+  border-color: transparent;
+  outline: none;
+}
+
+.composer__send {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--signal);
+  color: var(--paper);
+  transition: background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.composer__send:hover:not(:disabled) {
+  background: var(--signal-hover);
+}
+
+.composer__send:disabled {
+  background: var(--rule);
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.composer__spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--radius-pill);
+  animation: composer-spin 700ms linear infinite;
+}
+
+@keyframes composer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slower, not stopped: this one communicates that work is still in progress. */
+@media (prefers-reduced-motion: reduce) {
+  .composer__spinner {
+    animation-duration: 2000ms;
+  }
+}
+
+.composer__hint {
+  margin-top: var(--space-3);
+  font-size: var(--text-meta);
+  color: var(--ink-faint);
+}

@@ -40,7 +40,11 @@ export const AutoTextarea = ({
     const element = ref.current;
     if (!element) return;
     element.style.height = 'auto';
-    element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`;
+    const needed = element.scrollHeight;
+    element.style.height = `${Math.min(needed, maxHeight)}px`;
+    // Only scroll once the content actually exceeds the cap; otherwise `auto`
+    // reserves a scrollbar gutter and an empty composer looks broken.
+    element.style.overflowY = needed > maxHeight ? 'auto' : 'hidden';
   }, [value, maxHeight]);
 
   return (
@@ -59,7 +63,7 @@ export const AutoTextarea = ({
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        style={{ maxHeight: `${maxHeight}px`, overflowY: 'auto' }}
+        style={{ maxHeight: `${maxHeight}px` }}
       />
     </div>
   );

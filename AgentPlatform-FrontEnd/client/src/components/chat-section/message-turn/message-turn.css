@@ -1,0 +1,79 @@
+.turn {
+  display: flex;
+  gap: var(--space-5);
+  padding: var(--space-6) 0;
+}
+
+.turn__avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.turn__avatar--user {
+  background: var(--shell);
+  color: var(--ink-muted);
+  font-size: var(--text-label);
+}
+
+.turn__body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Notion's callout block: the alternation cue, without a chat bubble. */
+.turn__callout {
+  padding: var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--shell);
+  font-size: var(--text-body);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.turn__working {
+  margin-top: var(--space-4);
+  font-size: var(--text-label);
+  color: var(--ink-muted);
+}
+
+/* Bare prose on paper. No rail, no indent, no background: the answer. */
+.turn__answer {
+  margin-top: var(--space-5);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  animation: answer-in var(--dur-mid) var(--ease);
+}
+
+@keyframes answer-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn__answer {
+    animation: none;
+  }
+}
+
+.turn__retry {
+  margin-top: var(--space-4);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  color: var(--signal);
+  text-decoration: underline;
+}
+
+.turn__meta {
+  margin-top: var(--space-4);
+  font-size: var(--text-meta);
+  color: var(--ink-faint);
+}
