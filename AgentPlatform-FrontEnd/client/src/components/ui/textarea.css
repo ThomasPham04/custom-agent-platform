@@ -1,0 +1,40 @@
+.textarea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.textarea__label {
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.textarea__control {
+  width: 100%;
+  padding: var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--shell);
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  resize: none;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+/* Notion's code-block feel: no border until focus. */
+.textarea__control:focus {
+  background: var(--paper);
+  border-color: var(--rule);
+}
+
+.textarea__control.mono {
+  font-size: var(--text-ui);
+}
+
+.textarea__control:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}

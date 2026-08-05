@@ -1,0 +1,31 @@
+.confirm-delete {
+  padding: var(--space-4);
+}
+
+.confirm-delete__question {
+  font-size: var(--text-ui);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.confirm-delete__note {
+  margin-top: var(--space-1);
+  font-size: var(--text-label);
+  color: var(--ink-muted);
+}
+
+.confirm-delete__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+/* The one destructive primary in the app: red, not blue. */
+.confirm-delete__confirm.button--primary {
+  background: var(--err);
+}
+
+.confirm-delete__confirm.button--primary:hover:not(:disabled) {
+  background: var(--err-hover);
+}
