@@ -1,0 +1,24 @@
+# Runs the proof of concept end to end. The API serves fixtures: there is no
+# database and no LLM provider, so nothing here needs credentials or volumes.
+services:
+  api:
+    build:
+      context: ../server
+    env_file:
+      - ./deploy/env/backend.env
+    expose:
+      - '4000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: ../../AgentPlatform-FrontEnd/client
+    ports:
+      - '8080:80'
+    depends_on:
+      api:
+        condition: service_healthy
