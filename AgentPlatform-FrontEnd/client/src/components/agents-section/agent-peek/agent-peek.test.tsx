@@ -1,0 +1,127 @@
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AgentPeek } from './agent-peek';
+import type { Agent } from '../../../types/agent';
+import type { Tool } from '../../../types/tool';
+
+const tools: Tool[] = [
+  { id: 'current_time', label: 'Current time', description: 'Reads the time.', params: [] },
+  { id: 'http_request', label: 'HTTP request', description: 'Fetches a URL.', params: [] },
+];
+
+const agent: Agent = {
+  id: 'agent_support',
+  name: 'Support Bot',
+  icon: '🎧',
+  description: 'Answers billing questions.',
+  model: 'gemini-2.5-flash',
+  systemPrompt: 'Be terse.',
+  toolIds: ['current_time'],
+  status: 'active',
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: '2026-08-04T10:00:00.000Z',
+};
+
+const defaults = {
+  agent,
+  tools,
+  saveState: { kind: 'idle' } as const,
+  onChange: () => {},
+  onFlush: () => {},
+  onRetrySave: () => {},
+  onDelete: () => {},
+  onClose: () => {},
+};
+
+describe('AgentPeek', () => {
+  it('is a non-modal dialog on a wide viewport so the table stays usable', () => {
+    render(<AgentPeek {...defaults} />);
+    expect(screen.getByRole('dialog', { name: /Support Bot/ })).toHaveAttribute(
+      'aria-modal',
+      'false',
+    );
+  });
+
+  it('edits the name through a plain input, with no Save button anywhere', async () => {
+    const onChange = vi.fn();
+    render(<AgentPeek {...defaults} onChange={onChange} />);
+
+    const nameInput = screen.getByRole('textbox', { name: 'Agent name' });
+    expect(nameInput).toHaveValue('Support Bot');
+
+    await userEvent.type(nameInput, '!');
+    expect(onChange).toHaveBeenLastCalledWith({ name: 'Support Bot!' });
+    expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument();
+  });
+
+  it('flushes pending edits when a field loses focus', async () => {
+    const onFlush = vi.fn();
+    render(<AgentPeek {...defaults} onFlush={onFlush} />);
+    await userEvent.click(screen.getByRole('textbox', { name: 'Agent name' }));
+    await userEvent.tab();
+    expect(onFlush).toHaveBeenCalled();
+  });
+
+  it('sets the system prompt in the mono face', () => {
+    render(<AgentPeek {...defaults} />);
+    expect(screen.getByRole('textbox', { name: 'System prompt' }).className).toContain('mono');
+  });
+
+  it('shows the attached tools as removable chips', async () => {
+    const onChange = vi.fn();
+    render(<AgentPeek {...defaults} onChange={onChange} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Current time' }));
+    expect(onChange).toHaveBeenCalledWith({ toolIds: [] });
+  });
+
+  it('reads the save state as a timestamp', () => {
+    render(
+      <AgentPeek {...defaults} saveState={{ kind: 'saved', at: '2026-08-04T21:04:12.000Z' }} />,
+    );
+    expect(screen.getByText(/^Saved \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
+  it('offers a retry when a save failed, and says what happened', async () => {
+    const onRetrySave = vi.fn();
+    render(
+      <AgentPeek
+        {...defaults}
+        saveState={{ kind: 'error', message: 'Unknown model "gpt-4".' }}
+        onRetrySave={onRetrySave}
+      />,
+    );
+    expect(screen.getByText(/Couldn’t save/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetrySave).toHaveBeenCalledOnce();
+  });
+
+  it('closes on Escape', async () => {
+    const onClose = vi.fn();
+    render(<AgentPeek {...defaults} onClose={onClose} />);
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('requires a confirmation before deleting, and names the agent', async () => {
+    const onDelete = vi.fn();
+    render(<AgentPeek {...defaults} onDelete={onDelete} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete agent' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText('Delete Support Bot?')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('changes the model through a labelled select', async () => {
+    const onChange = vi.fn();
+    render(<AgentPeek {...defaults} onChange={onChange} />);
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: 'Model' }),
+      'gemini-2.5-pro',
+    );
+    expect(onChange).toHaveBeenCalledWith({ model: 'gemini-2.5-pro' });
+  });
+});

@@ -10,6 +10,14 @@
   min-width: 0;
   padding: var(--space-9) var(--space-8) var(--space-10);
   overflow-y: auto;
+
+  /*
+    The table's real constraint is this column's width, not the viewport's:
+    opening the 480px peek squeezes it just as much as a narrow window does.
+    A container query handles both with one rule.
+  */
+  container-type: inline-size;
+  container-name: agents;
 }
 
 .agents__title {

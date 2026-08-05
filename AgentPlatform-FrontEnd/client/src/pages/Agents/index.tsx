@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { AgentPeek } from '../../components/agents-section/agent-peek';
 import { AgentTable } from '../../components/agents-section/agent-table';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/empty-state';
@@ -16,8 +17,19 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
   const { agentId } = useParams();
   const navigate = useNavigate();
   const { show } = useToast();
-  const { agents, loading, error, createAgent, duplicateAgent, deleteAgent, reload } =
-    useAgentsContext();
+  const {
+    agents,
+    loading,
+    error,
+    saveState,
+    createAgent,
+    duplicateAgent,
+    deleteAgent,
+    updateAgent,
+    flushUpdates,
+    retrySave,
+    reload,
+  } = useAgentsContext();
   const { tools } = useTools();
   const [filter, setFilter] = useState('');
 
@@ -42,6 +54,17 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
       show('Agent deleted');
       if (agentId === id) navigate('/agents');
     }
+  };
+
+  const selected = agents.find((agent) => agent.id === agentId) ?? null;
+
+  const closePeek = () => {
+    const returnTo = agentId;
+    navigate('/agents');
+    // Return focus to the row that opened the panel.
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-agent-row="${returnTo}"]`)?.focus();
+    });
   };
 
   return (
@@ -110,6 +133,19 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
           />
         )}
       </div>
+
+      {selected && (
+        <AgentPeek
+          agent={selected}
+          tools={tools}
+          saveState={saveState}
+          onChange={(patch) => updateAgent(selected.id, patch)}
+          onFlush={() => void flushUpdates()}
+          onRetrySave={retrySave}
+          onDelete={() => void onDelete(selected.id)}
+          onClose={closePeek}
+        />
+      )}
     </div>
   );
 };

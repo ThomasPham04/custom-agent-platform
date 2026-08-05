@@ -3,15 +3,18 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Chip } from './chip';
 
+/** The tone lives on the chip; getByText returns its inner label span. */
+const chipFor = (text: string) => screen.getByText(text).closest('.chip');
+
 describe('Chip', () => {
   it('defaults to the neutral tone', () => {
     render(<Chip>gemini-2.5-flash</Chip>);
-    expect(screen.getByText('gemini-2.5-flash').className).toContain('chip--neutral');
+    expect(chipFor('gemini-2.5-flash')).toHaveClass('chip--neutral');
   });
 
   it('carries the trace tone for tool chips', () => {
     render(<Chip tone="trace">current_time</Chip>);
-    expect(screen.getByText('current_time').className).toContain('chip--trace');
+    expect(chipFor('current_time')).toHaveClass('chip--trace');
   });
 
   it('renders no remove control unless onRemove is given', () => {

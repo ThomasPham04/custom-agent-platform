@@ -19,26 +19,34 @@
   padding-left: 0;
 }
 
+/*
+  Fixed widths on the columns whose content is short and predictable, with Name
+  left on auto to absorb the slack. Percentages would not redistribute when the
+  container query hides Description, which clipped "just now" down to "just…".
+*/
 .agent-table th:nth-child(1) {
-  width: 22%;
+  width: auto;
+  min-width: 150px;
 }
 .agent-table th:nth-child(2) {
-  width: 23%;
+  width: 26%;
 }
+/* Sized so the longest model id, gemini-2.5-flash, reads in full. */
 .agent-table th:nth-child(3) {
-  width: 15%;
+  width: 140px;
 }
 .agent-table th:nth-child(4) {
-  width: 22%;
+  width: 170px;
 }
 .agent-table th:nth-child(5) {
-  width: 9%;
+  width: 84px;
 }
+/* Sized for "just now", the widest value formatRelativeTime can return here. */
 .agent-table th:nth-child(6) {
-  width: 9%;
+  width: 94px;
 }
 .agent-table th:nth-child(7) {
-  width: 32px;
+  width: 40px;
 }
 
 .agent-row {
@@ -166,16 +174,16 @@
   color: var(--ink);
 }
 
-/* 1080px: description is the first thing a narrower table can lose. */
-@media (max-width: 1080px) {
+/* Description is the first thing a narrower table can lose. */
+@container agents (max-width: 800px) {
   .agent-table__col-description,
   .agent-row__description {
     display: none;
   }
 }
 
-/* 700px: status is derivable from the peek; drop it before the tools. */
-@media (max-width: 700px) {
+/* Status is visible in the peek; drop it before the tools. */
+@container agents (max-width: 560px) {
   .agent-table__col-status,
   .agent-row td:nth-child(5) {
     display: none;
