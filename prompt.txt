@@ -1,0 +1,4 @@
+/frontend-design:frontend-design & 'd:\Project\custom-agent-platform\AI Agent Platform.pdf' read this pdf. I need a basic UI for the task that mimic the notion UI for custom agent, I will need a chat with message list which is the testing UI in the pdf, and another UI for agents management they both in the same page navigate via tab on the left side like notion.
+
+The tech stack used including reactjs, expressJs
+You only implement the UI first, backend and other things related to the platform later. /superpowers:brainstorming

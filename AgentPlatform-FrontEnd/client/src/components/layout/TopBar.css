@@ -1,0 +1,24 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex: 0 0 var(--topbar-height);
+  height: var(--topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.topbar__menu {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+}
+
+.topbar__menu:hover {
+  background: var(--hover);
+  color: var(--ink);
+}

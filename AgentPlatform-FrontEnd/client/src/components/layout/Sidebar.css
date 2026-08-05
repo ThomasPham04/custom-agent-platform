@@ -1,0 +1,230 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--sidebar-width);
+  width: var(--sidebar-width);
+  height: 100%;
+  padding: var(--space-4) var(--space-4) 0;
+  background: var(--shell);
+  border-right: 1px solid var(--rule);
+  overflow-y: auto;
+}
+
+.sidebar__workspace {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-ui);
+  font-weight: 500;
+}
+
+.sidebar__workspace:hover {
+  background: var(--active);
+}
+
+.sidebar__workspace-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+}
+
+.sidebar__workspace-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.sidebar__chevron {
+  color: var(--ink-faint);
+  font-size: var(--text-label);
+}
+
+.sidebar__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 28px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+}
+
+.sidebar__search:hover,
+.sidebar__search:focus-within {
+  background: var(--active);
+}
+
+.sidebar__search-icon {
+  font-size: var(--text-ui);
+}
+
+.sidebar__search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--text-ui);
+  outline: none;
+}
+
+/* The wrapper carries the focus affordance via :focus-within. */
+.sidebar__search-input:focus-visible {
+  outline: none;
+}
+
+.sidebar__search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.sidebar__label {
+  margin: var(--space-6) var(--space-3) var(--space-2);
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.sidebar__group {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar__disclosure {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: 9px;
+}
+
+.sidebar__disclosure:hover {
+  background: var(--active);
+  color: var(--ink-muted);
+}
+
+.sidebar__disclosure--spacer {
+  pointer-events: none;
+}
+
+.sidebar__triangle {
+  display: block;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.sidebar__triangle--open {
+  transform: rotate(90deg);
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-ui);
+  font-weight: 500;
+}
+
+.sidebar__item:hover {
+  background: var(--active);
+  text-decoration: none;
+}
+
+.sidebar__item[aria-current='page'] {
+  background: var(--active);
+}
+
+.sidebar__item-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  font-size: var(--text-label);
+  text-align: center;
+}
+
+.sidebar__item-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__item--child {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.sidebar__item--child[aria-current='page'] {
+  color: var(--ink);
+}
+
+.sidebar__children {
+  padding-left: 18px;
+}
+
+.sidebar__children-empty {
+  padding: 0 var(--space-3);
+  font-size: var(--text-label);
+  color: var(--ink-faint);
+  line-height: 28px;
+}
+
+.sidebar__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-4) var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+
+.sidebar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-faint);
+}
+
+.sidebar__dot--online {
+  background: var(--ok);
+}
+
+.sidebar__dot--offline {
+  background: var(--err);
+}
+
+.sidebar__health {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+/* Under the breakpoint the sidebar leaves the flow and slides over the page. */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--dur-slow) var(--ease);
+    box-shadow: var(--shadow-popover);
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+}

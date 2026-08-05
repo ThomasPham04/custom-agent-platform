@@ -1,0 +1,82 @@
+.agents-surface {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agents {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-9) var(--space-8) var(--space-10);
+  overflow-y: auto;
+}
+
+.agents__title {
+  font-size: var(--text-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.agents__subtitle {
+  margin-top: var(--space-3);
+  font-size: var(--text-ui);
+  color: var(--ink-muted);
+}
+
+.agents__viewbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin: var(--space-8) 0 var(--space-5);
+}
+
+.agents__count {
+  font-size: var(--text-label);
+  color: var(--ink-muted);
+}
+
+.agents__filter {
+  flex: 1;
+  min-width: 0;
+  max-width: 240px;
+  height: 28px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font-size: var(--text-ui);
+}
+
+.agents__filter::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.agents__viewbar > .button {
+  margin-left: auto;
+}
+
+.agents__error {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--err-wash);
+  color: var(--ink);
+  font-size: var(--text-ui);
+}
+
+.agents__retry {
+  color: var(--signal);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .agents {
+    padding: var(--space-7) var(--space-6) var(--space-9);
+  }
+
+  .agents__title {
+    font-size: 28px;
+  }
+}
