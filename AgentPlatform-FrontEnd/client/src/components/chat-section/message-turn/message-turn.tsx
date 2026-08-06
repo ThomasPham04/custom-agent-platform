@@ -9,7 +9,7 @@ interface MessageTurnProps {
   message: Message;
   agent: Agent;
   tools: readonly Tool[];
-  onRetry: () => void;
+  onRetry: (messageId: string) => void;
 }
 
 export const MessageTurn = ({ message, agent, tools, onRetry }: MessageTurnProps) => {
@@ -48,7 +48,11 @@ export const MessageTurn = ({ message, agent, tools, onRetry }: MessageTurnProps
           >
             <p>{message.content}</p>
             {message.status === 'error' && (
-              <button type="button" className="turn__retry" onClick={onRetry}>
+              <button
+                type="button"
+                className="turn__retry"
+                onClick={() => onRetry(message.id)}
+              >
                 Retry
               </button>
             )}

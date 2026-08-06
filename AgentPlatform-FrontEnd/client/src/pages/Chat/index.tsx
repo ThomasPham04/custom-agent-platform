@@ -27,7 +27,7 @@ const ChatPage = () => {
     agents[0] ??
     null;
 
-  const { messages, sending, send, retryLast, clear } = useChat(selected?.id ?? null);
+  const { messages, sending, send, retry, clear } = useChat(selected?.id ?? null);
 
   useEffect(() => {
     if (selected) localStorage.setItem(LAST_AGENT_KEY, selected.id);
@@ -59,6 +59,7 @@ const ChatPage = () => {
                 onConfirm={clear}
                 anchor={clearRef}
                 itemName="this conversation"
+                actionLabel="Clear"
               />
             </>
           )}
@@ -71,7 +72,7 @@ const ChatPage = () => {
           agent={selected}
           agents={agents}
           tools={tools}
-          onRetry={() => void retryLast()}
+          onRetry={(messageId) => void retry(messageId)}
           onPickPrompt={(prompt) => void send(prompt)}
           onGoToAgents={() => navigate('/agents')}
         />

@@ -14,7 +14,7 @@ interface MessageListProps {
   agent: Agent | null;
   agents: readonly Agent[];
   tools: readonly Tool[];
-  onRetry: () => void;
+  onRetry: (messageId: string) => void;
   onPickPrompt: (prompt: string) => void;
   onGoToAgents?: () => void;
 }

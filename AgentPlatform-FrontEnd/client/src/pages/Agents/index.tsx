@@ -11,9 +11,10 @@ import './agents.css';
 
 interface AgentsPageProps {
   searchQuery: string;
+  onClearSearch: () => void;
 }
 
-const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
+const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
   const { agentId } = useParams();
   const navigate = useNavigate();
   const { show } = useToast();
@@ -21,17 +22,20 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
     agents,
     loading,
     error,
-    saveState,
+    saveStates,
+    operationError,
     createAgent,
     duplicateAgent,
     deleteAgent,
     updateAgent,
     flushUpdates,
     retrySave,
+    retryOperation,
     reload,
   } = useAgentsContext();
   const { tools } = useTools();
   const [filter, setFilter] = useState('');
+  const [focusNameId, setFocusNameId] = useState<string | null>(null);
 
   // The sidebar search and the local filter mean the same thing to the reader.
   const query = (searchQuery || filter).trim().toLowerCase();
@@ -46,7 +50,28 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
 
   const onCreate = async () => {
     const created = await createAgent();
-    if (created) navigate(`/agents/${created.id}`);
+    if (created) {
+      setFocusNameId(created.id);
+      navigate(`/agents/${created.id}`);
+    }
+  };
+
+  const onRetryOperation = async () => {
+    const result = await retryOperation();
+    if (!result) return;
+
+    if ((result.kind === 'create' || result.kind === 'duplicate') && result.agent) {
+      if (result.kind === 'create') setFocusNameId(result.agent.id);
+      navigate(`/agents/${result.agent.id}`);
+    } else if (result.kind === 'delete' && result.deleted) {
+      show('Agent deleted');
+      if (agentId === result.agentId) navigate('/agents');
+    }
+  };
+
+  const clearActiveFilter = () => {
+    setFilter('');
+    onClearSearch();
   };
 
   const onDelete = async (id: string) => {
@@ -82,6 +107,20 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
           </p>
         )}
 
+        {operationError &&
+          !(operationError.kind === 'delete' && operationError.agentId === selected?.id) && (
+          <p className="agents__error" role="alert">
+            {operationError.message}{' '}
+            <button
+              type="button"
+              className="agents__retry"
+              onClick={() => void onRetryOperation()}
+            >
+              Retry
+            </button>
+          </p>
+          )}
+
         <div className="agents__viewbar">
           <span className="agents__count mono">
             {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
@@ -112,7 +151,7 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
           <EmptyState
             title={`No agents match “${query}”.`}
             body="Try a shorter search, or clear the filter to see everything."
-            action={{ label: 'Clear filter', onClick: () => setFilter('') }}
+            action={{ label: 'Clear filter', onClick: clearActiveFilter }}
           />
         )}
 
@@ -138,10 +177,18 @@ const AgentsPage = ({ searchQuery }: AgentsPageProps) => {
         <AgentPeek
           agent={selected}
           tools={tools}
-          saveState={saveState}
+          saveState={saveStates[selected.id] ?? { kind: 'idle' }}
+          focusName={focusNameId === selected.id}
+          onNameFocused={() => setFocusNameId(null)}
+          operationError={
+            operationError?.kind === 'delete' && operationError.agentId === selected.id
+              ? operationError.message
+              : undefined
+          }
+          onRetryOperation={() => void onRetryOperation()}
           onChange={(patch) => updateAgent(selected.id, patch)}
-          onFlush={() => void flushUpdates()}
-          onRetrySave={retrySave}
+          onFlush={() => void flushUpdates(selected.id)}
+          onRetrySave={() => retrySave(selected.id)}
           onDelete={() => void onDelete(selected.id)}
           onClose={closePeek}
         />

@@ -53,6 +53,9 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
   await expect(peek).toBeVisible();
 
   const nameField = peek.getByRole('textbox', { name: 'Agent name' });
+  await expect(nameField).toBeFocused();
+  await expect(nameField).toHaveJSProperty('selectionStart', 0);
+  await expect(nameField).toHaveJSProperty('selectionEnd', 'New agent'.length);
   await nameField.fill(AGENT_NAME);
 
   // Write a system prompt and confirm autosave reports itself.
@@ -144,6 +147,14 @@ test('configure an agent, then watch it run with its trace', async ({ page }) =>
     .locator('.turn__answer--error > p');
   await expect(failedAnswer).toHaveText(/connection refused/, { timeout: 5000 });
   await expect(retry).toBeVisible();
+
+  // Clear keeps the same action name through its confirmation flow.
+  await page.getByRole('button', { name: 'Clear' }).click();
+  const clearDialog = page.getByRole('dialog', { name: 'Clear this conversation' });
+  await expect(clearDialog.getByText('Clear this conversation?')).toBeVisible();
+  await expect(clearDialog.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+  await clearDialog.getByRole('button', { name: 'Clear' }).click();
+  await expect(page.locator('.message-list__intro-name')).toHaveText(AGENT_NAME);
 
   // Clean up so a rerun against a warm server starts from the same place.
   await page.goto('/agents');

@@ -4,6 +4,7 @@ import ChatPage from './Chat';
 
 interface AppRoutesProps {
   searchQuery: string;
+  onClearSearch: () => void;
 }
 
 const NotFound = () => (
@@ -15,11 +16,17 @@ const NotFound = () => (
   </div>
 );
 
-const AppRoutes = ({ searchQuery }: AppRoutesProps) => (
+const AppRoutes = ({ searchQuery, onClearSearch }: AppRoutesProps) => (
   <Routes>
     <Route path="/" element={<Navigate to="/agents" replace />} />
-    <Route path="/agents" element={<AgentsPage searchQuery={searchQuery} />} />
-    <Route path="/agents/:agentId" element={<AgentsPage searchQuery={searchQuery} />} />
+    <Route
+      path="/agents"
+      element={<AgentsPage searchQuery={searchQuery} onClearSearch={onClearSearch} />}
+    />
+    <Route
+      path="/agents/:agentId"
+      element={<AgentsPage searchQuery={searchQuery} onClearSearch={onClearSearch} />}
+    />
     <Route path="/chat" element={<ChatPage />} />
     <Route path="/chat/:agentId" element={<ChatPage />} />
     <Route path="*" element={<NotFound />} />

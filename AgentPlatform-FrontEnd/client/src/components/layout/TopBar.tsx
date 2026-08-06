@@ -1,19 +1,21 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import './TopBar.css';
 
 interface TopBarProps {
   onOpenSidebar: () => void;
   showMenuButton: boolean;
   children?: ReactNode;
+  menuRef?: RefObject<HTMLButtonElement | null>;
 }
 
-export const TopBar = ({ onOpenSidebar, showMenuButton, children }: TopBarProps) => {
+export const TopBar = ({ onOpenSidebar, showMenuButton, children, menuRef }: TopBarProps) => {
   if (!showMenuButton && !children) return null;
 
   return (
     <header className="topbar">
       {showMenuButton && (
         <button
+          ref={menuRef}
           type="button"
           className="topbar__menu"
           onClick={onOpenSidebar}

@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { NavLink } from 'react-router';
 import { Popover } from '../ui/popover';
 import { useApiHealth } from '../../hooks/useApiHealth';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import type { Agent } from '../../types/agent';
 import './Sidebar.css';
 
@@ -11,6 +12,8 @@ interface SidebarProps {
   onClose: () => void;
   onSearch: (query: string) => void;
   searchQuery: string;
+  isDrawer?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 const HEALTH_TEXT = {
@@ -19,16 +22,34 @@ const HEALTH_TEXT = {
   offline: 'api offline',
 } as const;
 
-export const Sidebar = ({ agents, open, onClose, onSearch, searchQuery }: SidebarProps) => {
+export const Sidebar = ({
+  agents,
+  open,
+  onClose,
+  onSearch,
+  searchQuery,
+  isDrawer = false,
+  returnFocusRef,
+}: SidebarProps) => {
+  const navigationRef = useRef<HTMLElement>(null);
   const [agentsExpanded, setAgentsExpanded] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const workspaceRef = useRef<HTMLButtonElement>(null);
   const health = useApiHealth();
 
+  useModalFocus({
+    active: isDrawer && open,
+    containerRef: navigationRef,
+    returnFocusRef,
+  });
+
   return (
     <nav
+      ref={navigationRef}
       className={['sidebar', open ? 'sidebar--open' : ''].filter(Boolean).join(' ')}
       aria-label="Workspace"
+      aria-hidden={isDrawer && !open ? 'true' : undefined}
+      inert={isDrawer && !open ? true : undefined}
     >
       <button
         ref={workspaceRef}

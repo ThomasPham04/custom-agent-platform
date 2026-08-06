@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useRef, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AgentPeek } from './agent-peek';
@@ -34,6 +35,8 @@ const defaults = {
   onClose: () => {},
 };
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe('AgentPeek', () => {
   it('is a non-modal dialog on a wide viewport so the table stays usable', () => {
     render(<AgentPeek {...defaults} />);
@@ -53,6 +56,14 @@ describe('AgentPeek', () => {
     await userEvent.type(nameInput, '!');
     expect(onChange).toHaveBeenLastCalledWith({ name: 'Support Bot!' });
     expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument();
+  });
+
+  it('focuses and selects the name when opened with creation intent', () => {
+    render(<AgentPeek {...defaults} focusName />);
+    const name = screen.getByRole('textbox', { name: 'Agent name' });
+    expect(name).toHaveFocus();
+    expect(name).toHaveProperty('selectionStart', 0);
+    expect(name).toHaveProperty('selectionEnd', agent.name.length);
   });
 
   it('flushes pending edits when a field loses focus', async () => {
@@ -96,6 +107,21 @@ describe('AgentPeek', () => {
     expect(onRetrySave).toHaveBeenCalledOnce();
   });
 
+  it('keeps a failed delete and its operation retry visible inside a mobile peek', async () => {
+    const onRetryOperation = vi.fn();
+    render(
+      <AgentPeek
+        {...defaults}
+        operationError="Delete failed."
+        onRetryOperation={onRetryOperation}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Delete failed.');
+    await userEvent.click(screen.getByRole('button', { name: 'Retry delete' }));
+    expect(onRetryOperation).toHaveBeenCalledOnce();
+  });
+
   it('closes on Escape', async () => {
     const onClose = vi.fn();
     render(<AgentPeek {...defaults} onClose={onClose} />);
@@ -123,5 +149,57 @@ describe('AgentPeek', () => {
       'gemini-2.5-pro',
     );
     expect(onChange).toHaveBeenCalledWith({ model: 'gemini-2.5-pro' });
+  });
+
+  it('makes the mobile sheet modal, focuses inside, traps outside focus, and restores its opener', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        media: '(max-width: 700px)',
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    const Harness = () => {
+      const [open, setOpen] = useState(false);
+      const openerRef = useRef<HTMLButtonElement>(null);
+      return (
+        <div>
+          <button ref={openerRef} type="button" onClick={() => setOpen(true)}>
+            Open agent
+          </button>
+          {open && (
+            <AgentPeek
+              {...defaults}
+              onClose={() => setOpen(false)}
+              returnFocusRef={openerRef}
+            />
+          )}
+        </div>
+      );
+    };
+
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Open agent' });
+    await userEvent.click(opener);
+
+    const dialog = screen.getByRole('dialog', { name: /Support Bot/ });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(opener).toHaveAttribute('inert');
+    expect(screen.getByRole('button', { name: 'Change icon' })).toHaveFocus();
+
+    opener.focus();
+    await userEvent.keyboard('{Tab}');
+    expect(screen.getByRole('button', { name: 'Change icon' })).toHaveFocus();
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: /Support Bot/ })).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 });

@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router';
 import { Sidebar } from './Sidebar';
 import type { Agent } from '../../types/agent';
 
+vi.mock('../../hooks/useApiHealth', () => ({ useApiHealth: () => 'online' }));
+
 const agent = (id: string, name: string, icon: string): Agent => ({
   id,
   name,

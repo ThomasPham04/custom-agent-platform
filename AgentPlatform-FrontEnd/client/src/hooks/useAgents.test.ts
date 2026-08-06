@@ -101,6 +101,67 @@ describe('useAgents optimistic update', () => {
     expect(JSON.parse(String(patches[0]![1]!.body))).toEqual({ name: 'C', description: 'D' });
   });
 
+  it('debounces edits independently for two agents', async () => {
+    const other = { ...agent, id: 'agent_research', name: 'Research Assistant' };
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if ((init?.method ?? 'GET') === 'GET') return json([agent, other]);
+      const body = JSON.parse(String(init?.body)) as { name: string };
+      return json(String(url).endsWith(agent.id) ? { ...agent, ...body } : { ...other, ...body });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = await loaded();
+
+    act(() => {
+      result.current.updateAgent(agent.id, { name: 'Support Renamed' });
+      result.current.updateAgent(other.id, { name: 'Research Renamed' });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    });
+
+    await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(2));
+    expect(patchCalls(fetchMock).map(([url]) => String(url))).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(`/api/agents/${agent.id}`),
+        expect.stringContaining(`/api/agents/${other.id}`),
+      ]),
+    );
+  });
+
+  it('keeps each agent save state correct when responses finish in reverse order', async () => {
+    const other = { ...agent, id: 'agent_research', name: 'Research Assistant' };
+    const resolvers = new Map<string, (response: Response) => void>();
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if ((init?.method ?? 'GET') === 'GET') return json([agent, other]);
+      return new Promise<Response>((resolve) => resolvers.set(String(url), resolve));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = await loaded();
+
+    act(() => {
+      result.current.updateAgent(agent.id, { name: 'Support Renamed' });
+      result.current.updateAgent(other.id, { name: 'Research Renamed' });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    });
+    await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(2));
+
+    await act(async () => {
+      resolvers.get(`/api/agents/${other.id}`)?.(json({ ...other, name: 'Research Renamed' }));
+    });
+    await act(async () => {
+      resolvers.get(`/api/agents/${agent.id}`)?.(json({ ...agent, name: 'Support Renamed' }));
+    });
+
+    expect(result.current).toHaveProperty(`saveStates.${agent.id}.kind`, 'saved');
+    expect(result.current).toHaveProperty(`saveStates.${other.id}.kind`, 'saved');
+    expect(result.current.agents.find((item) => item.id === agent.id)?.name).toBe('Support Renamed');
+    expect(result.current.agents.find((item) => item.id === other.id)?.name).toBe(
+      'Research Renamed',
+    );
+  });
+
   it('reports saved with a timestamp', async () => {
     stubApi({});
     const { result } = await loaded();
@@ -110,9 +171,10 @@ describe('useAgents optimistic update', () => {
       vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
     });
 
-    await waitFor(() => expect(result.current.saveState.kind).toBe('saved'));
-    if (result.current.saveState.kind !== 'saved') throw new Error('expected saved');
-    expect(Number.isNaN(new Date(result.current.saveState.at).getTime())).toBe(false);
+    await waitFor(() => expect(result.current.saveStates[agent.id]?.kind).toBe('saved'));
+    const savedState = result.current.saveStates[agent.id];
+    if (savedState?.kind !== 'saved') throw new Error('expected saved');
+    expect(Number.isNaN(new Date(savedState.at).getTime())).toBe(false);
   });
 
   it('rolls back and reports the failure when the save is rejected', async () => {
@@ -128,10 +190,11 @@ describe('useAgents optimistic update', () => {
       vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
     });
 
-    await waitFor(() => expect(result.current.saveState.kind).toBe('error'));
+    await waitFor(() => expect(result.current.saveStates[agent.id]?.kind).toBe('error'));
     expect(result.current.agents[0]!.name).toBe('Support Bot');
-    if (result.current.saveState.kind !== 'error') throw new Error('expected error');
-    expect(result.current.saveState.message).toBe('Unknown model "gpt-4".');
+    const failedState = result.current.saveStates[agent.id];
+    if (failedState?.kind !== 'error') throw new Error('expected error');
+    expect(failedState.message).toBe('Unknown model "gpt-4".');
   });
 
   it('retries the same patch after a failure', async () => {
@@ -150,13 +213,13 @@ describe('useAgents optimistic update', () => {
     await act(async () => {
       vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
     });
-    await waitFor(() => expect(result.current.saveState.kind).toBe('error'));
+    await waitFor(() => expect(result.current.saveStates[agent.id]?.kind).toBe('error'));
 
     await act(async () => {
       result.current.retrySave();
     });
 
-    await waitFor(() => expect(result.current.saveState.kind).toBe('saved'));
+    await waitFor(() => expect(result.current.saveStates[agent.id]?.kind).toBe('saved'));
     expect(result.current.agents[0]!.name).toBe('Renamed');
     const patches = patchCalls(fetchMock);
     expect(patches).toHaveLength(2);
@@ -231,7 +294,7 @@ describe('useAgents optimistic update', () => {
     await act(async () => {
       rejectFirst?.(new TypeError('network down'));
     });
-    await waitFor(() => expect(result.current.saveState.kind).toBe('error'));
+    await waitFor(() => expect(result.current.saveStates[agent.id]?.kind).toBe('error'));
 
     await act(async () => {
       vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
@@ -295,6 +358,111 @@ describe('useAgents create, duplicate, delete', () => {
 
     expect(outcome).toBe(true);
     expect(result.current.agents).toHaveLength(0);
+  });
+
+  it('cancels a pending autosave when that agent is deleted', async () => {
+    const fetchMock = stubApi({});
+    const { result } = await loaded();
+
+    act(() => result.current.updateAgent(agent.id, { name: 'Do not save me' }));
+    await act(async () => {
+      await result.current.deleteAgent(agent.id);
+      vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    });
+
+    expect(patchCalls(fetchMock)).toHaveLength(0);
+    expect(result.current.agents).toHaveLength(0);
+  });
+
+  it('retries the failed create operation without turning it into an autosave error', async () => {
+    let postAttempt = 0;
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'GET') return json([agent]);
+      if (method === 'POST') {
+        postAttempt += 1;
+        return postAttempt === 1
+          ? json({ error: { code: 'internal_error', message: 'Create failed.' } }, 500)
+          : json({ ...agent, id: 'agent_new', name: 'New agent' }, 201);
+      }
+      return new Response(null, { status: 204 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = await loaded();
+
+    await act(async () => {
+      await result.current.createAgent();
+    });
+    expect(result.current).toHaveProperty('operationError.kind', 'create');
+    expect(result.current).toHaveProperty('operationError.message', 'Create failed.');
+    expect(result.current).toHaveProperty('saveStates', {});
+
+    const retryable = result.current as typeof result.current & {
+      retryOperation: () => Promise<void>;
+    };
+    await act(async () => {
+      await retryable.retryOperation();
+    });
+
+    expect(postAttempt).toBe(2);
+    expect(result.current.agents[0]?.id).toBe('agent_new');
+    expect(result.current).toHaveProperty('operationError', null);
+  });
+
+  it('retries a failed duplicate with the original source agent', async () => {
+    let postAttempt = 0;
+    const fetchMock = stubApi({
+      post: () => {
+        postAttempt += 1;
+        return postAttempt === 1
+          ? json({ error: { code: 'internal_error', message: 'Duplicate failed.' } }, 500)
+          : json({ ...agent, id: 'agent_copy', name: 'Copy of Support Bot' }, 201);
+      },
+    });
+    const { result } = await loaded();
+
+    await act(async () => {
+      await result.current.duplicateAgent(agent.id);
+    });
+    expect(result.current).toHaveProperty('operationError.kind', 'duplicate');
+
+    await act(async () => {
+      await result.current.retryOperation();
+    });
+
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(posts).toHaveLength(2);
+    expect(JSON.parse(String(posts[1]![1]!.body))).toHaveProperty('name', 'Copy of Support Bot');
+    expect(result.current.agents[0]?.id).toBe('agent_copy');
+    expect(result.current.operationError).toBeNull();
+  });
+
+  it('retries a failed delete against the same agent', async () => {
+    let deleteAttempt = 0;
+    const fetchMock = stubApi({
+      del: () => {
+        deleteAttempt += 1;
+        return deleteAttempt === 1
+          ? json({ error: { code: 'internal_error', message: 'Delete failed.' } }, 500)
+          : new Response(null, { status: 204 });
+      },
+    });
+    const { result } = await loaded();
+
+    await act(async () => {
+      await result.current.deleteAgent(agent.id);
+    });
+    expect(result.current).toHaveProperty('operationError.kind', 'delete');
+
+    await act(async () => {
+      await result.current.retryOperation();
+    });
+
+    const deletes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE');
+    expect(deletes).toHaveLength(2);
+    expect(String(deletes[1]![0])).toContain(`/api/agents/${agent.id}`);
+    expect(result.current.agents).toHaveLength(0);
+    expect(result.current.operationError).toBeNull();
   });
 
   it('keeps the agent and reports failure when the delete is rejected', async () => {

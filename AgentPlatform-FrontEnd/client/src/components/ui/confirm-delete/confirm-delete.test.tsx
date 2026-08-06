@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmDelete } from './confirm-delete';
 
-const Harness = ({ onConfirm }: { onConfirm: () => void }) => {
+const Harness = ({ onConfirm, actionLabel }: { onConfirm: () => void; actionLabel?: string }) => {
   const anchor = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -19,6 +19,7 @@ const Harness = ({ onConfirm }: { onConfirm: () => void }) => {
         onConfirm={onConfirm}
         anchor={anchor}
         itemName="Support Bot"
+        actionLabel={actionLabel}
       />
     </div>
   );
@@ -48,5 +49,15 @@ describe('ConfirmDelete', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('uses a configured action name throughout a non-delete confirmation', async () => {
+    render(<Harness onConfirm={() => {}} actionLabel="Clear" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Delete agent' }));
+
+    expect(screen.getByRole('dialog', { name: 'Clear Support Bot' })).toBeInTheDocument();
+    expect(screen.getByText('Clear Support Bot?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 });

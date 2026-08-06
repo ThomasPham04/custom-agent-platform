@@ -149,6 +149,13 @@ describe('AgentTable', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('uses valid action-cell structure without a span around the confirmation portal', () => {
+    render(<AgentTable {...defaults} agents={[make({})]} />);
+    const row = screen.getByRole('row', { name: /Support Bot/ });
+    const actionCell = within(row).getAllByRole('cell').at(-1);
+    expect(actionCell?.querySelector(':scope > span')).toBeNull();
+  });
+
   it('renders skeleton rows while loading and no agent rows', () => {
     render(<AgentTable {...defaults} agents={[]} loading />);
     expect(screen.queryByRole('row', { name: /Support Bot/ })).not.toBeInTheDocument();

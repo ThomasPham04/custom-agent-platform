@@ -20,7 +20,7 @@ Every task's requirements implicitly include this section.
 - **Styling is plain CSS only**, one `.css` file colocated beside the component that uses it. Every color, radius, duration, and spacing value comes from a `var(--token)` defined in `styles/tokens.css`. No hardcoded hex values outside `tokens.css`. No Tailwind, no CSS modules, no CSS-in-JS.
 - **No external network requests at runtime.** Fonts are bundled from npm, never a CDN.
 - **Naming, copied from Apricity:** kebab-case component folders and files (`agent-table/agent-table.tsx`); PascalCase for `components/layout/` files and `pages/` directories; `index.ts` barrel on any multi-file component folder; `index.tsx` as each page entry; page CSS named after the page (`agents.css`).
-- **Colors (§4.1), verbatim:** `--ink` `#37352F`, `--ink-muted` `#787774`, `--ink-faint` `#9B9A97`, `--paper` `#FFFFFF`, `--shell` `#F7F7F5`, `--rule` `#E9E9E7`, `--hover` `rgba(55,53,47,0.06)`, `--active` `rgba(55,53,47,0.08)`, `--signal` `#2383E2`, `--signal-ring` `rgba(35,131,226,0.28)`, `--trace` `#9065B0`, `--trace-ink` `#6940A5`, `--trace-wash` `#E8DEEE`, `--ok` `#448361`, `--warn` `#D9730D`, `--err` `#D44C47`.
+- **Colors (§4.1):** the palette is verbatim except for the approved contrast corrections recorded below: `--ink-muted` is `#6F6E6B`, `--signal` is `#1B6FC4`, and its derivatives are `--signal-ring` `rgba(27,111,196,0.28)` and `--signal-hover` `#155FA8`. The remaining tokens retain their specified values.
 - **`--trace` purple is reserved for tool-call machinery only** (§4.1). It must never style a button, link, heading, or nav item. Text on trace surfaces uses `--trace-ink` for contrast; `#9065B0` is for the rail and glyphs, which are graphics.
 - **Mono is JetBrains Mono** and carries every machine-produced value: tool names, latencies, model IDs, JSON, timestamps, counts, and the system prompt textarea. Always with `font-variant-numeric: tabular-nums` where numbers align.
 - **Focus is always visible.** Every interactive element takes `outline: 2px solid var(--signal); outline-offset: 2px` on `:focus-visible`. Never `outline: none` without a replacement.
@@ -28,9 +28,15 @@ Every task's requirements implicitly include this section.
 - **Copy rules (§10):** sentence case, active voice. Errors state what happened and what to do, never apologize, never stay vague. An action keeps its name through the flow — a **Delete** button produces "Agent deleted".
 - **Commit after every task**, using the message given in that task's final step. Conventional-commit prefixes (`feat:`, `test:`, `chore:`).
 
-## Deviation from the spec, recorded
+## Deviations from the spec, recorded
+
+### Font packaging
 
 The spec's tree (§6.2) lists `src/assets/fonts/Inter/` and `src/assets/fonts/JetBrainsMono/`, mirroring Apricity's vendored `SVN-Coders-Crux`. Apricity vendored that font because it is not distributable from npm. Inter and JetBrains Mono are, so this plan installs `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono` and drops those two folders. The fonts are still self-hosted and bundled — no CDN, no runtime network request — and no binary assets need to be produced by hand.
+
+### Accessible palette
+
+The human reviewer approved two contrast-driven token changes after the live accessibility audit: `--ink-muted` is `#6F6E6B` instead of `#787774`, and `--signal` is `#1B6FC4` instead of `#2383E2`. Their ring and hover derivatives follow the corrected signal color. These values intentionally take precedence over the verbatim palette so secondary text and primary-action text retain accessible contrast; they must not be reverted to the original values.
 
 ## File structure
 
@@ -9635,4 +9641,4 @@ Two additions beyond the spec, both recorded rather than silent:
 1. **Backend tests** (Tasks 1–3). §11 covers frontend testing only. The API is the contract the whole UI depends on, and Supertest coverage of it is cheap. 
 2. **A skip link** (Task 16). §9 requires keyboard operability; with a 240px sidebar preceding the content, a skip link is what makes that requirement real.
 
-One deviation, explained in full at the top of this plan: fonts come from `@fontsource-variable/*` rather than `src/assets/fonts/`.
+Two deviations are explained in full at the top of this plan: fonts come from `@fontsource-variable/*` rather than `src/assets/fonts/`, and the approved contrast-corrected muted/signal tokens take precedence over the original palette values.

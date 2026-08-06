@@ -33,6 +33,12 @@ describe('Popover', () => {
     expect(screen.getByRole('dialog', { name: 'Row actions' })).toBeInTheDocument();
   });
 
+  it('moves focus to the first interactive item when it opens', async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByRole('button', { name: 'Duplicate' })).toHaveFocus();
+  });
+
   it('closes on Escape and returns focus to the anchor', async () => {
     render(<Harness />);
     const anchor = screen.getByRole('button', { name: 'Open menu' });

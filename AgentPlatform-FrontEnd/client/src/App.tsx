@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, useLocation, useNavigate } from 'react-router';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
@@ -13,6 +13,7 @@ const Shell = () => {
   const { agents } = useAgentsContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const menuRef = useRef<HTMLButtonElement>(null);
   const isNarrow = useMediaQuery(BREAKPOINT_SIDEBAR);
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +40,12 @@ const Shell = () => {
 
   return (
     <div className="app">
-      <a className="app__skip" href="#workspace-content">
+      <a
+        className="app__skip"
+        href="#workspace-content"
+        inert={isNarrow && sidebarOpen ? true : undefined}
+        aria-hidden={isNarrow && sidebarOpen ? 'true' : undefined}
+      >
         Skip to content
       </a>
 
@@ -49,6 +55,8 @@ const Shell = () => {
         onClose={() => setSidebarOpen(false)}
         onSearch={onSearch}
         searchQuery={searchQuery}
+        isDrawer={isNarrow}
+        returnFocusRef={menuRef}
       />
 
       {isNarrow && sidebarOpen && (
@@ -56,13 +64,19 @@ const Shell = () => {
           type="button"
           className="app__scrim"
           aria-label="Close sidebar"
+          aria-hidden="true"
+          tabIndex={-1}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <Workspace>
-        <TopBar onOpenSidebar={() => setSidebarOpen(true)} showMenuButton={isNarrow} />
-        <AppRoutes searchQuery={searchQuery} />
+      <Workspace inert={isNarrow && sidebarOpen}>
+        <TopBar
+          menuRef={menuRef}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          showMenuButton={isNarrow}
+        />
+        <AppRoutes searchQuery={searchQuery} onClearSearch={() => setSearchQuery('')} />
       </Workspace>
     </div>
   );

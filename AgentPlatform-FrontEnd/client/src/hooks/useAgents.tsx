@@ -18,12 +18,30 @@ export type SaveState =
   | { kind: 'saved'; at: string }
   | { kind: 'error'; message: string };
 
+export type OperationError =
+  | { kind: 'create'; message: string }
+  | { kind: 'duplicate'; agentId: string; message: string }
+  | { kind: 'delete'; agentId: string; message: string };
+
 interface PendingSave {
   agentId: string;
   patch: AgentPatch;
-  /** The server-confirmed agent to restore if the write fails. */
+  /** The last server-confirmed agent to restore if this queue fails. */
   rollbackTo: Agent;
 }
+
+interface SaveQueue {
+  pending?: PendingSave;
+  failed?: PendingSave;
+  timer?: ReturnType<typeof setTimeout>;
+  processing?: Promise<void>;
+  ready: boolean;
+  generation: number;
+}
+
+// Reading through a helper reflects edits that can arrive while PATCH awaits;
+// TypeScript otherwise keeps the earlier `pending = undefined` narrowing.
+const pendingSave = (queue: SaveQueue) => queue.pending;
 
 const messageOf = (thrown: unknown, fallback: string) =>
   thrown instanceof ApiError ? thrown.message : fallback;
@@ -32,22 +50,54 @@ export const useAgents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
+  const [operationError, setOperationError] = useState<OperationError | null>(null);
 
-  const pending = useRef<PendingSave | null>(null);
-  const failed = useRef<PendingSave | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const agentsRef = useRef<Agent[]>([]);
+  const confirmed = useRef(new Map<string, Agent>());
+  const queues = useRef(new Map<string, SaveQueue>());
   const mounted = useRef(true);
 
-  // Read through a function so TypeScript does not preserve the `null`
-  // narrowing across an await while another callback can update this ref.
-  const readPending = () => pending.current;
+  const mutateAgents = useCallback((update: (current: Agent[]) => Agent[]) => {
+    const next = update(agentsRef.current);
+    agentsRef.current = next;
+    if (mounted.current) setAgents(next);
+  }, []);
+
+  const setAgentSaveState = useCallback((agentId: string, state: SaveState) => {
+    if (!mounted.current) return;
+    setSaveStates((current) => ({ ...current, [agentId]: state }));
+  }, []);
+
+  const clearAgentSaveState = useCallback((agentId: string) => {
+    if (!mounted.current) return;
+    setSaveStates((current) => {
+      if (!(agentId in current)) return current;
+      const next = { ...current };
+      delete next[agentId];
+      return next;
+    });
+  }, []);
+
+  const getQueue = useCallback((agentId: string): SaveQueue => {
+    const existing = queues.current.get(agentId);
+    if (existing) return existing;
+    const created: SaveQueue = { ready: false, generation: 0 };
+    queues.current.set(agentId, created);
+    return created;
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      if (timer.current) clearTimeout(timer.current);
+      for (const queue of queues.current.values()) {
+        if (queue.timer) clearTimeout(queue.timer);
+        queue.generation += 1;
+        queue.pending = undefined;
+        queue.failed = undefined;
+        queue.ready = false;
+      }
     };
   }, []);
 
@@ -56,6 +106,8 @@ export const useAgents = () => {
     try {
       const fetched = await apiGet<Agent[]>('/api/agents');
       if (!mounted.current) return;
+      agentsRef.current = fetched;
+      confirmed.current = new Map(fetched.map((agent) => [agent.id, agent]));
       setAgents(fetched);
       setError(null);
     } catch (thrown) {
@@ -70,106 +122,191 @@ export const useAgents = () => {
     void reload();
   }, [reload]);
 
-  /** Sends whatever is pending. Rolls the optimistic edit back on failure. */
-  const send = useCallback(async (retry = false) => {
-    const save = retry ? failed.current : pending.current;
-    if (!save) return;
+  /**
+   * Drains one agent's queue in order. Other agents have independent queues, so
+   * a slow response cannot replace their pending patches or save indicators.
+   */
+  const processQueue = useCallback(
+    async (agentId: string): Promise<void> => {
+      const queue = getQueue(agentId);
+      if (queue.processing) return queue.processing;
 
-    // Claim the patch up front. Edits made while this request is in flight
-    // start a fresh pending entry rather than joining a batch already sent.
-    if (retry) failed.current = null;
-    else pending.current = null;
-    setSaveState({ kind: 'saving' });
+      const processing = (async () => {
+        while (queue.ready && queue.pending) {
+          const save = queue.pending;
+          const generation = queue.generation;
+          queue.pending = undefined;
+          queue.ready = false;
+          setAgentSaveState(agentId, { kind: 'saving' });
 
-    try {
-      const updated = await apiPatch<Agent>(`/api/agents/${save.agentId}`, save.patch);
-      if (!mounted.current) return;
+          try {
+            const updated = await apiPatch<Agent>(`/api/agents/${agentId}`, save.patch);
+            if (!mounted.current || queue.generation !== generation) return;
 
-      setAgents((current) =>
-        current.map((item) => {
-          if (item.id !== updated.id) return item;
-          /*
-            A newer edit can land while this request is in flight — checking two
-            tool boxes in quick succession does exactly that. The server's reply
-            predates it, so replacing the row outright would silently drop the
-            second edit. Layer the still-pending patch back on top.
-          */
-          const queued = readPending();
-          const newer = queued?.agentId === updated.id ? queued.patch : null;
-          return newer ? { ...updated, ...newer } : updated;
-        }),
-      );
-      setSaveState({ kind: 'saved', at: new Date().toISOString() });
-    } catch (thrown) {
-      if (!mounted.current) return;
+            confirmed.current.set(agentId, updated);
+            mutateAgents((current) =>
+              current.map((item) =>
+                item.id === agentId
+                  ? { ...updated, ...(queue.pending?.patch ?? queue.failed?.patch ?? {}) }
+                  : item,
+              ),
+            );
+            setAgentSaveState(
+              agentId,
+              queue.pending ? { kind: 'saving' } : { kind: 'saved', at: new Date().toISOString() },
+            );
+          } catch (thrown) {
+            if (!mounted.current || queue.generation !== generation) return;
 
-      // Keep a failed retry separate from another agent's queued edit. If the
-      // newer edit belongs to this agent, fold it into the retry instead.
-      const queued = readPending();
-      const newer = queued?.agentId === save.agentId ? queued : null;
-      failed.current = newer
-        ? { ...newer, patch: { ...save.patch, ...newer.patch }, rollbackTo: save.rollbackTo }
-        : save;
-      if (newer) pending.current = null;
+            const newer = pendingSave(queue);
+            queue.failed = newer
+              ? {
+                  agentId,
+                  patch: { ...save.patch, ...newer.patch },
+                  rollbackTo: save.rollbackTo,
+                }
+              : save;
+            queue.pending = undefined;
+            queue.ready = false;
+            if (queue.timer) clearTimeout(queue.timer);
+            queue.timer = undefined;
 
-      setAgents((current) =>
-        current.map((item) => (item.id === save.agentId ? save.rollbackTo : item)),
-      );
-      setSaveState({ kind: 'error', message: messageOf(thrown, 'Could not save.') });
-    }
-  }, []);
+            const rollback = confirmed.current.get(agentId) ?? save.rollbackTo;
+            mutateAgents((current) =>
+              current.map((item) => (item.id === agentId ? rollback : item)),
+            );
+            setAgentSaveState(agentId, {
+              kind: 'error',
+              message: messageOf(thrown, 'Could not save.'),
+            });
+            return;
+          }
+        }
+      })();
+
+      queue.processing = processing;
+      try {
+        await processing;
+      } finally {
+        if (queue.processing === processing) queue.processing = undefined;
+      }
+    },
+    [getQueue, mutateAgents, setAgentSaveState],
+  );
 
   const updateAgent = useCallback(
     (id: string, patch: AgentPatch) => {
-      setAgents((current) => {
-        const existing = current.find((item) => item.id === id);
-        if (!existing) return current;
+      const existing = agentsRef.current.find((item) => item.id === id);
+      if (!existing) return;
 
-        // Capture the rollback target once per burst, not on every keystroke.
-        pending.current = {
+      const queue = getQueue(id);
+      const rollbackTo = confirmed.current.get(id) ?? existing;
+
+      if (queue.failed) {
+        queue.failed = {
           agentId: id,
-          patch: {
-            ...(pending.current?.agentId === id ? pending.current.patch : {}),
-            ...patch,
-          },
-          rollbackTo: pending.current?.agentId === id ? pending.current.rollbackTo : existing,
+          patch: { ...queue.failed.patch, ...patch },
+          rollbackTo: queue.failed.rollbackTo,
         };
+      } else {
+        queue.pending = {
+          agentId: id,
+          patch: { ...queue.pending?.patch, ...patch },
+          rollbackTo: queue.pending?.rollbackTo ?? rollbackTo,
+        };
+      }
 
-        return current.map((item) => (item.id === id ? { ...item, ...patch } : item));
-      });
+      mutateAgents((current) =>
+        current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      );
 
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void send(), AUTOSAVE_DELAY_MS);
+      if (queue.failed) return;
+      setAgentSaveState(id, { kind: 'saving' });
+      if (queue.timer) clearTimeout(queue.timer);
+      queue.timer = setTimeout(() => {
+        queue.timer = undefined;
+        queue.ready = true;
+        void processQueue(id);
+      }, AUTOSAVE_DELAY_MS);
     },
-    [send],
+    [getQueue, mutateAgents, processQueue, setAgentSaveState],
   );
 
-  const flushUpdates = useCallback(async () => {
-    if (timer.current) clearTimeout(timer.current);
-    await send();
-  }, [send]);
+  const flushUpdates = useCallback(
+    async (agentId?: string) => {
+      const ids = agentId ? [agentId] : [...queues.current.keys()];
+      await Promise.all(
+        ids.map(async (id) => {
+          const queue = getQueue(id);
+          if (queue.timer) clearTimeout(queue.timer);
+          queue.timer = undefined;
+          if (queue.pending) queue.ready = true;
+          await processQueue(id);
+        }),
+      );
+    },
+    [getQueue, processQueue],
+  );
 
-  const retrySave = useCallback(() => {
-    void send(true);
-  }, [send]);
+  const retrySave = useCallback(
+    (agentId?: string) => {
+      const id = agentId ?? [...queues.current.entries()].find(([, queue]) => queue.failed)?.[0];
+      if (!id) return;
+      const queue = getQueue(id);
+      const failed = queue.failed;
+      if (!failed) return;
+
+      queue.failed = undefined;
+      queue.pending = failed;
+      queue.ready = true;
+      mutateAgents((current) =>
+        current.map((item) => (item.id === id ? { ...item, ...failed.patch } : item)),
+      );
+      setAgentSaveState(id, { kind: 'saving' });
+      void processQueue(id);
+    },
+    [getQueue, mutateAgents, processQueue, setAgentSaveState],
+  );
+
+  const cancelAgentSaves = useCallback(
+    (agentId: string) => {
+      const queue = getQueue(agentId);
+      queue.generation += 1;
+      if (queue.timer) clearTimeout(queue.timer);
+      queue.timer = undefined;
+      queue.pending = undefined;
+      queue.failed = undefined;
+      queue.ready = false;
+      clearAgentSaveState(agentId);
+    },
+    [clearAgentSaveState, getQueue],
+  );
 
   const createAgent = useCallback(async (): Promise<Agent | null> => {
+    setOperationError(null);
     try {
       const created = await apiPost<Agent>('/api/agents', {});
-      if (mounted.current) setAgents((current) => [created, ...current]);
+      if (mounted.current) {
+        confirmed.current.set(created.id, created);
+        mutateAgents((current) => [created, ...current]);
+      }
       return created;
     } catch (thrown) {
       if (mounted.current) {
-        setSaveState({ kind: 'error', message: messageOf(thrown, 'Could not create the agent.') });
+        setOperationError({
+          kind: 'create',
+          message: messageOf(thrown, 'Could not create the agent.'),
+        });
       }
       return null;
     }
-  }, []);
+  }, [mutateAgents]);
 
   const duplicateAgent = useCallback(
     async (id: string): Promise<Agent | null> => {
-      const source = agents.find((item) => item.id === id);
+      const source = agentsRef.current.find((item) => item.id === id);
       if (!source) return null;
+      setOperationError(null);
 
       try {
         const copy = await apiPost<Agent>('/api/agents', {
@@ -182,45 +319,82 @@ export const useAgents = () => {
           // A copy starts as a draft: it has not been tested under its new name.
           status: 'draft',
         });
-        if (mounted.current) setAgents((current) => [copy, ...current]);
+        if (mounted.current) {
+          confirmed.current.set(copy.id, copy);
+          mutateAgents((current) => [copy, ...current]);
+        }
         return copy;
       } catch (thrown) {
         if (mounted.current) {
-          setSaveState({
-            kind: 'error',
+          setOperationError({
+            kind: 'duplicate',
+            agentId: id,
             message: messageOf(thrown, 'Could not duplicate the agent.'),
           });
         }
         return null;
       }
     },
-    [agents],
+    [mutateAgents],
   );
 
-  const deleteAgent = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      await apiDelete(`/api/agents/${id}`);
-      if (mounted.current) setAgents((current) => current.filter((item) => item.id !== id));
-      return true;
-    } catch (thrown) {
-      if (mounted.current) {
-        setSaveState({ kind: 'error', message: messageOf(thrown, 'Could not delete the agent.') });
+  const deleteAgent = useCallback(
+    async (id: string): Promise<boolean> => {
+      setOperationError(null);
+      cancelAgentSaves(id);
+      try {
+        await apiDelete(`/api/agents/${id}`);
+        if (mounted.current) {
+          confirmed.current.delete(id);
+          mutateAgents((current) => current.filter((item) => item.id !== id));
+        }
+        return true;
+      } catch (thrown) {
+        if (mounted.current) {
+          setOperationError({
+            kind: 'delete',
+            agentId: id,
+            message: messageOf(thrown, 'Could not delete the agent.'),
+          });
+        }
+        return false;
       }
-      return false;
+    },
+    [cancelAgentSaves, mutateAgents],
+  );
+
+  const retryOperation = useCallback(async () => {
+    const failedOperation = operationError;
+    if (!failedOperation) return null;
+    if (failedOperation.kind === 'create') {
+      return { kind: 'create' as const, agent: await createAgent() };
+    } else if (failedOperation.kind === 'duplicate') {
+      return {
+        kind: 'duplicate' as const,
+        agent: await duplicateAgent(failedOperation.agentId),
+      };
+    } else {
+      return {
+        kind: 'delete' as const,
+        agentId: failedOperation.agentId,
+        deleted: await deleteAgent(failedOperation.agentId),
+      };
     }
-  }, []);
+  }, [createAgent, deleteAgent, duplicateAgent, operationError]);
 
   return {
     agents,
     loading,
     error,
-    saveState,
+    saveStates,
+    operationError,
     createAgent,
     duplicateAgent,
     updateAgent,
     flushUpdates,
     deleteAgent,
     retrySave,
+    retryOperation,
     reload,
   };
 };

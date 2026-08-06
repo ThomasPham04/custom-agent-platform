@@ -94,7 +94,7 @@ const AgentRow = ({
         </span>
       </td>
       <td className="agent-row__updated mono">{formatRelativeTime(agent.updatedAt)}</td>
-      <td className="agent-row__actions">
+      <td className="agent-row__actions" onClick={(event) => event.stopPropagation()}>
         <button
           ref={menuRef}
           type="button"
@@ -154,16 +154,13 @@ const AgentRow = ({
           </button>
         </Popover>
 
-        {/* The row is clickable; clicks inside the confirm must not select it. */}
-        <span onClick={(event) => event.stopPropagation()}>
-          <ConfirmDelete
-            open={confirmOpen}
-            onClose={() => setConfirmOpen(false)}
-            onConfirm={() => onDelete(agent.id)}
-            anchor={menuRef}
-            itemName={agent.name}
-          />
-        </span>
+        <ConfirmDelete
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={() => onDelete(agent.id)}
+          anchor={menuRef}
+          itemName={agent.name}
+        />
       </td>
     </tr>
   );

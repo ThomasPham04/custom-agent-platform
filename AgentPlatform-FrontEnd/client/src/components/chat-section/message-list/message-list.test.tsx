@@ -140,7 +140,35 @@ describe('MessageList turns', () => {
     ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(onRetry).toHaveBeenCalledOnce();
+    expect(onRetry).toHaveBeenCalledWith('msg_a');
+  });
+
+  it('binds each historical Retry button to its own failed turn', async () => {
+    const onRetry = vi.fn();
+    const firstFailed: Message = {
+      id: 'failed_first',
+      role: 'assistant',
+      content: 'first failed',
+      status: 'error',
+      createdAt: '2026-08-04T12:00:01.000Z',
+    };
+    const secondUser = { ...user, id: 'msg_u_2', content: 'second question' };
+    const secondFailed = {
+      ...firstFailed,
+      id: 'failed_second',
+      content: 'second failed',
+    };
+
+    render(
+      <MessageList
+        {...defaults}
+        messages={[user, firstFailed, secondUser, secondFailed]}
+        onRetry={onRetry}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('button', { name: 'Retry' })[0]!);
+
+    expect(onRetry).toHaveBeenCalledWith('failed_first');
   });
 
   it('announces the outcome in a polite live region', () => {

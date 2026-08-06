@@ -33,6 +33,12 @@ const assistant = (over: Partial<Message> = {}): Message => ({
   ...over,
 });
 
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
 const stubPost = (body: unknown, status = 200) =>
   vi.stubGlobal(
     'fetch',
@@ -197,6 +203,30 @@ describe('useChat send', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('prevents overlapping runs for the same agent before React rerenders', async () => {
+    let resolveRequest: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(
+      async () =>
+        new Promise<Response>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    act(() => {
+      void result.current.send('first');
+      void result.current.send('second');
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.current.messages).toHaveLength(2);
+
+    await act(async () => {
+      resolveRequest?.(jsonResponse({ message: assistant({ toolCalls: [] }) }));
+    });
+  });
 });
 
 describe('useChat failure and retry', () => {
@@ -247,6 +277,39 @@ describe('useChat failure and retry', () => {
       retry: true,
     });
   });
+
+  it('retries the user message paired with a specific historical failure', async () => {
+    const responses = [
+      { message: assistant({ id: 'failed_one', content: 'first failed', status: 'error', toolCalls: [] }) },
+      { message: assistant({ id: 'failed_two', content: 'second failed', status: 'error', toolCalls: [] }) },
+      { message: assistant({ id: 'retried', content: 'first succeeded', status: 'done', toolCalls: [] }) },
+    ];
+    const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
+      jsonResponse(responses.shift()),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    await act(async () => {
+      await result.current.send('first question');
+    });
+    await act(async () => {
+      await result.current.send('second question');
+    });
+
+    expect(result.current).toHaveProperty('retry');
+    const retryable = result.current as typeof result.current & {
+      retry: (messageId: string) => Promise<void>;
+    };
+    await act(async () => {
+      await retryable.retry('failed_one');
+    });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[2]![1]!.body))).toEqual({
+      content: 'first question',
+      retry: true,
+    });
+  });
 });
 
 describe('useChat threads', () => {
@@ -289,5 +352,44 @@ describe('useChat threads', () => {
 
     rerender({ id: 'agent_support' });
     expect(result.current.messages).toHaveLength(2);
+  });
+
+  it('keeps in-flight state scoped to the agent when switching threads', async () => {
+    const resolvers = new Map<string, (response: Response) => void>();
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const id = String(url).includes('agent_support') ? 'agent_support' : 'agent_research';
+      return new Promise<Response>((resolve) => resolvers.set(id, resolve));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result, rerender } = renderHook(({ id }: { id: string }) => useChat(id), {
+      initialProps: { id: 'agent_support' },
+    });
+
+    act(() => {
+      void result.current.send('support question');
+    });
+    expect(result.current.sending).toBe(true);
+
+    rerender({ id: 'agent_research' });
+    expect(result.current.sending).toBe(false);
+    act(() => {
+      void result.current.send('research question');
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolvers
+        .get('agent_research')
+        ?.(jsonResponse({ message: assistant({ id: 'research_done', toolCalls: [] }) }));
+    });
+    expect(result.current.sending).toBe(false);
+
+    rerender({ id: 'agent_support' });
+    expect(result.current.sending).toBe(true);
+    await act(async () => {
+      resolvers
+        .get('agent_support')
+        ?.(jsonResponse({ message: assistant({ id: 'support_done', toolCalls: [] }) }));
+    });
   });
 });

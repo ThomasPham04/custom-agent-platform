@@ -95,6 +95,28 @@ describe('POST /api/chat/:agentId/messages', () => {
     expect(res.body.error.code).toBe('bad_request');
   });
 
+  it('rejects retry metadata with the wrong type', async () => {
+    const res = await request(app())
+      .post('/api/chat/agent_support/messages')
+      .send({ content: 'hi', retry: 'yes' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({
+      code: 'bad_request',
+      message: 'retry must be a boolean.',
+    });
+  });
+
+  it('rejects messages beyond the content limit', async () => {
+    const res = await request(app())
+      .post('/api/chat/agent_support/messages')
+      .send({ content: 'x'.repeat(10001) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({
+      code: 'bad_request',
+      message: 'content must be at most 10000 characters.',
+    });
+  });
+
   it('404s for an unknown agent', async () => {
     const res = await request(app()).post('/api/chat/agent_nope/messages').send({ content: 'hi' });
     expect(res.status).toBe(404);

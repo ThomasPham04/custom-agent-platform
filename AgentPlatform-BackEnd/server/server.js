@@ -23,9 +23,27 @@ export const createApp = () => {
 
   // Four parameters are required for Express to treat this as an error handler.
   app.use((err, _req, res, _next) => {
-    const status = err instanceof HttpError ? err.status : 500;
-    const code = err instanceof HttpError ? err.code : 'internal_error';
-    const message = status === 500 ? 'Something went wrong on the server.' : err.message;
+    const parserType =
+      typeof err === 'object' && err !== null && 'type' in err && typeof err.type === 'string'
+        ? err.type
+        : null;
+    const isMalformedJson = parserType === 'entity.parse.failed';
+    const isOversizedBody = parserType === 'entity.too.large';
+    const status = err instanceof HttpError ? err.status : isMalformedJson ? 400 : isOversizedBody ? 413 : 500;
+    const code = err instanceof HttpError
+      ? err.code
+      : isMalformedJson
+        ? 'bad_request'
+        : isOversizedBody
+          ? 'payload_too_large'
+          : 'internal_error';
+    const message = err instanceof HttpError
+      ? err.message
+      : isMalformedJson
+        ? 'Malformed JSON body.'
+        : isOversizedBody
+          ? 'Request body is too large.'
+          : 'Something went wrong on the server.';
     if (status === 500) console.error(err);
     res.status(status).json({ error: { code, message } });
   });

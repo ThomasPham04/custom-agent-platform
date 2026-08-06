@@ -90,4 +90,25 @@ describe('ToolPicker', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search tools' }), 'teleport');
     expect(screen.getByText('No tools match that search.')).toBeInTheDocument();
   });
+
+  it('moves through tools with arrows, toggles with Space, and closes with Enter', async () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const trigger = screen.getByRole('button', { name: 'Add tool' });
+    await userEvent.click(trigger);
+
+    const search = screen.getByRole('searchbox', { name: 'Search tools' });
+    expect(search).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(screen.getByRole('checkbox', { name: /Current time/ })).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(screen.getByRole('checkbox', { name: /HTTP request/ })).toHaveFocus();
+
+    await userEvent.keyboard(' ');
+    expect(onChange).toHaveBeenLastCalledWith(['current_time', 'http_request']);
+
+    await userEvent.keyboard('{Enter}');
+    expect(screen.queryByRole('dialog', { name: 'Attach tools' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
 });

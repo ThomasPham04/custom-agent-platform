@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { AgentForm } from '../agent-form/agent-form';
 import { ConfirmDelete } from '../../ui/confirm-delete';
 import { Popover } from '../../ui/popover';
 import { AGENT_ICONS } from '../../../lib/agent-icons';
 import { formatClockTime } from '../../../lib/format';
 import { BREAKPOINT_SHEET, useMediaQuery } from '../../../hooks/useMediaQuery';
+import { useModalFocus } from '../../../hooks/useModalFocus';
 import type { SaveState } from '../../../hooks/useAgents';
 import type { Agent, AgentPatch } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
@@ -19,6 +20,11 @@ interface AgentPeekProps {
   onRetrySave: () => void;
   onDelete: () => void;
   onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  focusName?: boolean;
+  onNameFocused?: () => void;
+  operationError?: string;
+  onRetryOperation?: () => void;
 }
 
 const SaveReadout = ({
@@ -48,6 +54,26 @@ const SaveReadout = ({
   );
 };
 
+const OperationReadout = ({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) => (
+  <p className="agent-peek__save agent-peek__save--error" role="alert">
+    <span className="mono">{message}</span>
+    <button
+      type="button"
+      className="agent-peek__retry"
+      aria-label="Retry delete"
+      onClick={onRetry}
+    >
+      Retry
+    </button>
+  </p>
+);
+
 export const AgentPeek = ({
   agent,
   tools,
@@ -57,13 +83,35 @@ export const AgentPeek = ({
   onRetrySave,
   onDelete,
   onClose,
+  returnFocusRef,
+  focusName = false,
+  onNameFocused,
+  operationError,
+  onRetryOperation,
 }: AgentPeekProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLButtonElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
   const [iconOpen, setIconOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const isSheet = useMediaQuery(BREAKPOINT_SHEET);
+
+  useModalFocus({
+    active: isSheet,
+    containerRef: panelRef,
+    returnFocusRef,
+    isolateOutside: true,
+  });
+
+  useLayoutEffect(() => {
+    if (!focusName) return;
+    const name = nameRef.current;
+    if (!name) return;
+    name.focus();
+    name.select();
+    onNameFocused?.();
+  }, [agent.id, focusName, onNameFocused]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -72,34 +120,6 @@ export const AgentPeek = ({
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
-
-  // As a bottom sheet the table is hidden behind it, so focus must stay inside.
-  useEffect(() => {
-    if (!isSheet) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab') return;
-      const focusable = panel.querySelectorAll<HTMLElement>(
-        'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    panel.addEventListener('keydown', onKeyDown);
-    return () => panel.removeEventListener('keydown', onKeyDown);
-  }, [isSheet]);
 
   return (
     <div
@@ -148,6 +168,7 @@ export const AgentPeek = ({
         </Popover>
 
         <input
+          ref={nameRef}
           type="text"
           className="agent-peek__name"
           aria-label="Agent name"
@@ -195,6 +216,9 @@ export const AgentPeek = ({
 
       <div className="agent-peek__footer">
         <SaveReadout saveState={saveState} onRetrySave={onRetrySave} />
+        {operationError && onRetryOperation && (
+          <OperationReadout message={operationError} onRetry={onRetryOperation} />
+        )}
       </div>
 
       <ConfirmDelete

@@ -10,6 +10,7 @@ interface PopoverProps {
   children: ReactNode;
   align?: 'start' | 'end';
   width?: number;
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 export const Popover = ({
@@ -20,6 +21,7 @@ export const Popover = ({
   children,
   align = 'start',
   width,
+  initialFocus,
 }: PopoverProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -44,6 +46,16 @@ export const Popover = ({
       left: Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8)),
     });
   }, [open, anchor, align, width]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const target =
+      initialFocus?.current ??
+      panelRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      );
+    target?.focus();
+  }, [initialFocus, open]);
 
   useEffect(() => {
     if (!open) return;

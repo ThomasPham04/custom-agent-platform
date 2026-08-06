@@ -48,6 +48,52 @@ describe('POST /api/agents', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.message).toContain('teleport');
   });
+
+  it.each([
+    ['name', null],
+    ['icon', 7],
+    ['description', false],
+    ['model', null],
+    ['systemPrompt', []],
+    ['status', null],
+  ])('rejects a non-string %s', async (field, value) => {
+    const res = await request(app()).post('/api/agents').send({ [field]: value });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({
+      code: 'bad_request',
+      message: `${field} must be a string.`,
+    });
+  });
+
+  it.each([
+    ['name', 121],
+    ['icon', 33],
+    ['description', 2001],
+    ['systemPrompt', 20001],
+  ])('rejects %s beyond its documented limit', async (field, length) => {
+    const res = await request(app()).post('/api/agents').send({ [field]: 'x'.repeat(length) });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('bad_request');
+    expect(res.body.error.message).toContain(`${field} must be at most`);
+  });
+
+  it('rejects a non-object request body', async () => {
+    const res = await request(app()).post('/api/agents').send([]);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({
+      code: 'bad_request',
+      message: 'Request body must be a JSON object.',
+    });
+  });
+
+  it('rejects non-string tool ids', async () => {
+    const res = await request(app()).post('/api/agents').send({ toolIds: ['current_time', null] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({
+      code: 'bad_request',
+      message: 'toolIds must contain only strings.',
+    });
+  });
 });
 
 describe('PATCH /api/agents/:id', () => {
