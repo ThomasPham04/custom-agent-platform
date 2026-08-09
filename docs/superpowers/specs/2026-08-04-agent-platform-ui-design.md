@@ -286,6 +286,13 @@ Hook responsibilities:
 
 ### 6.4 Backend
 
+> **Superseded 2026-08-09.** This section describes the Express implementation, which has
+> been deleted. The REST contract it defined is unchanged and is now recorded in
+> `docs/superpowers/references/express-contract-reference.md`; the replacement architecture
+> is in `docs/superpowers/specs/2026-08-08-agent-platform-backend-architecture-design.md`.
+> Everything else in this spec — the visual system, the interaction model, §8.2 client-side
+> pacing — still stands.
+
 Express 5, plain JavaScript, ESM. `server.js` mounts CORS for the Vite dev origin, JSON body
 parsing, the three route modules, a 404 handler, and an error handler that returns
 `{ error: { code, message } }`.
