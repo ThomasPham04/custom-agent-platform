@@ -11,10 +11,11 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'retain-on-failure',
   },
-  // Both servers, torn down together. The API reseeds its fixture store on boot.
+  // Both servers, torn down together. The API reseeds its store on boot.
   webServer: [
     {
-      command: 'npm start',
+      // The backend is Python now. See AgentPlatform-BackEnd/README.md for setup.
+      command: 'uv run uvicorn app.main:app --port 4000',
       cwd: '../../AgentPlatform-BackEnd/server',
       url: 'http://localhost:4000/api/health',
       reuseExistingServer: !process.env.CI,

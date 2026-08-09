@@ -1,34 +1,31 @@
 # Custom Agent Platform
 
 A proof of concept for configuring AI agents, attaching tools to them, and
-testing a run end to end. This repository currently contains the **UI layer**
-and an Express API that answers with fixtures behind the final REST contract.
+testing a run end to end.
+
+> **The backend is being rebuilt and does not currently run.** The Express
+> fixture API was deleted on 2026-08-09 and is being replaced, in the same
+> folder, by a Python service on FastAPI + Google ADK. The UI still builds and
+> its unit tests still pass, but nothing answers on `:4000` yet, so the "Run it"
+> steps below only bring up the frontend. See
+> [the migration docs](#migration) for where this is going.
 
 ## Layout
 
 | Folder | What it is |
 | --- | --- |
-| `AgentPlatform-BackEnd/server` | Express 5 API, plain JS. Fixture handlers. |
+| `AgentPlatform-BackEnd/server` | The API. Python 3.12 + FastAPI on port 4000. Being built. |
 | `AgentPlatform-BackEnd/deployment` | Docker Compose scaffold |
 | `AgentPlatform-FrontEnd/client` | React 19 + TypeScript UI on Vite |
-| `docs/superpowers/specs` | Design spec |
-| `docs/superpowers/plans` | Implementation plan |
+| `docs/superpowers/specs` | Design specs |
+| `docs/superpowers/plans` | Implementation plans |
+| `docs/superpowers/references` | The REST contract, transcribed from the deleted Express API |
 
 ## Run it
-
-Open two terminals at the repository root.
 
 ### Windows PowerShell
 
 ```powershell
-# Terminal 1 — API
-Set-Location .\AgentPlatform-BackEnd\server
-npm install
-npm run dev
-```
-
-```powershell
-# Terminal 2 — UI
 Set-Location .\AgentPlatform-FrontEnd\client
 npm install
 npm run dev
@@ -37,42 +34,22 @@ npm run dev
 ### Bash/POSIX
 
 ```bash
-# Terminal 1 — API
-cd AgentPlatform-BackEnd/server
-npm install
-npm run dev
-```
-
-```bash
-# Terminal 2 — UI
 cd AgentPlatform-FrontEnd/client
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. The UI loads, and every request to `/api` fails
+until the Python backend exists — agent lists render empty and the health pill
+in the sidebar reads offline.
 
-Or with containers:
-
-### Windows PowerShell
-
-```powershell
-Set-Location .\AgentPlatform-BackEnd\deployment
-Copy-Item .\deploy\env\backend.env.example .\deploy\env\backend.env
-docker compose up --build
-```
-
-### Bash/POSIX
-
-```bash
-cd AgentPlatform-BackEnd/deployment
-cp deploy/env/backend.env.example deploy/env/backend.env
-docker compose up --build
-```
-
-Open `http://localhost:8080`.
+Containers (`docker compose up --build` from `AgentPlatform-BackEnd/deployment`,
+then `http://localhost:8080`) are blocked on the same thing: the `api` service
+has no image to build until Phase 0 lands.
 
 ## What works today
+
+In the UI, against a backend that answers the contract:
 
 - Create, rename, configure, duplicate, and delete agents
 - Set a system prompt, a Gemini model, and a set of tools per agent
@@ -80,20 +57,26 @@ Open `http://localhost:8080`.
   step to see the arguments it was called with and what it returned
 - Autosave with a visible save state, and a recoverable failure path
 
-## What is still a fixture
+## Migration
 
-Agents live in memory and reset when the API restarts. Runs are canned: the
-tool calls, their durations, and the answers all come from
-`AgentPlatform-BackEnd/server/data/runs.js`. Sending a message containing the
-word `fail` produces a failed tool call, which is how the error path is
-reachable without editing code.
+The Express API returned fixtures behind the final REST contract: agents lived
+in memory, runs were canned, and there was no LLM provider. Rather than swap the
+fixtures for real implementations in place, the backend is being rewritten in
+Python — Google ADK has no JavaScript runtime, and the brief calls for ADK.
 
-Replacing the fixtures means rewriting two modules and nothing else:
-`services/agentStore.js` for persistence and
-`services/mockExecutionService.js` for real execution. The frontend talks only
-to the REST contract and does not change.
+The REST contract is preserved byte for byte, so the frontend is untouched.
+
+| Document | Role |
+| --- | --- |
+| [`specs/2026-08-08-...-backend-architecture-design.md`](docs/superpowers/specs/2026-08-08-agent-platform-backend-architecture-design.md) | Modules, ports, data model, decisions |
+| [`plans/2026-08-08-...-phase-0-skeleton.md`](docs/superpowers/plans/2026-08-08-agent-platform-backend-phase-0-skeleton.md) | Phase 0, task by task |
+| [`references/express-contract-reference.md`](docs/superpowers/references/express-contract-reference.md) | **The contract.** Seed data, fixtures, exact error strings, and every behaviour the deleted tests asserted |
+
+One fixture behaviour is worth knowing because the UI depends on it: sending a
+message containing the word `fail` produces a failed tool call, which is how the
+error path stays reachable without editing code.
 
 ## Documentation
 
-- Design spec: `docs/superpowers/specs/2026-08-04-agent-platform-ui-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-08-04-agent-platform-ui.md`
+- UI design spec: `docs/superpowers/specs/2026-08-04-agent-platform-ui-design.md`
+- UI implementation plan: `docs/superpowers/plans/2026-08-04-agent-platform-ui.md`
