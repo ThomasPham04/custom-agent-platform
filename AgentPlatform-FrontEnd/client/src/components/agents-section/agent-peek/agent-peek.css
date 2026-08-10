@@ -1,0 +1,181 @@
+.agent-peek {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--peek-width);
+  width: var(--peek-width);
+  height: 100%;
+  background: var(--paper);
+  border-left: 1px solid var(--rule);
+  box-shadow: var(--shadow-peek);
+  animation: peek-in var(--dur-slow) var(--ease);
+}
+
+@keyframes peek-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-peek {
+    animation: none;
+  }
+}
+
+.agent-peek__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-7) var(--space-5);
+}
+
+.agent-peek__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.agent-peek__icon:hover {
+  background: var(--hover);
+}
+
+.agent-peek__icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.agent-peek__icon-option {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+}
+
+.agent-peek__icon-option:hover,
+.agent-peek__icon-option[aria-pressed='true'] {
+  background: var(--active);
+}
+
+.agent-peek__name {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--text-peek-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.agent-peek__name:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.agent-peek__close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+}
+
+.agent-peek__close:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.agent-peek__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.agent-peek__danger {
+  padding: 0 var(--space-7) var(--space-8);
+}
+
+.agent-peek__footer {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 var(--space-7) var(--space-5);
+}
+
+.agent-peek__save {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.agent-peek__save--error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--err);
+}
+
+.agent-peek__retry {
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  color: var(--signal);
+  text-decoration: underline;
+}
+
+/* Under 700px the table is gone, so the panel becomes a sheet. */
+@media (max-width: 700px) {
+  .agent-peek--sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 55;
+    width: 100%;
+    height: 92vh;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-sheet);
+    animation: sheet-in var(--dur-slow) var(--ease);
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+
+  .agent-peek--sheet .agent-peek__header {
+    position: relative;
+    padding-top: var(--space-7);
+  }
+
+  /* The drag handle is decorative; the close button does the real work. */
+  .agent-peek--sheet .agent-peek__header::before {
+    content: '';
+    position: absolute;
+    top: var(--space-3);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--rule);
+  }
+}
+
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .agent-peek--sheet {
+    animation: none;
+  }
+}

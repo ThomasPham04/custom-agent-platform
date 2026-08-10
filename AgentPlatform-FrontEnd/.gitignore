@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+e2e-results/
+playwright-report/
+*.log
+
+# Stray Playwright output from earlier task runs
+e2e-results-*/

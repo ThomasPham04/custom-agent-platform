@@ -1,0 +1,63 @@
+.popover {
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  max-width: calc(100vw - 16px);
+  padding: var(--space-2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  animation: popover-in var(--dur-mid) var(--ease);
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation: none;
+  }
+}
+
+/* Shared menu-row look for every popover that lists actions. */
+.popover__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-ui);
+  color: var(--ink);
+  text-align: left;
+}
+
+.popover__item:hover {
+  background: var(--hover);
+}
+
+.popover__item--danger {
+  color: var(--err);
+}
+
+.popover__item--danger:hover {
+  background: var(--err-wash);
+}
+
+.popover__divider {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--rule);
+}
+
+.popover__note {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}

@@ -1,0 +1,63 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 20px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+  /* Shrink before clipping when several chips share a narrow cell. */
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.chip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip--neutral {
+  background: var(--shell);
+  color: var(--ink-muted);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+/* The only place the trace palette appears outside the chat trace. */
+.chip--trace {
+  background: var(--trace-wash);
+  color: var(--trace-ink);
+}
+
+.chip--ok {
+  background: transparent;
+  color: var(--ok);
+}
+
+.chip--draft {
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  opacity: 0.6;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.chip__remove:hover {
+  opacity: 1;
+  background: var(--active);
+}

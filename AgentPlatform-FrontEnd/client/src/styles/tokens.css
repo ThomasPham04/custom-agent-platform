@@ -1,0 +1,91 @@
+:root {
+  /* Color — §4.1. Warm near-black, never pure black. */
+  --ink: #37352f;
+  --ink-muted: #6f6e6b;
+  --ink-faint: #9b9a97;
+  --paper: #ffffff;
+  --shell: #f7f7f5;
+  --rule: #e9e9e7;
+  --hover: rgba(55, 53, 47, 0.06);
+  --active: rgba(55, 53, 47, 0.08);
+  --scrim: rgba(15, 15, 15, 0.28);
+
+  --signal: #1b6fc4;
+  --signal-ring: rgba(27, 111, 196, 0.28);
+  --signal-hover: #155fa8;
+
+  /* Reserved for tool-call machinery only. Never a button, link, or heading. */
+  --trace: #9065b0;
+  --trace-ink: #6940a5;
+  --trace-wash: #e8deee;
+
+  --ok: #448361;
+  --warn: #d9730d;
+  --err: #d44c47;
+  --err-hover: #c1403c;
+  --err-wash: #ffe2dd;
+
+  /* Type */
+  --font-ui: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
+    Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  --text-title: 40px;
+  --text-peek-title: 24px;
+  --text-heading: 16px;
+  --text-body: 16px;
+  --text-ui: 14px;
+  --text-label: 12px;
+  --text-meta: 11px;
+
+  /* Space */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* Radius — 3px is Notion's default, and it is deliberate. */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* Elevation, used sparingly. A rule beats a shadow wherever a rule will do. */
+  --shadow-popover: 0 14px 28px -6px rgba(15, 15, 15, 0.15), 0 2px 4px rgba(15, 15, 15, 0.1);
+  --shadow-peek: -4px 0 16px -6px rgba(15, 15, 15, 0.12);
+  --shadow-sheet: 0 -8px 24px -8px rgba(15, 15, 15, 0.18);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --peek-width: 480px;
+  --content-width: 708px;
+  --topbar-height: 45px;
+  --row-height: 40px;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-mid: 180ms;
+  --dur-slow: 240ms;
+  --dur-progress: 700ms;
+  --dur-progress-reduced: 2000ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/*
+  One lever switches off every transition and animation in the app. Components
+  animate with var(--dur-*) and need no media query of their own.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-mid: 1ms;
+    --dur-slow: 1ms;
+  }
+}

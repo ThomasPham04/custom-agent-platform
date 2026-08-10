@@ -1,0 +1,70 @@
+.trace-rail {
+  position: relative;
+  padding-left: var(--space-5);
+}
+
+.trace-rail__line {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--trace) 24%, transparent);
+}
+
+.trace-rail__line--failed {
+  background: color-mix(in srgb, var(--err) 28%, transparent);
+}
+
+/*
+  The sweep runs only while a step is in flight. It is decoration on top of a
+  state that is already announced in text, so reduced motion can drop it.
+*/
+.trace-rail--running .trace-rail__line {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--trace) 12%, transparent),
+    var(--trace),
+    color-mix(in srgb, var(--trace) 12%, transparent)
+  );
+  background-size: 100% 60%;
+  background-repeat: no-repeat;
+  animation: rail-sweep 1600ms var(--ease) infinite;
+}
+
+@keyframes rail-sweep {
+  from {
+    background-position: 0 -60%;
+  }
+  to {
+    background-position: 0 160%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace-rail--running .trace-rail__line {
+    animation: none;
+    background: color-mix(in srgb, var(--trace) 45%, transparent);
+  }
+}
+
+.trace-rail__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.trace-rail__cap {
+  position: absolute;
+  bottom: 0;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--trace);
+}
+
+.trace-rail__cap--failed {
+  background: var(--err);
+}

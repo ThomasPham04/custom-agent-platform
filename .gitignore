@@ -1,0 +1,7 @@
+
+# Playwright MCP scratch output
+.playwright-mcp/
+*.png
+
+# TypeScript incremental compiler output
+*.tsbuildinfo

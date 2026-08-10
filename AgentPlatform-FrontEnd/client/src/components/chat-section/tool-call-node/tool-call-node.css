@@ -1,0 +1,137 @@
+.tool-call {
+  position: relative;
+}
+
+.tool-call__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 26px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.tool-call__header:hover {
+  background: var(--hover);
+}
+
+.tool-call__triangle {
+  flex: 0 0 10px;
+  color: var(--ink-faint);
+  font-size: 9px;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.tool-call__triangle--open {
+  transform: rotate(90deg);
+}
+
+/* The node marker on the rail. Square, not round: this is machinery. */
+.tool-call__glyph {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--trace);
+}
+
+.tool-call--running .tool-call__glyph {
+  animation: node-pulse 1000ms var(--ease) infinite;
+}
+
+@keyframes node-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-call--running .tool-call__glyph {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.tool-call--error .tool-call__glyph {
+  background: var(--err);
+}
+
+.tool-call__label {
+  flex: 0 0 auto;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--trace-ink);
+}
+
+.tool-call--error .tool-call__label {
+  color: var(--err);
+}
+
+.tool-call__id {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.tool-call__duration {
+  flex: 0 0 auto;
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.tool-call--error .tool-call__duration {
+  color: var(--err);
+}
+
+.tool-call__body {
+  padding: var(--space-2) var(--space-3) var(--space-4) 22px;
+  animation: node-open var(--dur-mid) var(--ease);
+}
+
+@keyframes node-open {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-call__body {
+    animation: none;
+  }
+}
+
+.tool-call__caption {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.tool-call__caption:not(:first-child) {
+  margin-top: var(--space-4);
+}
+
+/* Long payloads scroll inside the block; the page never scrolls sideways. */
+.tool-call__code {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--shell);
+  color: var(--ink);
+  font-size: var(--text-meta);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.tool-call__code--error {
+  background: var(--err-wash);
+  color: var(--ink);
+}
