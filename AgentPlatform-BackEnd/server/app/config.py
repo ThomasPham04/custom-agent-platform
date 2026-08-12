@@ -12,7 +12,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Port 4000 matches the Express server, so client/nginx.conf needs no change.
     port: int = 4000
     cors_origin: str = "http://localhost:5173"
 

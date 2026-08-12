@@ -17,6 +17,7 @@ MODULES = [
     "app.core.errors",
     "app.core.db",
     "app.modules.agents.schemas",
+    "app.modules.agents.validation",
     "app.modules.agents.repository",
     "app.modules.agents.repositories.memory",
     "app.modules.agents.repositories.postgres",

@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.modules.agents.repositories.memory import MemoryAgentRepository
 from app.modules.agents.repositories.postgres import PostgresAgentRepository
 from app.modules.agents.repository import AgentRepository
+from app.modules.agents.seeds import SEED_AGENTS
 from app.modules.agents.service import AgentService
 from app.modules.execution.service import ExecutionService
 from app.modules.llm.catalog import DEFAULT_MODEL, MODEL_IDS
@@ -40,8 +41,11 @@ def get_llm_provider() -> LLMProvider:
 def get_agent_repository() -> AgentRepository:
     settings = get_settings()
     if settings.store_backend == "memory":
-        return MemoryAgentRepository()
-    # Phase 2 passes a real asyncpg pool from core/db.py.
+        # Seeded at construction. The cache above means one store per process,
+        # so this runs once — the memory equivalent of "seed only when the table
+        # is empty" (spec §6).
+        return MemoryAgentRepository(seed=SEED_AGENTS)
+    # Phase 2 passes a real asyncpg pool from core/db.py and seeds on startup.
     return PostgresAgentRepository(pool=None)
 
 
@@ -73,3 +77,16 @@ def get_execution_service() -> ExecutionService:
         llm=get_llm_provider(),
         runs=get_run_repository(),
     )
+
+
+def reset_container() -> None:
+    """Drop every cached singleton.
+
+    Tests call this between cases so one test's agents never leak into the next.
+    It is the FastAPI equivalent of the resetStore() Express called in every
+    beforeEach (contract reference §9).
+    """
+    get_tool_registry.cache_clear()
+    get_llm_provider.cache_clear()
+    get_agent_repository.cache_clear()
+    get_run_repository.cache_clear()
