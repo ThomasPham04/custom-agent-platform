@@ -21,16 +21,16 @@ docker compose up --build
 
 Open `http://localhost:8080`.
 
-## Status
+## What this is
 
-**This does not build yet.** The `api` service points at
-`AgentPlatform-BackEnd/server`, which is empty while the backend is rewritten in
-Python. Phase 0 of the migration creates the image.
+Two services: `api` builds from `AgentPlatform-BackEnd/server`, and `web`
+builds the client and serves it through nginx, which proxies `/api` to `api`
+on the same origin so the browser never makes a cross-origin request. `web`
+waits on `api`'s healthcheck (`GET /api/health`) before starting.
 
 ## What this is not
 
-The API will hold agents in memory until Phase 2 adds Postgres, so **every
-restart resets them to the four seed agents**. There is no auth, and no LLM
-credentials are wired up before Phase 3. Before this becomes a real deployment
-it needs: the `db` service and a persistent volume, real credentials for the LLM
-provider, and TLS.
+This scaffold runs the API with an in-memory agent store and a mock LLM
+provider by default, so agents reset to the seed set on every restart and no
+external credentials are required. There is no auth and no TLS — it is a
+proof-of-concept deployment, not a production one.

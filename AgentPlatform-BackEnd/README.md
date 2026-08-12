@@ -3,10 +3,6 @@
 The API for the AI Agent Platform proof of concept: Python 3.12, FastAPI, and
 Google ADK, listening on port 4000.
 
-> **Not yet built.** The Express fixture API that used to live in `server/` was
-> deleted on 2026-08-09. The Python service takes the same folder, and Phase 0
-> creates it. Nothing in this directory runs until then.
-
 ## Layout
 
 | Folder | What it is |
@@ -18,7 +14,6 @@ Google ADK, listening on port 4000.
 
 ```bash
 cd server
-cp .env.example .env
 uv sync
 uv run uvicorn app.main:app --port 4000 --reload
 ```
@@ -26,6 +21,11 @@ uv run uvicorn app.main:app --port 4000 --reload
 Listens on `http://localhost:4000`. Port 4000 is not a preference: the client's
 `nginx.conf`, the compose healthcheck, and `playwright.config.ts` all hard-code
 it.
+
+Settings default to an in-memory agent store and a mock LLM provider, so the
+service runs with no database and no credentials. `server/.env.example` lists
+every setting, including the ones deployment overrides (`STORE_BACKEND=postgres`,
+a real `GEMINI_API_KEY`).
 
 ## Endpoints
 
@@ -45,6 +45,13 @@ Errors return `{ error: { code, message } }` and nothing else. FastAPI's default
 422 validation body and its `{"detail": ...}` shape are both remapped.
 
 JSON on the wire is camelCase; Python identifiers are snake_case.
+
+## Test
+
+```bash
+uv run pytest
+uv run ruff check .
+```
 
 ## Architecture
 
