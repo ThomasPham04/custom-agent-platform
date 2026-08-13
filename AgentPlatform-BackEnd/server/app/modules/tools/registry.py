@@ -20,10 +20,15 @@ from app.modules.tools.impls.http_request import HttpRequestTool
 from app.modules.tools.impls.knowledge_search import KnowledgeSearchTool
 
 
-def default_tools() -> list[Tool]:
+def default_tools(http_timeout_ms: int) -> list[Tool]:
     """Registration order is the order GET /api/tools returns, and the frontend
     tool picker renders them in that order."""
-    return [CurrentTimeTool(), HttpRequestTool(), CalculatorTool(), KnowledgeSearchTool()]
+    return [
+        CurrentTimeTool(),
+        HttpRequestTool(timeout_ms=http_timeout_ms),
+        CalculatorTool(),
+        KnowledgeSearchTool(),
+    ]
 
 
 class ToolRegistry:

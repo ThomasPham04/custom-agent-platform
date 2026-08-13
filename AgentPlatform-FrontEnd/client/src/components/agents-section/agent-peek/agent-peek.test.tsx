@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { AgentPeek } from './agent-peek';
 import type { Agent } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
+import { MODELS } from '../../../config/models';
 
 const tools: Tool[] = [
   { id: 'current_time', label: 'Current time', description: 'Reads the time.', params: [] },
@@ -16,7 +17,7 @@ const agent: Agent = {
   name: 'Support Bot',
   icon: '🎧',
   description: 'Answers billing questions.',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.1-flash-lite',
   systemPrompt: 'Be terse.',
   toolIds: ['current_time'],
   status: 'active',
@@ -141,14 +142,13 @@ describe('AgentPeek', () => {
     expect(onDelete).toHaveBeenCalledOnce();
   });
 
-  it('changes the model through a labelled select', async () => {
-    const onChange = vi.fn();
-    render(<AgentPeek {...defaults} onChange={onChange} />);
-    await userEvent.selectOptions(
-      screen.getByRole('combobox', { name: 'Model' }),
-      'gemini-2.5-pro',
-    );
-    expect(onChange).toHaveBeenCalledWith({ model: 'gemini-2.5-pro' });
+  it('offers the catalog models through a labelled select showing the current one', () => {
+    render(<AgentPeek {...defaults} />);
+    const select = screen.getByRole('combobox', { name: 'Model' });
+    expect(
+      Array.from(select.querySelectorAll('option')).map((option) => option.value),
+    ).toEqual(MODELS.map((model) => model.id));
+    expect(select).toHaveValue(agent.model);
   });
 
   it('makes the mobile sheet modal, focuses inside, traps outside focus, and restores its opener', async () => {

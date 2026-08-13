@@ -1,11 +1,29 @@
-# Runs the proof of concept end to end. The API image is Python; a `db` service
-# joins this file in Phase 2, at which point `api` gains a depends_on condition.
+# Runs the proof of concept end to end: Postgres, the Python API, and nginx
+# serving the built client and proxying /api to api:4000.
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: agents
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d agents']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: ../server
     env_file:
       - ./deploy/env/backend.env
+    # The API applies schema.sql on startup, so it must not race the database.
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - '4000'
     healthcheck:
@@ -22,3 +40,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  pgdata:

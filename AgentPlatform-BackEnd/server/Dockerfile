@@ -4,7 +4,10 @@ WORKDIR /srv
 
 COPY pyproject.toml README.md ./
 COPY app ./app
-RUN pip install --no-cache-dir .
+# The adk extra, not a bare install: deployment/README.md documents switching
+# LLM_PROVIDER to adk_gemini, and google.adk is imported lazily. Without it the
+# image starts, reports live mode, and then fails on the first chat request.
+RUN pip install --no-cache-dir ".[adk]"
 
 EXPOSE 4000
 

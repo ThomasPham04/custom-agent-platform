@@ -13,7 +13,7 @@ def test_run_snapshots_the_config_it_ran_under():
         id="run_1",
         agent_id="agent_support",
         agent_name="Support Bot",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         system_prompt="You are the support agent.",
         user_message="hi",
         answer="hello",

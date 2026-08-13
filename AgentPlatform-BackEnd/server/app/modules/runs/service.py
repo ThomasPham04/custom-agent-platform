@@ -4,6 +4,7 @@ execution/ writes runs; this module reads them. Separate lifecycles, separate
 modules (spec D4).
 """
 
+from app.core.errors import NotFoundError
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
 
@@ -13,7 +14,10 @@ class RunService:
         self._repo = repo
 
     async def list(self, agent_id: str | None = None, limit: int = 50) -> list[Run]:
-        raise NotImplementedError("Phase 3 implements run history.")
+        return await self._repo.list(agent_id=agent_id, limit=limit)
 
     async def get(self, run_id: str) -> Run:
-        raise NotImplementedError("Phase 3 implements run history.")
+        run = await self._repo.get(run_id)
+        if run is None:
+            raise NotFoundError(f'No run with id "{run_id}".')
+        return run

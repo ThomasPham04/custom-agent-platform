@@ -6,8 +6,6 @@ required, trimmed, non-empty, and at most 10000 characters.
 
 from typing import Any, Literal
 
-from pydantic import Field
-
 from app.core.wire import WireModel
 
 MessageStatus = Literal["done", "error"]
@@ -15,7 +13,9 @@ CallStatus = Literal["ok", "error"]
 
 
 class MessageRequest(WireModel):
-    content: str = Field(min_length=1, max_length=10_000)
+    # Constraints live in validation.py, not here: the contract's messages and
+    # its whitespace and bool rules are unreachable through Field().
+    content: str
     # Request metadata, not server state: identical messages from different
     # clients stay independent (spec §5.2).
     retry: bool = False

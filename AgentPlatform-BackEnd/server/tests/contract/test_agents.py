@@ -57,7 +57,7 @@ def test_create_applies_the_documented_defaults(client):
     body = res.json()
     assert body["name"] == "New agent"
     assert body["status"] == "draft"
-    assert body["model"] == "gemini-2.5-flash"
+    assert body["model"] == "gemini-3.1-flash-lite"
     assert body["toolIds"] == []
     assert body["id"].startswith("agent_")
 

@@ -14,7 +14,7 @@ from app.modules.agents.repositories.memory import MemoryAgentRepository
 from app.modules.agents.service import AgentService
 from app.modules.tools.base import ToolSchema
 
-MODEL_IDS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"}
+MODEL_IDS = {"gemini-3.1-flash-lite"}
 
 
 class FakeRegistry:
@@ -36,7 +36,7 @@ def service():
         repo=MemoryAgentRepository(),
         tools=FakeRegistry({"current_time", "http_request", "calculator"}),
         model_ids=MODEL_IDS,
-        default_model="gemini-2.5-flash",
+        default_model="gemini-3.1-flash-lite",
     )
 
 
@@ -45,7 +45,7 @@ async def test_create_applies_every_default(service):
     assert agent.name == "New agent"
     assert agent.icon == "\U0001f9e9"
     assert agent.description == ""
-    assert agent.model == "gemini-2.5-flash"
+    assert agent.model == "gemini-3.1-flash-lite"
     assert agent.system_prompt == ""
     assert agent.tool_ids == []
     assert agent.status == "draft"

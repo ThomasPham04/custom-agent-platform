@@ -10,7 +10,7 @@ import pytest
 from app.core.errors import BadRequestError
 from app.modules.agents.validation import validate_agent_write
 
-MODEL_IDS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"}
+MODEL_IDS = {"gemini-3.1-flash-lite"}
 TOOL_IDS = {"current_time", "http_request", "calculator", "knowledge_search"}
 
 
