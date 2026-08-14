@@ -4,9 +4,11 @@ Services receive their collaborators from here and never learn which
 implementation they got.
 """
 
+import os
 from functools import lru_cache
 
 from app.config import get_settings
+from app.core.db import get_pool
 from app.modules.agents.repositories.memory import MemoryAgentRepository
 from app.modules.agents.repositories.postgres import PostgresAgentRepository
 from app.modules.agents.repository import AgentRepository
@@ -26,7 +28,9 @@ from app.modules.tools.registry import ToolRegistry, default_tools
 
 @lru_cache
 def get_tool_registry() -> ToolRegistry:
-    return ToolRegistry(default_tools())
+    return ToolRegistry(
+        default_tools(http_timeout_ms=get_settings().tool_http_timeout_ms)
+    )
 
 
 @lru_cache
@@ -34,6 +38,11 @@ def get_llm_provider() -> LLMProvider:
     settings = get_settings()
     if settings.llm_provider == "mock":
         return MockLLMProvider()
+    # google-genai reads GOOGLE_API_KEY from the process environment and offers
+    # no constructor argument through ADK's model-by-name path. This writes the
+    # value config.py already read; it is not a second source of configuration.
+    if settings.gemini_api_key:
+        os.environ.setdefault("GOOGLE_API_KEY", settings.gemini_api_key)
     return AdkGeminiProvider(api_key=settings.gemini_api_key)
 
 
@@ -45,8 +54,9 @@ def get_agent_repository() -> AgentRepository:
         # so this runs once — the memory equivalent of "seed only when the table
         # is empty" (spec §6).
         return MemoryAgentRepository(seed=SEED_AGENTS)
-    # Phase 2 passes a real asyncpg pool from core/db.py and seeds on startup.
-    return PostgresAgentRepository(pool=None)
+    # The lifespan opened this before any request could reach here; seeding is
+    # its job too, because it must happen once per process rather than per call.
+    return PostgresAgentRepository(pool=get_pool())
 
 
 def get_agent_service() -> AgentService:
@@ -63,7 +73,7 @@ def get_run_repository() -> RunRepository:
     settings = get_settings()
     if settings.store_backend == "memory":
         return MemoryRunRepository()
-    return PostgresRunRepository(pool=None)
+    return PostgresRunRepository(pool=get_pool())
 
 
 def get_run_service() -> RunService:
@@ -71,11 +81,13 @@ def get_run_service() -> RunService:
 
 
 def get_execution_service() -> ExecutionService:
+    settings = get_settings()
     return ExecutionService(
         agents=get_agent_repository(),
         tools=get_tool_registry(),
         llm=get_llm_provider(),
         runs=get_run_repository(),
+        log_payload_max_bytes=settings.log_payload_max_bytes,
     )
 
 

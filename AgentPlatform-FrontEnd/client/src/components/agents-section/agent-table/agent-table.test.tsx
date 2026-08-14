@@ -16,7 +16,7 @@ const make = (over: Partial<Agent>): Agent => ({
   name: 'Support Bot',
   icon: '🎧',
   description: 'Answers billing questions.',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.1-flash-lite',
   systemPrompt: '',
   toolIds: ['current_time', 'http_request'],
   status: 'active',

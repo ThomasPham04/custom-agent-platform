@@ -4,6 +4,7 @@ A circular import is the first symptom of a broken dependency rule, and it is fa
 cheaper to catch here than during Phase 3.
 """
 
+import ast
 import importlib
 from pathlib import Path
 
@@ -16,6 +17,8 @@ MODULES = [
     "app.core.clock",
     "app.core.errors",
     "app.core.db",
+    "app.core.http",
+    "app.core.text",
     "app.modules.agents.schemas",
     "app.modules.agents.validation",
     "app.modules.agents.repository",
@@ -38,6 +41,7 @@ MODULES = [
     "app.modules.llm.providers.mock",
     "app.modules.llm.providers.adk_gemini",
     "app.modules.execution.schemas",
+    "app.modules.execution.validation",
     "app.modules.execution.agent_factory",
     "app.modules.execution.event_translator",
     "app.modules.execution.service",
@@ -73,8 +77,30 @@ def test_agents_does_not_import_the_tool_or_model_catalogs():
         assert "llm.catalog" not in source, f"{path} imports the model catalog"
 
 
-def test_no_module_imports_google_adk_in_this_phase():
-    """ADK's Python surface is unverified (spec §7). Phase 3 introduces it."""
+def test_google_adk_is_never_imported_at_module_scope():
+    """google-adk is an optional extra, and test_every_module_imports_cleanly
+    imports the whole tree. A top-level import would make the extra mandatory
+    and break a fresh `uv sync`, so adk_adapter, adk_gemini and agent_factory
+    all import it inside the function that needs it.
+
+    A substring check does not catch this: `from google.adk.tools import ...`
+    contains no literal "import google.adk". The tree is parsed instead, and
+    only statements nested inside a function or class body are exempt.
+    """
     root = Path(__file__).resolve().parents[1] / "app"
     for path in root.rglob("*.py"):
-        assert "import google.adk" not in path.read_text(encoding="utf-8"), str(path)
+        for name in _module_scope_imports(ast.parse(path.read_text(encoding="utf-8"))):
+            assert not name.startswith("google.adk"), (
+                f"{path} imports {name} at module scope; move it inside the function"
+            )
+
+
+def _module_scope_imports(tree: ast.Module) -> list[str]:
+    """Every module the file imports before any function or class body."""
+    names: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            names.append(node.module or "")
+    return names

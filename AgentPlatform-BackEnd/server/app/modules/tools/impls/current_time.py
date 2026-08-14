@@ -1,7 +1,9 @@
 """Reads the current time in a given timezone."""
 
 from typing import Any, ClassVar
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.core.clock import now
 from app.modules.tools.base import ToolParam, ToolResult, ToolSchema
 
 
@@ -21,4 +23,10 @@ class CurrentTimeTool:
     )
 
     async def execute(self, **kwargs: Any) -> ToolResult:
-        raise NotImplementedError("Phase 3 implements tool execution.")
+        name = kwargs.get("timezone") or "UTC"
+        try:
+            zone = ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            # A bad argument is a failed call in the trace, not a 500.
+            return ToolResult(ok=False, error=f'Unknown timezone "{name}".')
+        return ToolResult(ok=True, value=now().astimezone(zone).isoformat())

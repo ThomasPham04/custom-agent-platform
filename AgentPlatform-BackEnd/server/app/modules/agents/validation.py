@@ -15,6 +15,7 @@ agents/ must not import llm/catalog or the tool catalog (spec §4.2).
 from typing import Any
 
 from app.core.errors import BadRequestError
+from app.core.text import js_length
 
 # (wire field name, max length), in validation order.
 WRITABLE_STRING_FIELDS: tuple[tuple[str, int], ...] = (
@@ -32,22 +33,6 @@ _STATUSES = ("active", "draft")
 _TO_SNAKE = {"systemPrompt": "system_prompt", "toolIds": "tool_ids"}
 
 WRITABLE_KEYS = frozenset({name for name, _ in WRITABLE_STRING_FIELDS} | {"toolIds"})
-
-
-def _js_length(value: str) -> int:
-    """Length in UTF-16 code units, the unit JavaScript's String.length uses.
-
-    Python's len() counts code points, so an emoji costs 1 here and 2 there.
-    The limits above are transcribed from the JS validator, and the frontend's
-    live character counter still counts in JS units — `icon` is always an emoji
-    field, so counting code points would let it exceed its documented limit and
-    disagree with the number the UI is showing the user.
-
-    surrogatepass because a `\\ud800` escape parses into a lone surrogate that
-    strict UTF-16 refuses to encode. JavaScript counts it as the one code unit
-    it is, and a length check must never be the thing that raises.
-    """
-    return len(value.encode("utf-16-le", errors="surrogatepass")) // 2
 
 
 def validate_agent_write(
@@ -74,7 +59,7 @@ def validate_agent_write(
         value = body[field]
         if not isinstance(value, str):
             raise BadRequestError(f"{field} must be a string.")
-        if _js_length(value) > limit:
+        if js_length(value) > limit:
             raise BadRequestError(f"{field} must be at most {limit} characters.")
 
     if "model" in body and body["model"] not in model_ids:

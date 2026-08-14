@@ -31,9 +31,9 @@
 .agent-table th:nth-child(2) {
   width: 26%;
 }
-/* Sized so the longest model id, gemini-2.5-flash, reads in full. */
+/* Sized so the longest model id, gemini-3.1-flash-lite, reads in full. */
 .agent-table th:nth-child(3) {
-  width: 140px;
+  width: 190px;
 }
 .agent-table th:nth-child(4) {
   width: 170px;

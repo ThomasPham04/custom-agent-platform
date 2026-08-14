@@ -39,5 +39,5 @@ def test_accepts_snake_case_input():
 
 def test_model_field_does_not_collide_with_pydantic_namespace():
     """`model` is a real Agent field and pydantic reserves the model_ prefix."""
-    s = Sample(system_prompt="", tool_ids=[], created_at="", model="gemini-2.5-flash")
-    assert s.model_dump(by_alias=True)["model"] == "gemini-2.5-flash"
+    s = Sample(system_prompt="", tool_ids=[], created_at="", model="gemini-3.1-flash-lite")
+    assert s.model_dump(by_alias=True)["model"] == "gemini-3.1-flash-lite"

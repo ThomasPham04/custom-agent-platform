@@ -26,7 +26,7 @@ const assistant = (over: Partial<Message> = {}): Message => ({
       status: 'ok',
     },
   ],
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.1-flash-lite',
   latencyMs: 480,
   status: 'done',
   createdAt: '2026-08-04T12:00:00.000Z',

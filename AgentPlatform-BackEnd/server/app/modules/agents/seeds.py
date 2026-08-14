@@ -28,7 +28,7 @@ SEED_AGENTS: list[Agent] = [
         name="Support Bot",
         icon="\U0001f3a7",
         description="Answers billing and account questions for the support inbox.",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         system_prompt=(
             "You are the support agent for a subscription product.\n"
             "\n"
@@ -47,7 +47,7 @@ SEED_AGENTS: list[Agent] = [
         name="Research Assistant",
         icon="\U0001f52d",
         description="Gathers sources and summarises them with citations.",
-        model="gemini-2.5-pro",
+        model="gemini-3.1-flash-lite",
         system_prompt=(
             "You research questions and report findings with citations.\n"
             "\n"
@@ -64,7 +64,7 @@ SEED_AGENTS: list[Agent] = [
         name="Metrics Analyst",
         icon="\U0001f4ca",
         description="Converts raw usage numbers into a plain-language readout.",
-        model="gemini-2.0-flash",
+        model="gemini-3.1-flash-lite",
         system_prompt=(
             "You explain usage metrics in plain language. Always show the calculation."
         ),
@@ -82,7 +82,7 @@ SEED_AGENTS: list[Agent] = [
             "customers rather than for engineers, grouped by the part of the product "
             "each change affects."
         ),
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         system_prompt="",
         tool_ids=[],
         status="draft",

@@ -8,8 +8,8 @@ const chipFor = (text: string) => screen.getByText(text).closest('.chip');
 
 describe('Chip', () => {
   it('defaults to the neutral tone', () => {
-    render(<Chip>gemini-2.5-flash</Chip>);
-    expect(chipFor('gemini-2.5-flash')).toHaveClass('chip--neutral');
+    render(<Chip>gemini-3.1-flash-lite</Chip>);
+    expect(chipFor('gemini-3.1-flash-lite')).toHaveClass('chip--neutral');
   });
 
   it('carries the trace tone for tool chips', () => {

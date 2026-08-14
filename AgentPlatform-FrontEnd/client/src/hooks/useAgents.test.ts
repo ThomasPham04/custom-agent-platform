@@ -9,7 +9,7 @@ const agent: Agent = {
   name: 'Support Bot',
   icon: '🎧',
   description: 'Answers billing questions.',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.1-flash-lite',
   systemPrompt: 'Be terse.',
   toolIds: ['current_time'],
   status: 'active',
