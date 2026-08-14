@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client';
-import type { Agent, AgentPatch } from '../types/agent';
+import type { Agent, AgentDraft, AgentPatch } from '../types/agent';
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -52,6 +52,7 @@ export const useAgents = () => {
   const [error, setError] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
   const [operationError, setOperationError] = useState<OperationError | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const agentsRef = useRef<Agent[]>([]);
   const confirmed = useRef(new Map<string, Agent>());
@@ -282,25 +283,36 @@ export const useAgents = () => {
     [clearAgentSaveState, getQueue],
   );
 
-  const createAgent = useCallback(async (): Promise<Agent | null> => {
-    setOperationError(null);
-    try {
-      const created = await apiPost<Agent>('/api/agents', {});
-      if (mounted.current) {
-        confirmed.current.set(created.id, created);
-        mutateAgents((current) => [created, ...current]);
+  /**
+   * The only path that creates an agent. It takes the finished draft rather
+   * than creating an empty row and patching it, so an abandoned draft leaves
+   * nothing behind on the server.
+   */
+  const saveDraft = useCallback(
+    async (draft: AgentDraft): Promise<Agent | null> => {
+      setOperationError(null);
+      setCreating(true);
+      try {
+        const created = await apiPost<Agent>('/api/agents', draft);
+        if (mounted.current) {
+          confirmed.current.set(created.id, created);
+          mutateAgents((current) => [created, ...current]);
+        }
+        return created;
+      } catch (thrown) {
+        if (mounted.current) {
+          setOperationError({
+            kind: 'create',
+            message: messageOf(thrown, 'Could not create the agent.'),
+          });
+        }
+        return null;
+      } finally {
+        if (mounted.current) setCreating(false);
       }
-      return created;
-    } catch (thrown) {
-      if (mounted.current) {
-        setOperationError({
-          kind: 'create',
-          message: messageOf(thrown, 'Could not create the agent.'),
-        });
-      }
-      return null;
-    }
-  }, [mutateAgents]);
+    },
+    [mutateAgents],
+  );
 
   const duplicateAgent = useCallback(
     async (id: string): Promise<Agent | null> => {
@@ -363,12 +375,14 @@ export const useAgents = () => {
     [cancelAgentSaves, mutateAgents],
   );
 
+  /**
+   * Create is absent here on purpose: the draft lives in the page, so its retry
+   * is the Save button that failed, still on screen with the text intact.
+   */
   const retryOperation = useCallback(async () => {
     const failedOperation = operationError;
-    if (!failedOperation) return null;
-    if (failedOperation.kind === 'create') {
-      return { kind: 'create' as const, agent: await createAgent() };
-    } else if (failedOperation.kind === 'duplicate') {
+    if (!failedOperation || failedOperation.kind === 'create') return null;
+    if (failedOperation.kind === 'duplicate') {
       return {
         kind: 'duplicate' as const,
         agent: await duplicateAgent(failedOperation.agentId),
@@ -380,7 +394,7 @@ export const useAgents = () => {
         deleted: await deleteAgent(failedOperation.agentId),
       };
     }
-  }, [createAgent, deleteAgent, duplicateAgent, operationError]);
+  }, [deleteAgent, duplicateAgent, operationError]);
 
   return {
     agents,
@@ -388,7 +402,8 @@ export const useAgents = () => {
     error,
     saveStates,
     operationError,
-    createAgent,
+    creating,
+    saveDraft,
     duplicateAgent,
     updateAgent,
     flushUpdates,

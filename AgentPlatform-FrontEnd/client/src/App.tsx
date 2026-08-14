@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter } from 'react-router';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { Workspace } from './components/layout/Workspace';
@@ -11,18 +11,9 @@ import './App.css';
 
 const Shell = () => {
   const { agents } = useAgentsContext();
-  const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const isNarrow = useMediaQuery(BREAKPOINT_SIDEBAR);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Searching is an Agents action, so typing moves you there.
-  const onSearch = (query: string) => {
-    setSearchQuery(query);
-    if (query.length > 0 && !location.pathname.startsWith('/agents')) navigate('/agents');
-  };
 
   // A wide viewport has no drawer to leave open.
   useEffect(() => {
@@ -53,8 +44,6 @@ const Shell = () => {
         agents={agents}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onSearch={onSearch}
-        searchQuery={searchQuery}
         isDrawer={isNarrow}
         returnFocusRef={menuRef}
       />
@@ -76,7 +65,7 @@ const Shell = () => {
           onOpenSidebar={() => setSidebarOpen(true)}
           showMenuButton={isNarrow}
         />
-        <AppRoutes searchQuery={searchQuery} onClearSearch={() => setSearchQuery('')} />
+        <AppRoutes />
       </Workspace>
     </div>
   );

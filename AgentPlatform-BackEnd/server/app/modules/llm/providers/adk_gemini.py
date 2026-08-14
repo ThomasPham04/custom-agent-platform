@@ -16,6 +16,7 @@ from app.core.errors import ProviderError
 from app.core.ids import create_id
 from app.modules.execution.agent_factory import build_adk_agent
 from app.modules.llm.catalog import MODELS
+from app.modules.llm.failures import provider_message
 from app.modules.llm.provider import (
     LLMProvider,
     ModelInfo,
@@ -57,7 +58,11 @@ class AdkGeminiProvider(LLMProvider):
                     parts.append(text)
                     yield TextDelta(text=text)
         except Exception as exc:  # noqa: BLE001 - every upstream failure is a 502
-            raise ProviderError(f"The model provider failed: {exc}") from exc
+            # The raw text belongs in the log, not the answer bubble: it carries
+            # billing URLs and vendor JSON the reader cannot act on. `from exc`
+            # keeps the original on the traceback for whoever reads the log.
+            print(f"provider failure: {exc!r}")
+            raise ProviderError(provider_message(exc)) from exc
 
         # Tool events are replayed from the recorder rather than correlated with
         # ADK's own call ids: ADK does not report durations, and durationMs is

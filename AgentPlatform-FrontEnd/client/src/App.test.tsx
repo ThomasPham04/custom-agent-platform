@@ -78,31 +78,20 @@ describe('mobile application drawer', () => {
 });
 
 describe('agent page actions', () => {
-  it('clears the active sidebar search when the empty state clears its filter', async () => {
+  it('clears the page filter from the empty state', async () => {
     render(<App />);
     await screen.findByRole('table', { name: 'Agents' });
 
-    const search = screen.getByRole('searchbox', { name: 'Search agents' });
-    await userEvent.type(search, 'no match');
+    const filter = screen.getByRole('searchbox', { name: 'Filter agents' });
+    await userEvent.type(filter, 'no match');
     expect(await screen.findByText(/No agents match/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
-    expect(search).toHaveValue('');
+    expect(filter).toHaveValue('');
     expect(screen.getByRole('row', { name: /Support Bot/ })).toBeInTheDocument();
   });
 
-  it('focuses and selects the new agent name when creation opens the peek', async () => {
-    const created = { ...agent, id: 'agent_new', name: 'New agent' };
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-        const url = String(input);
-        if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
-        if (url.includes('/api/tools')) return json([]);
-        if (init?.method === 'POST') return json(created, 201);
-        return json([agent]);
-      }),
-    );
+  it('focuses and selects the new agent name when creation opens the draft', async () => {
     render(<App />);
     await screen.findByRole('table', { name: 'Agents' });
 
@@ -112,33 +101,120 @@ describe('agent page actions', () => {
     expect(name).toHaveProperty('selectionStart', 0);
     expect(name).toHaveProperty('selectionEnd', 'New agent'.length);
   });
+});
 
-  it('surfaces a failed create separately and retries that operation', async () => {
-    let postAttempts = 0;
-    const created = { ...agent, id: 'agent_new', name: 'New agent' };
+describe('new agent draft', () => {
+  const created = { ...agent, id: 'agent_new', name: 'Billing Bot' };
+
+  const stubApi = (onPost: (body: unknown) => Response) => {
+    const calls: { method: string; body: unknown }[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input);
         if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
         if (url.includes('/api/tools')) return json([]);
-        if (init?.method === 'POST') {
-          postAttempts += 1;
-          return postAttempts === 1
-            ? json({ error: { code: 'internal_error', message: 'Create failed.' } }, 500)
-            : json(created, 201);
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') {
+          const body = init?.body ? JSON.parse(String(init.body)) : null;
+          calls.push({ method, body });
+          if (method === 'POST') return onPost(body);
         }
         return json([agent]);
       }),
     );
+    return calls;
+  };
+
+  it('writes nothing to the server until Save', async () => {
+    const calls = stubApi(() => json(created, 201));
     render(<App />);
     await screen.findByRole('table', { name: 'Agents' });
 
     await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Create failed.');
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Agent name' }), '!');
 
-    expect(postAttempts).toBe(2);
-    expect(await screen.findByRole('dialog', { name: 'Agent New agent' })).toBeInTheDocument();
+    expect(calls).toEqual([]);
+  });
+
+  it('keeps the draft out of the list while it is being typed', async () => {
+    stubApi(() => json(created, 201));
+    render(<App />);
+    await screen.findByRole('table', { name: 'Agents' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
+    const name = screen.getByRole('textbox', { name: 'Agent name' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Billing Bot');
+
+    expect(screen.queryByRole('row', { name: /Billing Bot/ })).not.toBeInTheDocument();
+    expect(screen.getByText('1 agent')).toBeInTheDocument();
+  });
+
+  it('posts the whole draft once, then shows it in the list', async () => {
+    const calls = stubApi(() => json(created, 201));
+    render(<App />);
+    await screen.findByRole('table', { name: 'Agents' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
+    const name = screen.getByRole('textbox', { name: 'Agent name' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Billing Bot');
+    await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+
+    await waitFor(() => expect(screen.getByRole('row', { name: /Billing Bot/ })).toBeInTheDocument());
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.body).toMatchObject({
+      name: 'Billing Bot',
+      status: 'draft',
+      toolIds: [],
+      systemPrompt: '',
+    });
+  });
+
+  it('discards everything when the draft is closed unsaved', async () => {
+    const calls = stubApi(() => json(created, 201));
+    render(<App />);
+    await screen.findByRole('table', { name: 'Agents' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
+    const name = screen.getByRole('textbox', { name: 'Agent name' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Billing Bot');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(calls).toEqual([]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Billing Bot/)).not.toBeInTheDocument();
+
+    // Reopening starts clean rather than resuming the abandoned draft.
+    await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
+    expect(screen.getByRole('textbox', { name: 'Agent name' })).toHaveValue('New agent');
+  });
+
+  it('keeps the draft open and retryable when the save fails', async () => {
+    let attempts = 0;
+    stubApi(() => {
+      attempts += 1;
+      return attempts === 1
+        ? json({ error: { code: 'internal_error', message: 'Create failed.' } }, 500)
+        : json(created, 201);
+    });
+    render(<App />);
+    await screen.findByRole('table', { name: 'Agents' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'New agent' }));
+    const name = screen.getByRole('textbox', { name: 'Agent name' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Billing Bot');
+    await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Create failed.');
+    expect(screen.getByRole('textbox', { name: 'Agent name' })).toHaveValue('Billing Bot');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+    await waitFor(() => expect(screen.getByRole('row', { name: /Billing Bot/ })).toBeInTheDocument());
+    expect(attempts).toBe(2);
   });
 });

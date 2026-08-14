@@ -15,6 +15,8 @@ interface AgentFormProps {
   tools: readonly Tool[];
   onChange: (patch: AgentPatch) => void;
   onFlush: () => void;
+  /** False for an unsaved draft, which has no history to date. */
+  showTimestamps?: boolean;
 }
 
 const STATUS_OPTIONS = [
@@ -24,7 +26,13 @@ const STATUS_OPTIONS = [
 
 const MODEL_OPTIONS = MODELS.map((model) => ({ value: model.id, label: model.label }));
 
-export const AgentForm = ({ agent, tools, onChange, onFlush }: AgentFormProps) => {
+export const AgentForm = ({
+  agent,
+  tools,
+  onChange,
+  onFlush,
+  showTimestamps = true,
+}: AgentFormProps) => {
   const toolButtonRef = useRef<HTMLButtonElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -103,19 +111,23 @@ export const AgentForm = ({ agent, tools, onChange, onFlush }: AgentFormProps) =
         </div>
       </div>
 
-      <div className="agent-form__row">
-        <span className="agent-form__label">Created</span>
-        <span className="agent-form__value agent-form__readonly mono">
-          {formatRelativeTime(agent.createdAt)}
-        </span>
-      </div>
+      {showTimestamps && (
+        <>
+          <div className="agent-form__row">
+            <span className="agent-form__label">Created</span>
+            <span className="agent-form__value agent-form__readonly mono">
+              {formatRelativeTime(agent.createdAt)}
+            </span>
+          </div>
 
-      <div className="agent-form__row">
-        <span className="agent-form__label">Updated</span>
-        <span className="agent-form__value agent-form__readonly mono">
-          {formatRelativeTime(agent.updatedAt)}
-        </span>
-      </div>
+          <div className="agent-form__row">
+            <span className="agent-form__label">Updated</span>
+            <span className="agent-form__value agent-form__readonly mono">
+              {formatRelativeTime(agent.updatedAt)}
+            </span>
+          </div>
+        </>
+      )}
 
       <hr className="agent-form__divider" />
 

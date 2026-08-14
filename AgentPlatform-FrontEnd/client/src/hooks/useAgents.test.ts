@@ -320,14 +320,29 @@ describe('useAgents optimistic update', () => {
 });
 
 describe('useAgents create, duplicate, delete', () => {
-  it('prepends a created agent', async () => {
-    stubApi({});
+  it('posts the draft as written and prepends the created agent', async () => {
+    const fetchMock = stubApi({});
     const { result } = await loaded();
 
     await act(async () => {
-      await result.current.createAgent();
+      await result.current.saveDraft({
+        name: 'Billing Bot',
+        icon: '🧩',
+        description: 'Handles invoices.',
+        model: 'gemini-3.1-flash-lite',
+        systemPrompt: 'Be terse.',
+        toolIds: ['current_time'],
+        status: 'draft',
+      });
     });
 
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(JSON.parse(String(post![1]!.body))).toMatchObject({
+      name: 'Billing Bot',
+      description: 'Handles invoices.',
+      systemPrompt: 'Be terse.',
+      toolIds: ['current_time'],
+    });
     expect(result.current.agents[0]!.id).toBe('agent_new');
     expect(result.current.agents).toHaveLength(2);
   });
@@ -374,8 +389,17 @@ describe('useAgents create, duplicate, delete', () => {
     expect(result.current.agents).toHaveLength(0);
   });
 
-  it('retries the failed create operation without turning it into an autosave error', async () => {
+  it('reports a failed draft save without turning it into an autosave error', async () => {
     let postAttempt = 0;
+    const draft = {
+      name: 'New agent',
+      icon: '🧩',
+      description: '',
+      model: 'gemini-3.1-flash-lite',
+      systemPrompt: '',
+      toolIds: [],
+      status: 'draft' as const,
+    };
     const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       if (method === 'GET') return json([agent]);
@@ -391,17 +415,20 @@ describe('useAgents create, duplicate, delete', () => {
     const { result } = await loaded();
 
     await act(async () => {
-      await result.current.createAgent();
+      await result.current.saveDraft(draft);
     });
     expect(result.current).toHaveProperty('operationError.kind', 'create');
     expect(result.current).toHaveProperty('operationError.message', 'Create failed.');
     expect(result.current).toHaveProperty('saveStates', {});
+    expect(result.current.agents).toHaveLength(1);
 
-    const retryable = result.current as typeof result.current & {
-      retryOperation: () => Promise<void>;
-    };
+    // Retrying a create is saving the still-open draft again, not a hook-level
+    // replay: retryOperation deliberately declines it.
     await act(async () => {
-      await retryable.retryOperation();
+      expect(await result.current.retryOperation()).toBeNull();
+    });
+    await act(async () => {
+      await result.current.saveDraft(draft);
     });
 
     expect(postAttempt).toBe(2);

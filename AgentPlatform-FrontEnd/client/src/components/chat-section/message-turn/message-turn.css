@@ -47,9 +47,16 @@
   margin-top: var(--space-5);
   font-size: var(--text-body);
   line-height: 1.6;
-  white-space: pre-wrap;
   overflow-wrap: break-word;
   animation: answer-in var(--dur-mid) var(--ease);
+}
+
+/*
+  Only a failure keeps pre-wrap. Markdown carries its own block spacing, and
+  preserving the source newlines on top of it doubles every paragraph gap.
+*/
+.turn__answer--error {
+  white-space: pre-wrap;
 }
 
 @keyframes answer-in {

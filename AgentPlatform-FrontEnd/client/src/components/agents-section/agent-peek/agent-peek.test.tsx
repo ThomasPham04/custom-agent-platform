@@ -151,6 +151,12 @@ describe('AgentPeek', () => {
     expect(select).toHaveValue(agent.model);
   });
 
+  it('dates a saved agent so its history is on the panel', () => {
+    render(<AgentPeek {...defaults} />);
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    expect(screen.getByText('Updated')).toBeInTheDocument();
+  });
+
   it('makes the mobile sheet modal, focuses inside, traps outside focus, and restores its opener', async () => {
     vi.stubGlobal(
       'matchMedia',
@@ -201,5 +207,62 @@ describe('AgentPeek', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: /Support Bot/ })).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
+  });
+});
+
+describe('AgentPeek in draft mode', () => {
+  const draftDefaults = { ...defaults, mode: 'draft' as const, onSaveDraft: () => {} };
+
+  it('offers Save and Cancel, because nothing is written until Save', () => {
+    render(<AgentPeek {...draftDefaults} />);
+    expect(screen.getByRole('button', { name: 'Save agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('offers no delete, because there is nothing on the server to delete', () => {
+    render(<AgentPeek {...draftDefaults} />);
+    expect(screen.queryByRole('button', { name: 'Delete agent' })).not.toBeInTheDocument();
+  });
+
+  it('shows no Created or Updated, because the draft has no history yet', () => {
+    render(<AgentPeek {...draftDefaults} />);
+    expect(screen.queryByText('Created')).not.toBeInTheDocument();
+    expect(screen.queryByText('Updated')).not.toBeInTheDocument();
+  });
+
+  it('shows no autosave readout, because a draft never autosaves', () => {
+    render(
+      <AgentPeek {...draftDefaults} saveState={{ kind: 'saved', at: '2026-08-04T21:04:12.000Z' }} />,
+    );
+    expect(screen.queryByText(/^Saved /)).not.toBeInTheDocument();
+  });
+
+  it('saves the draft on demand', async () => {
+    const onSaveDraft = vi.fn();
+    render(<AgentPeek {...draftDefaults} onSaveDraft={onSaveDraft} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+    expect(onSaveDraft).toHaveBeenCalledOnce();
+  });
+
+  it('discards the draft from Cancel and from Escape', async () => {
+    const onClose = vi.fn();
+    render(<AgentPeek {...draftDefaults} onClose={onClose} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a failed save on the panel and keeps the draft open', () => {
+    render(<AgentPeek {...draftDefaults} operationError="Could not create the agent." />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not create the agent.');
+    expect(screen.getByRole('button', { name: 'Save agent' })).toBeInTheDocument();
+  });
+
+  it('disables Save while the create is in flight so one click makes one agent', () => {
+    render(<AgentPeek {...draftDefaults} saving />);
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
   });
 });

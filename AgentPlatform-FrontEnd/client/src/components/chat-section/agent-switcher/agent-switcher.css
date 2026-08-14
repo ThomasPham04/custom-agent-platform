@@ -26,10 +26,13 @@
   white-space: nowrap;
 }
 
+/* Grid rather than font-size: the mark is drawn now, so it centres on the box
+   instead of hanging off a baseline. */
 .agent-switcher__chevron {
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
   color: var(--ink-faint);
-  font-size: var(--text-label);
 }
 
 .agent-switcher__search {

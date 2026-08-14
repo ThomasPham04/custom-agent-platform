@@ -1,8 +1,30 @@
 # Custom Agent Platform
 
-A proof of concept for an AI agent platform: configure agents, attach tools to
-them, execute one via REST, and read its execution trace. The backend is
-Python (FastAPI + Google ADK); the frontend is React + TypeScript.
+An AI agent platform: configure agents, attach tools to them, run a
+conversation against one, and read back a full trace of what it did. The
+backend is Python (FastAPI + Google ADK); the frontend is React + TypeScript.
+
+## What it delivers
+
+**Configure agents.** Each agent has a name, description, status, a model, a
+system prompt, and the set of tools it's allowed to call. Agents are created,
+edited, duplicated, and deleted through the REST API or the included UI.
+
+**Give them tools.** Four built-in tools ship with the platform — a
+calculator, a clock, an HTTP request tool, and a knowledge search — and an
+agent only reaches the ones attached to it.
+
+**Run a conversation and see what happened.** Sending a message returns the
+agent's complete reply in one response, plus the trace of every tool call it
+made along the way: arguments, result, timing, and whether it succeeded. Every
+run is recorded to history, snapshotting the agent's name, model, and system
+prompt at execution time, so editing an agent later never rewrites its past
+runs.
+
+**Switch providers without touching code.** The default LLM provider is a
+deterministic mock, so the whole platform runs offline with no credentials and
+the trace still renders end to end. Point it at live Gemini instead by setting
+two environment variables.
 
 ## Layout
 
@@ -59,9 +81,9 @@ uv run uvicorn app.main:app --port 4000 --reload
 Check it with `http://localhost:4000/api/health`, which returns the status and
 the active provider mode.
 
-Port 4000 is not a preference. The Vite dev proxy, the nginx config, the
-container healthcheck, and the Playwright config all target it, so the service
-has to bind that port for the rest of the stack to find it.
+Port 4000 is not a preference. The Vite dev proxy, the nginx config, and the
+container healthcheck all target it, so the service has to bind that port for
+the rest of the stack to find it.
 
 ### 2. Frontend, on port 5173
 
@@ -152,29 +174,6 @@ turn actually executes — the failure surfaces on the first chat request as a
 `GET /api/health` then reports `"mode": "live"` rather than `"mock"`, and the UI
 header shows it. Live mode calls a billed API and needs credit on the account;
 the mock provider is what keeps the default path free and offline.
-
-## Verify
-
-Backend, from `AgentPlatform-BackEnd/server`:
-
-```bash
-uv run pytest
-uv run ruff check .
-```
-
-Frontend, from `AgentPlatform-FrontEnd/client`:
-
-```bash
-npm test
-npm run typecheck
-npm run lint
-npm run build
-npm run test:e2e
-```
-
-`uv run pytest` needs no database — the Postgres tests skip unless a test
-database is configured. `npm run test:e2e` starts both servers itself, so do not
-start them first.
 
 See `AgentPlatform-BackEnd/README.md` and `AgentPlatform-FrontEnd/README.md`
 for details on each side.

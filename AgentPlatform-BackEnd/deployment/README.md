@@ -1,7 +1,17 @@
 # Deployment
 
-Runs the proof of concept end to end: Postgres, the Python API, and nginx serving
-the built client and proxying `/api` to the API on the same origin.
+Brings up the Agent Platform end to end with one command: Postgres for durable
+agents and run history, the Python API, and nginx serving the built client and
+proxying `/api` to it on the same origin.
+
+## What it delivers
+
+A single `docker compose up` that starts all three services in dependency
+order, applies the database schema, and seeds four sample agents on first
+boot — nothing to configure by hand beyond copying the env file. The stack
+defaults to the offline mock LLM provider, so it comes up and serves a working
+UI with no API key; flipping two environment variables switches it to live
+Gemini.
 
 ## Run
 
@@ -91,7 +101,3 @@ Everything the API reads is in `deploy/env/backend.env`:
 | `TOOL_HTTP_TIMEOUT_MS` | Timeout for the `http_request` tool |
 | `LOG_PAYLOAD_MAX_BYTES` | Cap on tool payloads stored in run history |
 
-## What this is not
-
-There is no auth, no TLS, and no migration tooling — the schema is applied
-directly at startup. It is a proof-of-concept deployment, not a production one.

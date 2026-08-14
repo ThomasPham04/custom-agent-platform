@@ -7,14 +7,11 @@ import { EmptyState } from '../../components/ui/empty-state';
 import { useToast } from '../../components/ui/toast';
 import { useAgentsContext } from '../../hooks/useAgents';
 import { useTools } from '../../hooks/useTools';
+import { newAgentDraft } from '../../lib/agent-draft';
+import type { AgentDraft } from '../../types/agent';
 import './agents.css';
 
-interface AgentsPageProps {
-  searchQuery: string;
-  onClearSearch: () => void;
-}
-
-const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
+const AgentsPage = () => {
   const { agentId } = useParams();
   const navigate = useNavigate();
   const { show } = useToast();
@@ -24,7 +21,8 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
     error,
     saveStates,
     operationError,
-    createAgent,
+    creating,
+    saveDraft,
     duplicateAgent,
     deleteAgent,
     updateAgent,
@@ -36,9 +34,11 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
   const { tools } = useTools();
   const [filter, setFilter] = useState('');
   const [focusNameId, setFocusNameId] = useState<string | null>(null);
+  // The draft lives here and nowhere else, so abandoning it costs one setState
+  // and leaves no row on the server and no entry in the shared agent list.
+  const [draft, setDraft] = useState<AgentDraft | null>(null);
 
-  // The sidebar search and the local filter mean the same thing to the reader.
-  const query = (searchQuery || filter).trim().toLowerCase();
+  const query = filter.trim().toLowerCase();
 
   const visible = useMemo(() => {
     if (query.length === 0) return agents;
@@ -48,30 +48,31 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
     );
   }, [agents, query]);
 
-  const onCreate = async () => {
-    const created = await createAgent();
-    if (created) {
-      setFocusNameId(created.id);
-      navigate(`/agents/${created.id}`);
-    }
+  const onCreate = () => {
+    // A draft and an open agent are the same slot on screen, so the panel that
+    // was open closes first.
+    navigate('/agents');
+    setDraft(newAgentDraft());
+  };
+
+  const onSaveDraft = async () => {
+    if (!draft) return;
+    const created = await saveDraft(draft);
+    if (!created) return;
+    setDraft(null);
+    navigate(`/agents/${created.id}`);
   };
 
   const onRetryOperation = async () => {
     const result = await retryOperation();
     if (!result) return;
 
-    if ((result.kind === 'create' || result.kind === 'duplicate') && result.agent) {
-      if (result.kind === 'create') setFocusNameId(result.agent.id);
+    if (result.kind === 'duplicate' && result.agent) {
       navigate(`/agents/${result.agent.id}`);
     } else if (result.kind === 'delete' && result.deleted) {
       show('Agent deleted');
       if (agentId === result.agentId) navigate('/agents');
     }
-  };
-
-  const clearActiveFilter = () => {
-    setFilter('');
-    onClearSearch();
   };
 
   const onDelete = async (id: string) => {
@@ -107,7 +108,13 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
           </p>
         )}
 
+        {/*
+          A failure belongs next to the control that caused it. Delete reports
+          inside the open agent's panel, create inside the draft's — the banner
+          takes only what has nowhere else to go.
+        */}
         {operationError &&
+          operationError.kind !== 'create' &&
           !(operationError.kind === 'delete' && operationError.agentId === selected?.id) && (
           <p className="agents__error" role="alert">
             {operationError.message}{' '}
@@ -133,7 +140,7 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
-          <Button variant="primary" onClick={() => void onCreate()}>
+          <Button variant="primary" onClick={onCreate}>
             New agent
           </Button>
         </div>
@@ -143,7 +150,7 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
             icon="▤"
             title="No agents yet."
             body="Create your first agent to start testing."
-            action={{ label: 'New agent', onClick: () => void onCreate() }}
+            action={{ label: 'New agent', onClick: onCreate }}
           />
         )}
 
@@ -151,7 +158,7 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
           <EmptyState
             title={`No agents match “${query}”.`}
             body="Try a shorter search, or clear the filter to see everything."
-            action={{ label: 'Clear filter', onClick: clearActiveFilter }}
+            action={{ label: 'Clear filter', onClick: () => setFilter('') }}
           />
         )}
 
@@ -173,7 +180,29 @@ const AgentsPage = ({ searchQuery, onClearSearch }: AgentsPageProps) => {
         )}
       </div>
 
-      {selected && (
+      {draft && (
+        <AgentPeek
+          mode="draft"
+          // Shaped as an Agent for the shared form; the blanks are never read,
+          // because draft mode hides the fields that would show them.
+          agent={{ ...draft, id: '', createdAt: '', updatedAt: '' }}
+          tools={tools}
+          saveState={{ kind: 'idle' }}
+          focusName
+          saving={creating}
+          operationError={
+            operationError?.kind === 'create' ? operationError.message : undefined
+          }
+          onChange={(patch) => setDraft((current) => (current ? { ...current, ...patch } : current))}
+          onFlush={() => {}}
+          onRetrySave={() => {}}
+          onDelete={() => {}}
+          onSaveDraft={() => void onSaveDraft()}
+          onClose={() => setDraft(null)}
+        />
+      )}
+
+      {!draft && selected && (
         <AgentPeek
           agent={selected}
           tools={tools}

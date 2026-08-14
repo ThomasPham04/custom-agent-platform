@@ -25,6 +25,13 @@ interface AgentPeekProps {
   onNameFocused?: () => void;
   operationError?: string;
   onRetryOperation?: () => void;
+  /**
+   * A draft exists only in this panel. It has no history to date, nothing on
+   * the server to delete, and no autosave — so it commits through Save instead.
+   */
+  mode?: 'saved' | 'draft';
+  onSaveDraft?: () => void;
+  saving?: boolean;
 }
 
 const SaveReadout = ({
@@ -88,7 +95,11 @@ export const AgentPeek = ({
   onNameFocused,
   operationError,
   onRetryOperation,
+  mode = 'saved',
+  onSaveDraft,
+  saving = false,
 }: AgentPeekProps) => {
+  const isDraft = mode === 'draft';
   const panelRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLButtonElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -196,38 +207,73 @@ export const AgentPeek = ({
       </div>
 
       <div className="agent-peek__body">
-        <AgentForm agent={agent} tools={tools} onChange={onChange} onFlush={onFlush} />
+        <AgentForm
+          agent={agent}
+          tools={tools}
+          onChange={onChange}
+          onFlush={onFlush}
+          showTimestamps={!isDraft}
+        />
 
-        <div className="agent-peek__danger">
-          {/*
-            A plain button, not <Button>: the confirm popover anchors to this
-            element and Button does not forward a ref. Same classes, same look.
-          */}
-          <button
-            ref={deleteRef}
-            type="button"
-            className="button button--danger button--sm"
-            onClick={() => setConfirmOpen(true)}
-          >
-            Delete agent
-          </button>
-        </div>
-      </div>
-
-      <div className="agent-peek__footer">
-        <SaveReadout saveState={saveState} onRetrySave={onRetrySave} />
-        {operationError && onRetryOperation && (
-          <OperationReadout message={operationError} onRetry={onRetryOperation} />
+        {!isDraft && (
+          <div className="agent-peek__danger">
+            {/*
+              A plain button, not <Button>: the confirm popover anchors to this
+              element and Button does not forward a ref. Same classes, same look.
+            */}
+            <button
+              ref={deleteRef}
+              type="button"
+              className="button button--danger button--sm"
+              onClick={() => setConfirmOpen(true)}
+            >
+              Delete agent
+            </button>
+          </div>
         )}
       </div>
 
-      <ConfirmDelete
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={onDelete}
-        anchor={deleteRef}
-        itemName={agent.name}
-      />
+      <div className="agent-peek__footer">
+        {isDraft ? (
+          <div className="agent-peek__commit">
+            {operationError && (
+              <p className="agent-peek__save agent-peek__save--error" role="alert">
+                <span className="mono">{operationError}</span>
+              </p>
+            )}
+            <div className="agent-peek__commit-actions">
+              <button type="button" className="button button--sm" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button button--primary button--sm"
+                disabled={saving}
+                onClick={onSaveDraft}
+              >
+                {saving ? 'Saving…' : 'Save agent'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <SaveReadout saveState={saveState} onRetrySave={onRetrySave} />
+            {operationError && onRetryOperation && (
+              <OperationReadout message={operationError} onRetry={onRetryOperation} />
+            )}
+          </>
+        )}
+      </div>
+
+      {!isDraft && (
+        <ConfirmDelete
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={onDelete}
+          anchor={deleteRef}
+          itemName={agent.name}
+        />
+      )}
     </div>
   );
 };

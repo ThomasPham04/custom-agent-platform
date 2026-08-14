@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Popover } from '../../ui/popover';
+import { Chevron } from '../../ui/chevron';
 import type { Agent } from '../../../types/agent';
 import './agent-switcher.css';
 
@@ -58,11 +59,11 @@ export const AgentSwitcher = ({ agents, selected, onSelect }: AgentSwitcherProps
     <>
       <button ref={anchor} type="button" className="agent-switcher" onClick={openSwitcher}>
         <span className="agent-switcher__icon" aria-hidden="true">
-          {selected?.icon ?? 'â–¤'}
+          {selected?.icon ?? '▤'}
         </span>
         <span className="agent-switcher__name">{selected?.name ?? 'Pick an agent'}</span>
-        <span className="agent-switcher__chevron" aria-hidden="true">
-          âŒ„
+        <span className="agent-switcher__chevron">
+          <Chevron />
         </span>
       </button>
 
@@ -85,7 +86,7 @@ export const AgentSwitcher = ({ agents, selected, onSelect }: AgentSwitcherProps
             type="search"
             className="agent-switcher__search"
             aria-label="Search agents"
-            placeholder="Search agentsâ€¦"
+            placeholder="Search agents…"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />

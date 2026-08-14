@@ -1,0 +1,148 @@
+/*
+  Prose rhythm for model answers. Vertical space comes from the blocks
+  themselves, so the container sets none: the first and last child sit flush
+  against whatever encloses them.
+*/
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown pre,
+.markdown table {
+  margin: var(--space-5) 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: var(--space-6) 0 var(--space-4);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown h1 {
+  font-size: var(--text-peek-title);
+}
+
+.markdown h2 {
+  font-size: 19px;
+}
+
+.markdown h3,
+.markdown h4 {
+  font-size: var(--text-heading);
+}
+
+.markdown strong {
+  font-weight: 600;
+}
+
+.markdown em {
+  font-style: italic;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: var(--space-7);
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown li {
+  margin: var(--space-2) 0;
+}
+
+/* A nested list belongs to its parent item, not to the paragraph flow. */
+.markdown li > ul,
+.markdown li > ol {
+  margin: var(--space-2) 0;
+}
+
+.markdown li > p {
+  margin: 0;
+}
+
+.markdown a {
+  color: var(--signal);
+  text-decoration: underline;
+}
+
+.markdown a:hover {
+  color: var(--signal-hover);
+}
+
+.markdown code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+  background: var(--shell);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown pre {
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--shell);
+  /* A long line scrolls inside the block rather than widening the thread. */
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: var(--text-ui);
+  line-height: 1.5;
+}
+
+.markdown blockquote {
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.markdown hr {
+  margin: var(--space-6) 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--text-ui);
+}
+
+.markdown th,
+.markdown td {
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--rule);
+  text-align: left;
+}
+
+.markdown th {
+  background: var(--shell);
+  font-weight: 600;
+}
+
+.markdown img {
+  max-width: 100%;
+  height: auto;
+}

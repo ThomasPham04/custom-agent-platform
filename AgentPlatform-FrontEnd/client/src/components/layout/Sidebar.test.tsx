@@ -5,7 +5,8 @@ import { MemoryRouter } from 'react-router';
 import { Sidebar } from './Sidebar';
 import type { Agent } from '../../types/agent';
 
-vi.mock('../../hooks/useApiHealth', () => ({ useApiHealth: () => 'online' }));
+const health = vi.hoisted(() => ({ current: { status: 'online', mode: 'mock' } }));
+vi.mock('../../hooks/useApiHealth', () => ({ useApiHealth: () => health.current }));
 
 const agent = (id: string, name: string, icon: string): Agent => ({
   id,
@@ -28,7 +29,7 @@ const agents = [
 const renderSidebar = (props: Partial<Parameters<typeof Sidebar>[0]> = {}) =>
   render(
     <MemoryRouter initialEntries={['/agents']}>
-      <Sidebar agents={agents} open onClose={() => {}} onSearch={() => {}} searchQuery="" {...props} />
+      <Sidebar agents={agents} open onClose={() => {}} {...props} />
     </MemoryRouter>,
   );
 
@@ -66,15 +67,21 @@ describe('Sidebar', () => {
     );
   });
 
-  it('reports each keystroke in search', async () => {
-    const onSearch = vi.fn();
-    renderSidebar({ onSearch });
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Search agents' }), 'sup');
-    expect(onSearch).toHaveBeenCalledTimes(3);
+  it('leaves searching to the Agents page', () => {
+    renderSidebar();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   });
 
   it('reads the API status as text, not colour alone', () => {
     renderSidebar();
     expect(screen.getByText(/connected|api offline|checking/)).toBeInTheDocument();
+  });
+
+  it('names the mode the API reported rather than a fixed one', () => {
+    health.current = { status: 'online', mode: 'live' };
+    renderSidebar();
+    expect(screen.getByText('connected · live')).toBeInTheDocument();
+
+    health.current = { status: 'online', mode: 'mock' };
   });
 });

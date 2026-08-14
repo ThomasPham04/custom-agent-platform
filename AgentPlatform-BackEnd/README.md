@@ -1,7 +1,23 @@
 # Agent Platform — Backend
 
-The API for the AI Agent Platform proof of concept: Python 3.12, FastAPI, and
-Google ADK, listening on port 4000.
+The API for the AI Agent Platform: Python 3.12, FastAPI, and Google ADK,
+listening on port 4000.
+
+## What it delivers
+
+A REST API for the full agent lifecycle: create, read, update, and delete
+agents, each configured with a model, a system prompt, and a set of tools it
+can call. Sending a chat message runs the agent and returns its complete
+reply in one response — no streaming — together with the trace of every tool
+call it made: arguments, result, timing, and outcome. Every run is recorded
+and queryable by agent, snapshotting the agent's name, model, and system
+prompt as they were at execution time.
+
+Two LLM providers implement the same interface: a deterministic mock that
+needs no credentials and keeps the whole API usable offline, and Google ADK
+against live Gemini. Two repository backends implement the same contract: an
+in-memory store for a zero-setup run, and Postgres for agents and run history
+that outlive a restart.
 
 ## Layout
 
@@ -22,8 +38,7 @@ uv run uvicorn app.main:app --port 4000 --reload
 
 Listens on `http://localhost:4000`; `GET /api/health` confirms it is up and
 reports the active provider mode. Port 4000 is not a preference: the client's
-Vite proxy and `nginx.conf`, the compose healthcheck, and `playwright.config.ts`
-all hard-code it.
+Vite proxy, `nginx.conf`, and the compose healthcheck all hard-code it.
 
 `uv sync` installs from the lockfile into a local virtual environment, and
 `uv run` executes inside it, so there is nothing to activate by hand.
@@ -31,6 +46,11 @@ all hard-code it.
 Settings default to an in-memory agent store and a mock LLM provider, so the
 service runs with no database and no credentials, and tool calls still produce a
 full trace.
+
+That default is not durable. With `STORE_BACKEND=memory` the store lives in the
+process, so every agent and run created through the UI disappears when the API
+stops, and the next boot reseeds the four sample agents. Anything meant to
+outlive a restart needs `STORE_BACKEND=postgres` — see Configuration below.
 
 ## Configuration
 
@@ -51,7 +71,24 @@ The service reads the environment, or a `.env` file beside `pyproject.toml`.
 The database host in `.env.example` is the compose service name `db`. Running
 the API outside Docker against a local database means changing it to
 `localhost`. With `STORE_BACKEND=postgres` the service applies its schema on
-startup and seeds the sample agents only when the table is empty.
+startup and seeds the sample agents only when the table is empty, so a restart
+keeps whatever was created through the UI.
+
+To develop against a durable store without running the whole compose stack,
+start only the database and point the API at it:
+
+```powershell
+docker run -d --name agents-db -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app `
+  -e POSTGRES_DB=agents -p 5432:5432 postgres:16-alpine
+
+$env:STORE_BACKEND = "postgres"
+$env:DATABASE_URL = "postgresql://app:app@localhost:5432/agents"
+uv run uvicorn app.main:app --port 4000 --reload
+```
+
+`DATABASE_URL` points at a store you intend to keep. `TEST_DATABASE_URL` is a
+separate variable precisely because the test fixtures drop and truncate every
+table — never set them to the same database.
 
 Google ADK is an optional extra rather than a core dependency, because nothing
 imports it in mock mode. Live Gemini needs it, and needs it on every command:
@@ -92,32 +129,3 @@ recorded on that tool call.
 
 JSON on the wire is camelCase; Python identifiers are snake_case.
 
-## Test
-
-```bash
-uv run pytest
-uv run ruff check .
-```
-
-No database is required: the Postgres repository tests skip unless
-`TEST_DATABASE_URL` names one. Point it at a throwaway database if you want to
-run them — the fixtures drop and truncate tables, which is why they refuse to
-read the variable that points at a running service.
-
-## Architecture
-
-Feature modules under `app/modules/` — `agents`, `tools`, `llm`, `execution`,
-`runs` — one per component in the brief. Each owns its router, service, schemas,
-and where relevant a repository Protocol. `app/container.py` is the only place
-implementations are chosen, which is what lets the store swap between memory and
-Postgres, and the provider between mock and ADK, without touching a module.
-
-Full detail: `docs/superpowers/specs/2026-08-08-agent-platform-backend-architecture-design.md`.
-
-## The contract
-
-`docs/superpowers/references/express-contract-reference.md` holds the seed
-agents, tool schemas, exact validation strings, and the mock execution
-algorithm, transcribed verbatim from the deleted Express implementation. It is
-the specification for `tests/contract/` — where behaviour is ambiguous, that
-file is the answer.

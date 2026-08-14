@@ -46,51 +46,10 @@
 }
 
 .sidebar__chevron {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
   color: var(--ink-faint);
-  font-size: var(--text-label);
-}
-
-.sidebar__search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  height: 28px;
-  margin-top: var(--space-2);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-sm);
-  color: var(--ink-muted);
-}
-
-.sidebar__search:hover,
-.sidebar__search:focus-within {
-  background: var(--active);
-}
-
-.sidebar__search:focus-within {
-  outline: 2px solid var(--signal);
-  outline-offset: 2px;
-}
-
-.sidebar__search-icon {
-  font-size: var(--text-ui);
-}
-
-.sidebar__search-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  font-size: var(--text-ui);
-  outline: none;
-}
-
-/* The wrapper carries the focus affordance via :focus-within. */
-.sidebar__search-input:focus-visible {
-  outline: none;
-}
-
-.sidebar__search-input::-webkit-search-cancel-button {
-  appearance: none;
 }
 
 .sidebar__label {
@@ -178,8 +137,14 @@
   color: var(--ink);
 }
 
+/*
+  Children start one step in from where the parent row's own item starts, so a
+  nested agent reads as below "Agents" rather than beside it. The parent item
+  begins after the 24px disclosure column; anything less than that (it was 18px)
+  pushes the children left of their parent and inverts the hierarchy.
+*/
 .sidebar__children {
-  padding-left: 18px;
+  padding-left: calc(24px + var(--space-5));
 }
 
 .sidebar__children-empty {
