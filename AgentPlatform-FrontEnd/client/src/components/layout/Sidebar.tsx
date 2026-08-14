@@ -1,7 +1,8 @@
 import { useRef, useState, type RefObject } from 'react';
 import { NavLink } from 'react-router';
 import { Popover } from '../ui/popover';
-import { useApiHealth } from '../../hooks/useApiHealth';
+import { Chevron } from '../ui/chevron';
+import { useApiHealth, type ApiHealth } from '../../hooks/useApiHealth';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import type { Agent } from '../../types/agent';
 import './Sidebar.css';
@@ -10,24 +11,25 @@ interface SidebarProps {
   agents: Agent[];
   open: boolean;
   onClose: () => void;
-  onSearch: (query: string) => void;
-  searchQuery: string;
   isDrawer?: boolean;
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
-const HEALTH_TEXT = {
-  checking: 'checking…',
-  online: 'connected · mock',
-  offline: 'api offline',
-} as const;
+/**
+ * The mode comes from /api/health, never from a constant here: the API decides
+ * whether it is serving mock fixtures or a live model, and a hardcoded label
+ * would keep saying "mock" while the real one answered.
+ */
+const healthText = ({ status, mode }: ApiHealth) => {
+  if (status === 'checking') return 'checking…';
+  if (status === 'offline') return 'api offline';
+  return mode ? `connected · ${mode}` : 'connected';
+};
 
 export const Sidebar = ({
   agents,
   open,
   onClose,
-  onSearch,
-  searchQuery,
   isDrawer = false,
   returnFocusRef,
 }: SidebarProps) => {
@@ -61,8 +63,8 @@ export const Sidebar = ({
           ▦
         </span>
         <span className="sidebar__workspace-name">Agent Platform</span>
-        <span className="sidebar__chevron" aria-hidden="true">
-          ⌄
+        <span className="sidebar__chevron">
+          <Chevron />
         </span>
       </button>
 
@@ -77,20 +79,6 @@ export const Sidebar = ({
           Mock workspace. Agents and runs reset when the API restarts.
         </p>
       </Popover>
-
-      <div className="sidebar__search">
-        <span className="sidebar__search-icon" aria-hidden="true">
-          ⌕
-        </span>
-        <input
-          type="search"
-          className="sidebar__search-input"
-          aria-label="Search agents"
-          placeholder="Search"
-          value={searchQuery}
-          onChange={(event) => onSearch(event.target.value)}
-        />
-      </div>
 
       <p className="sidebar__label">Workspace</p>
 
@@ -149,8 +137,8 @@ export const Sidebar = ({
       </div>
 
       <div className="sidebar__footer">
-        <span className={`sidebar__dot sidebar__dot--${health}`} aria-hidden="true" />
-        <span className="sidebar__health mono">{HEALTH_TEXT[health]}</span>
+        <span className={`sidebar__dot sidebar__dot--${health.status}`} aria-hidden="true" />
+        <span className="sidebar__health mono">{healthText(health)}</span>
       </div>
     </nav>
   );

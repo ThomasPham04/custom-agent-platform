@@ -1,4 +1,5 @@
 import { TraceRail } from '../trace-rail';
+import { Markdown } from '../../ui/markdown';
 import { formatDuration } from '../../../lib/format';
 import type { Agent } from '../../../types/agent';
 import type { Message } from '../../../types/message';
@@ -17,7 +18,20 @@ export const MessageTurn = ({ message, agent, tools, onRetry }: MessageTurnProps
     return (
       <article className="turn turn--user">
         <span className="turn__avatar turn__avatar--user" aria-hidden="true">
-          ▢
+          {/*
+            Drawn, not typed: U+25A2 is absent from the UI font stack and
+            rendered as a notdef box on Windows.
+          */}
+          <svg viewBox="0 0 16 16" width="14" height="14" focusable="false">
+            <circle cx="8" cy="5.5" r="2.75" fill="currentColor" />
+            <path
+              d="M2.5 14a5.5 5.5 0 0 1 11 0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
         </span>
         <div className="turn__body">
           <p className="turn__callout">{message.content}</p>
@@ -46,7 +60,15 @@ export const MessageTurn = ({ message, agent, tools, onRetry }: MessageTurnProps
               .filter(Boolean)
               .join(' ')}
           >
-            <p>{message.content}</p>
+            {/*
+              A failure is our own sentence, not model output, so it is not
+              markdown and must not be reinterpreted as any.
+            */}
+            {message.status === 'error' ? (
+              <p>{message.content}</p>
+            ) : (
+              <Markdown>{message.content}</Markdown>
+            )}
             {message.status === 'error' && (
               <button
                 type="button"

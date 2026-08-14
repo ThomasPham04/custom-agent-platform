@@ -113,6 +113,24 @@
   padding: 0 var(--space-7) var(--space-5);
 }
 
+/*
+  A draft commits explicitly, so the footer carries the two actions instead of
+  an autosave readout. The rule above them separates a decision from the fields.
+*/
+.agent-peek__commit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+}
+
+.agent-peek__commit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
 .agent-peek__save {
   font-size: var(--text-meta);
   color: var(--ink-muted);

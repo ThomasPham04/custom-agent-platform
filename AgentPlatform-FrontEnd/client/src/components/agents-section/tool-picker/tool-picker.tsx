@@ -109,7 +109,7 @@ export const ToolPicker = ({
           type="search"
           className="tool-picker__search"
           aria-label="Search tools"
-          placeholder="Search toolsâ€¦"
+          placeholder="Search tools…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />

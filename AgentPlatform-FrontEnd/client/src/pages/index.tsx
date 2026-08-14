@@ -2,11 +2,6 @@ import { Link, Navigate, Route, Routes } from 'react-router';
 import AgentsPage from './Agents';
 import ChatPage from './Chat';
 
-interface AppRoutesProps {
-  searchQuery: string;
-  onClearSearch: () => void;
-}
-
 const NotFound = () => (
   <div className="agents">
     <h1 className="agents__title">Nothing here</h1>
@@ -16,17 +11,11 @@ const NotFound = () => (
   </div>
 );
 
-const AppRoutes = ({ searchQuery, onClearSearch }: AppRoutesProps) => (
+const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Navigate to="/agents" replace />} />
-    <Route
-      path="/agents"
-      element={<AgentsPage searchQuery={searchQuery} onClearSearch={onClearSearch} />}
-    />
-    <Route
-      path="/agents/:agentId"
-      element={<AgentsPage searchQuery={searchQuery} onClearSearch={onClearSearch} />}
-    />
+    <Route path="/agents" element={<AgentsPage />} />
+    <Route path="/agents/:agentId" element={<AgentsPage />} />
     <Route path="/chat" element={<ChatPage />} />
     <Route path="/chat/:agentId" element={<ChatPage />} />
     <Route path="*" element={<NotFound />} />
