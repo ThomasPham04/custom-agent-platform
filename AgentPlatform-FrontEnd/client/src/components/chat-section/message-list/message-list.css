@@ -2,7 +2,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--space-6) 0 var(--space-8);
+  /* Padded and pulled outward by the same amount, so the scroll box spans the
+     column's full width. The scrollbar then rides in the gutter instead of
+     sitting against the prose, and the text keeps the composer's left edge. */
+  padding: var(--space-6) var(--column-gutter, var(--space-6)) var(--space-8);
+  margin-inline: calc(-1 * var(--column-gutter, var(--space-6)));
 }
 
 .message-list__intro {

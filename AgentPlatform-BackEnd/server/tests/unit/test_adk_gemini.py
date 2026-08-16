@@ -85,14 +85,28 @@ def test_the_adk_agent_name_is_an_identifier_not_the_display_name():
 
 def test_the_adk_agent_carries_the_prompt_and_model():
     agent = build_adk_agent(spec(), adk_tools=[])
-    assert agent.instruction == "You are the support agent."
+    assert agent.instruction.startswith("You are the support agent.")
     assert agent.model == "gemini-3.1-flash-lite"
 
 
-def test_an_empty_system_prompt_is_accepted():
+def test_the_agent_is_told_its_display_name():
+    """ADK appends `You are an agent. Your internal name is "<name>"` to every
+    request, and that name must be the id because LlmAgent validates it as a
+    Python identifier. Left alone, the id is the only name the model ever sees,
+    so asked to introduce itself it answers "I am agent_support". The display
+    name has to be stated in the instruction or it never reaches the model."""
+    agent = build_adk_agent(spec(), adk_tools=[])
+    assert "Support Bot" in agent.instruction
+    assert agent.instruction.index("You are the support agent.") < agent.instruction.index(
+        "Support Bot"
+    )
+
+
+def test_an_empty_system_prompt_still_names_the_agent():
     """agent_drafter ships with system_prompt ''."""
     agent = build_adk_agent(spec(system_prompt=""), adk_tools=[])
-    assert agent.instruction == ""
+    assert "Support Bot" in agent.instruction
+    assert agent.instruction == agent.instruction.strip()
 
 
 async def test_text_events_become_deltas_and_a_finished_turn(monkeypatch):
