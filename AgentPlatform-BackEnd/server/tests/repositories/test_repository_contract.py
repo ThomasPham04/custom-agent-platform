@@ -203,3 +203,36 @@ async def test_listing_carries_the_tool_calls_too(run_repo):
     await run_repo.append(make_run("run_a"))
     listed = await run_repo.list(agent_id=None, limit=50)
     assert len(listed[0].tool_calls) == 2
+
+
+async def test_delete_by_agent_removes_only_that_agents_runs(run_repo):
+    await run_repo.append(make_run("run_a1", agent_id="agent_a"))
+    await run_repo.append(make_run("run_a2", agent_id="agent_a"))
+    await run_repo.append(make_run("run_b1", agent_id="agent_b"))
+
+    removed = await run_repo.delete_by_agent("agent_a")
+
+    assert removed == 2
+    assert await run_repo.list(agent_id="agent_a", limit=50) == []
+    assert [r.id for r in await run_repo.list(agent_id="agent_b", limit=50)] == ["run_b1"]
+
+
+async def test_delete_by_agent_takes_the_tool_calls_with_it(run_repo):
+    """The child rows leave with their parent, or the next insert collides."""
+    await run_repo.append(make_run("run_a1", agent_id="agent_a", with_calls=True))
+
+    await run_repo.delete_by_agent("agent_a")
+
+    assert await run_repo.get("run_a1") is None
+    # Re-inserting the same call ids proves nothing was orphaned behind.
+    await run_repo.append(make_run("run_a1", agent_id="agent_a", with_calls=True))
+    assert len((await run_repo.list(agent_id="agent_a", limit=50))[0].tool_calls) == 2
+
+
+async def test_delete_by_agent_is_idempotent_for_an_unknown_agent(run_repo):
+    await run_repo.append(make_run("run_b1", agent_id="agent_b"))
+
+    removed = await run_repo.delete_by_agent("agent_missing")
+
+    assert removed == 0
+    assert [r.id for r in await run_repo.list(agent_id=None, limit=50)] == ["run_b1"]

@@ -2,7 +2,7 @@
 
 Every fixture, message and number here is transcribed from
 docs/superpowers/references/express-contract-reference.md §5. This module is what
-lets tests/contract/ and the Playwright suite run with no API key, so it is
+lets tests/contract/ run with no API key, so it is
 contract rather than a convenience — do not "improve" the values.
 """
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useChat } from './useChat';
 import type { Message } from '../types/message';
+import type { Run } from '../types/run';
 
 const assistant = (over: Partial<Message> = {}): Message => ({
   id: 'msg_1',
@@ -38,6 +39,18 @@ const jsonResponse = (body: unknown, status = 200) =>
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+
+/**
+ * Chat POSTs only. Mounting the hook also issues the history GET, so a raw
+ * fetch-call count no longer answers "how many messages were sent?".
+ */
+const postCalls = (fetchMock: { mock: { calls: unknown[][] } }) =>
+  fetchMock.mock.calls.filter(
+    (call) => (call[1] as RequestInit | undefined)?.method === 'POST',
+  ) as [unknown, RequestInit][];
+
+/** An empty history, so hydration never disturbs a send-focused test. */
+const noHistory = () => jsonResponse([]);
 
 const stubPost = (body: unknown, status = 200) =>
   vi.stubGlobal(
@@ -188,7 +201,7 @@ describe('useChat send', () => {
       await result.current.send('   ');
     });
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(postCalls(fetchMock)).toHaveLength(0);
     expect(result.current.messages).toHaveLength(0);
   });
 
@@ -220,7 +233,7 @@ describe('useChat send', () => {
       void result.current.send('second');
     });
 
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(postCalls(fetchMock)).toHaveLength(1);
     expect(result.current.messages).toHaveLength(2);
 
     await act(async () => {
@@ -246,7 +259,8 @@ describe('useChat failure and retry', () => {
 
   it('resends the same content on retry', async () => {
     let attempt = 0;
-    const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method !== 'POST') return noHistory();
       attempt += 1;
       const body =
         attempt === 1
@@ -272,7 +286,7 @@ describe('useChat failure and retry', () => {
     await waitFor(() => expect(result.current.messages[1]!.status).toBe('done'));
     expect(result.current.messages).toHaveLength(2);
     expect(result.current.messages[0]!.content).toBe('what time is it?');
-    expect(JSON.parse(String(fetchMock.mock.calls[1]![1]!.body))).toEqual({
+    expect(JSON.parse(String(postCalls(fetchMock)[1]![1]!.body))).toEqual({
       content: 'what time is it?',
       retry: true,
     });
@@ -284,8 +298,8 @@ describe('useChat failure and retry', () => {
       { message: assistant({ id: 'failed_two', content: 'second failed', status: 'error', toolCalls: [] }) },
       { message: assistant({ id: 'retried', content: 'first succeeded', status: 'done', toolCalls: [] }) },
     ];
-    const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
-      jsonResponse(responses.shift()),
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+      init?.method === 'POST' ? jsonResponse(responses.shift()) : noHistory(),
     );
     vi.stubGlobal('fetch', fetchMock);
     const { result } = renderHook(() => useChat('agent_support'));
@@ -305,7 +319,7 @@ describe('useChat failure and retry', () => {
       await retryable.retry('failed_one');
     });
 
-    expect(JSON.parse(String(fetchMock.mock.calls[2]![1]!.body))).toEqual({
+    expect(JSON.parse(String(postCalls(fetchMock)[2]![1]!.body))).toEqual({
       content: 'first question',
       retry: true,
     });
@@ -347,7 +361,9 @@ describe('useChat threads', () => {
     });
     await waitFor(() => expect(result.current.messages).toHaveLength(2));
 
-    act(() => result.current.clear());
+    await act(async () => {
+      await result.current.clear();
+    });
     expect(result.current.messages).toHaveLength(0);
 
     rerender({ id: 'agent_support' });
@@ -356,7 +372,10 @@ describe('useChat threads', () => {
 
   it('keeps in-flight state scoped to the agent when switching threads', async () => {
     const resolvers = new Map<string, (response: Response) => void>();
-    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      // Only the chat POST hangs; history resolves at once so the resolver map
+      // holds the send, not the hydration request.
+      if (init?.method !== 'POST') return noHistory();
       const id = String(url).includes('agent_support') ? 'agent_support' : 'agent_research';
       return new Promise<Response>((resolve) => resolvers.set(id, resolve));
     });
@@ -375,7 +394,7 @@ describe('useChat threads', () => {
     act(() => {
       void result.current.send('research question');
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(postCalls(fetchMock)).toHaveLength(2);
 
     await act(async () => {
       resolvers
@@ -391,5 +410,192 @@ describe('useChat threads', () => {
         .get('agent_support')
         ?.(jsonResponse({ message: assistant({ id: 'support_done', toolCalls: [] }) }));
     });
+  });
+});
+
+const historyRun = (over: Partial<Run> = {}): Run => ({
+  id: 'run_1',
+  agentId: 'agent_support',
+  agentName: 'Support Bot',
+  model: 'gemini-3.1-flash-lite',
+  systemPrompt: 'Be brief.',
+  userMessage: 'what time is it in Tokyo?',
+  answer: "It's 9:03 PM in Tokyo.",
+  status: 'done',
+  error: null,
+  latencyMs: 480,
+  sessionId: null,
+  createdAt: '2026-08-04T12:00:00+00:00',
+  toolCalls: [],
+  ...over,
+});
+
+/** Routes GET to the runs list and every other method to the chat response. */
+const stubHistory = (runs: Run[], post: unknown = { message: assistant() }) => {
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+    (init?.method ?? 'GET') === 'GET' ? jsonResponse(runs) : jsonResponse(post),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+};
+
+describe('useChat hydration', () => {
+  it('loads the agent past turns on mount', async () => {
+    stubHistory([historyRun()]);
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(result.current.messages[0]!.content).toBe('what time is it in Tokyo?');
+    expect(result.current.messages[1]!.content).toBe("It's 9:03 PM in Tokyo.");
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('reports loading until the history arrives', async () => {
+    stubHistory([historyRun()]);
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
+  it('requests history once per agent', async () => {
+    const fetchMock = stubHistory([historyRun()]);
+    const { result, rerender } = renderHook(({ id }) => useChat(id), {
+      initialProps: { id: 'agent_support' },
+    });
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    rerender({ id: 'agent_sales' });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    rerender({ id: 'agent_support' });
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    const historyCalls = fetchMock.mock.calls.filter(
+      ([, init]) => (init?.method ?? 'GET') === 'GET',
+    );
+    expect(historyCalls).toHaveLength(2);
+  });
+
+  it('asks only for that agent runs', async () => {
+    const fetchMock = stubHistory([]);
+    renderHook(() => useChat('agent_support'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(String(fetchMock.mock.calls[0]![0])).toContain('/api/runs?agentId=agent_support');
+  });
+
+  it('leaves the thread empty when history cannot be loaded', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        (init?.method ?? 'GET') === 'GET'
+          ? jsonResponse({ error: { code: 'internal', message: 'boom' } }, 500)
+          : jsonResponse({ message: assistant() }),
+      ),
+    );
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it('does not clobber a turn the user started while history was in flight', async () => {
+    let releaseHistory = (_value: Response) => {};
+    const pending = new Promise<Response>((resolve) => {
+      releaseHistory = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        (init?.method ?? 'GET') === 'GET'
+          ? pending
+          : jsonResponse({ message: assistant({ toolCalls: [] }) }),
+      ),
+    );
+    const { result } = renderHook(() => useChat('agent_support'));
+
+    act(() => {
+      void result.current.send('hello');
+    });
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    act(() => releaseHistory(jsonResponse([historyRun()])));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.messages[0]!.content).toBe('hello');
+  });
+});
+
+describe('useChat clear', () => {
+  it('deletes that agent runs and empties the thread', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'GET') return jsonResponse([historyRun()]);
+      if (method === 'DELETE') return new Response(null, { status: 204 });
+      return jsonResponse({ message: assistant() });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useChat('agent_support'));
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.clear();
+    });
+
+    expect(result.current.messages).toEqual([]);
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE');
+    expect(String(deleteCall?.[0])).toContain('/api/runs?agentId=agent_support');
+  });
+
+  it('keeps the thread when the delete fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? 'GET';
+        if (method === 'GET') return jsonResponse([historyRun()]);
+        if (method === 'DELETE') {
+          return jsonResponse({ error: { code: 'internal', message: 'boom' } }, 500);
+        }
+        return jsonResponse({ message: assistant() });
+      }),
+    );
+    const { result } = renderHook(() => useChat('agent_support'));
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+
+    await act(async () => {
+      await expect(result.current.clear()).rejects.toThrow('boom');
+    });
+
+    expect(result.current.messages).toHaveLength(2);
+  });
+});
+
+describe('useChat clear races', () => {
+  it('does not let a late history response resurrect cleared turns', async () => {
+    let releaseHistory = (_value: Response) => {};
+    const pending = new Promise<Response>((resolve) => {
+      releaseHistory = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? 'GET';
+        if (method === 'GET') return pending;
+        if (method === 'DELETE') return new Response(null, { status: 204 });
+        return jsonResponse({ message: assistant() });
+      }),
+    );
+    const { result } = renderHook(() => useChat('agent_support'));
+    expect(result.current.loading).toBe(true);
+
+    // Clear lands while the history GET is still outstanding.
+    await act(async () => {
+      await result.current.clear();
+    });
+    act(() => releaseHistory(jsonResponse([historyRun()])));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.messages).toEqual([]);
   });
 });

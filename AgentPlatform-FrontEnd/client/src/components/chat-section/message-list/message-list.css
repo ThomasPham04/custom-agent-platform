@@ -59,3 +59,9 @@
   background: var(--hover);
   border-color: var(--ink-faint);
 }
+
+.message-list__loading {
+  padding: var(--space-9) 0 var(--space-7);
+  font-size: var(--text-ui);
+  color: var(--ink-muted);
+}

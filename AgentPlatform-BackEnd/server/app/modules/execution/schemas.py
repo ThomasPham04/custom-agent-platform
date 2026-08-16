@@ -27,7 +27,7 @@ class ToolCall(WireModel):
     args: dict[str, Any]
     result: Any | None = None
     error: str | None = None
-    duration_ms: int
+    duration_ms: float
     status: CallStatus
 
 

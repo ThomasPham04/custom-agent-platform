@@ -46,7 +46,7 @@ class ToolCallFinished:
     call_id: str
     result: Any | None
     error: str | None
-    duration_ms: int
+    duration_ms: float
 
 
 @dataclass

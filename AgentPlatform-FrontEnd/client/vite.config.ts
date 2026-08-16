@@ -18,6 +18,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     css: false,
-    exclude: ['node_modules/**', 'e2e/**'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 });

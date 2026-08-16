@@ -21,3 +21,6 @@ class RunService:
         if run is None:
             raise NotFoundError(f'No run with id "{run_id}".')
         return run
+
+    async def delete_by_agent(self, agent_id: str) -> int:
+        return await self._repo.delete_by_agent(agent_id)

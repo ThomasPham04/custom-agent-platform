@@ -4,6 +4,7 @@ import { AgentSwitcher } from '../../components/chat-section/agent-switcher/agen
 import { Composer } from '../../components/chat-section/composer';
 import { MessageList } from '../../components/chat-section/message-list';
 import { ConfirmDelete } from '../../components/ui/confirm-delete';
+import { useToast } from '../../components/ui/toast';
 import { useAgentsContext } from '../../hooks/useAgents';
 import { useChat } from '../../hooks/useChat';
 import { useTools } from '../../hooks/useTools';
@@ -27,7 +28,8 @@ const ChatPage = () => {
     agents[0] ??
     null;
 
-  const { messages, sending, send, retry, clear } = useChat(selected?.id ?? null);
+  const { messages, sending, loading, send, retry, clear } = useChat(selected?.id ?? null);
+  const { show } = useToast();
 
   useEffect(() => {
     if (selected) localStorage.setItem(LAST_AGENT_KEY, selected.id);
@@ -43,12 +45,15 @@ const ChatPage = () => {
         />
         <div className="chat__header-right">
           {selected && <span className="chat__model mono">{selected.model}</span>}
-          {messages.length > 0 && (
+          {(messages.length > 0 || loading) && (
             <>
               <button
                 ref={clearRef}
                 type="button"
                 className="chat__clear"
+                // A clear mid-run would delete the rows before the server
+                // writes the run that is still finishing.
+                disabled={sending}
                 onClick={() => setConfirmClear(true)}
               >
                 Clear
@@ -56,7 +61,9 @@ const ChatPage = () => {
               <ConfirmDelete
                 open={confirmClear}
                 onClose={() => setConfirmClear(false)}
-                onConfirm={clear}
+                onConfirm={() => {
+                  void clear().catch(() => show("Couldn't clear the conversation. Try again."));
+                }}
                 anchor={clearRef}
                 itemName="this conversation"
                 actionLabel="Clear"
@@ -72,6 +79,7 @@ const ChatPage = () => {
           agent={selected}
           agents={agents}
           tools={tools}
+          loading={loading}
           onRetry={(messageId) => void retry(messageId)}
           onPickPrompt={(prompt) => void send(prompt)}
           onGoToAgents={() => navigate('/agents')}

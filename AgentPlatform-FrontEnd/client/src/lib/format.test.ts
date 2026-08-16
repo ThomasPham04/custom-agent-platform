@@ -42,20 +42,24 @@ describe('formatRelativeTime', () => {
 });
 
 describe('formatDuration', () => {
-  it('reports whole milliseconds below a second', () => {
-    expect(formatDuration(118)).toBe('118 ms');
-    expect(formatDuration(999)).toBe('999 ms');
-    expect(formatDuration(0)).toBe('0 ms');
+  it('reports milliseconds to two decimals below a second', () => {
+    expect(formatDuration(118)).toBe('118.00 ms');
+    expect(formatDuration(999)).toBe('999.00 ms');
+    expect(formatDuration(117.6)).toBe('117.60 ms');
+  });
+
+  // An in-process tool answers in tens of microseconds. Whole milliseconds
+  // truncated that to a bare "0 ms", which reads as "nothing ran".
+  it('keeps a sub-millisecond call visible', () => {
+    expect(formatDuration(0.0104)).toBe('0.01 ms');
+    expect(formatDuration(0.19)).toBe('0.19 ms');
+    expect(formatDuration(0)).toBe('0.00 ms');
   });
 
   it('reports seconds to one decimal from a second up', () => {
     expect(formatDuration(1000)).toBe('1.0 s');
     expect(formatDuration(1240)).toBe('1.2 s');
     expect(formatDuration(12500)).toBe('12.5 s');
-  });
-
-  it('rounds fractional milliseconds', () => {
-    expect(formatDuration(117.6)).toBe('118 ms');
   });
 });
 

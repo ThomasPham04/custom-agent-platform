@@ -98,3 +98,38 @@ def test_get_returns_404_for_an_unknown_run(client):
     res = client.get("/api/runs/run_missing")
     assert res.status_code == 404
     assert res.json()["error"]["code"] == "not_found"
+
+
+async def test_delete_removes_that_agents_runs_and_returns_204(client):
+    await seed(
+        make_run("run_a1", agent_id="agent_support"),
+        make_run("run_b1", agent_id="agent_sales"),
+    )
+
+    res = client.delete("/api/runs?agentId=agent_support")
+
+    assert res.status_code == 204
+    assert res.content == b""
+    assert client.get("/api/runs?agentId=agent_support").json() == []
+    assert [r["id"] for r in client.get("/api/runs?agentId=agent_sales").json()] == [
+        "run_b1"
+    ]
+
+
+async def test_delete_without_agent_id_is_rejected(client):
+    await seed(make_run("run_a1"))
+
+    res = client.delete("/api/runs")
+
+    assert res.status_code == 400
+    assert res.json() == {
+        "error": {"code": "bad_request", "message": "agentId is required."}
+    }
+    # The guard exists so a dropped query param cannot wipe every agent.
+    assert [r["id"] for r in client.get("/api/runs").json()] == ["run_a1"]
+
+
+async def test_delete_for_an_unknown_agent_is_idempotent(client):
+    res = client.delete("/api/runs?agentId=agent_missing")
+
+    assert res.status_code == 204

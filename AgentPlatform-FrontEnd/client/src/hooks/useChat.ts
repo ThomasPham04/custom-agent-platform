@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, apiPost } from '../lib/api-client';
+import { ApiError, apiDelete, apiGet, apiPost } from '../lib/api-client';
+import { runsToMessages } from '../lib/run-to-messages';
 import type { Message, ToolCall } from '../types/message';
+import type { Run } from '../types/run';
 
 export const ANSWER_FADE_MS = 180;
+
+/** Matches the GET /api/runs default; a longer thread rehydrates to its tail. */
+export const HISTORY_LIMIT = 50;
 
 type Threads = Record<string, Message[]>;
 type InFlightByAgent = Record<string, true>;
@@ -16,6 +21,11 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 export const useChat = (agentId: string | null) => {
   const [threads, setThreads] = useState<Threads>({});
   const [inFlightByAgent, setInFlightByAgent] = useState<InFlightByAgent>({});
+  const [hydratingByAgent, setHydratingByAgent] = useState<InFlightByAgent>({});
+  const hydrated = useRef(new Set<string>());
+  // Mirrors useAgents' queue.generation: bumping a agent's generation
+  // invalidates any response still in flight for it.
+  const generation = useRef(new Map<string, number>());
   const threadsRef = useRef<Threads>({});
   const inFlight = useRef(new Set<string>());
   const mounted = useRef(true);
@@ -50,6 +60,44 @@ export const useChat = (agentId: string | null) => {
 
   const messages = agentId ? (threads[agentId] ?? []) : [];
   const sending = agentId ? Boolean(inFlightByAgent[agentId]) : false;
+  const loading = agentId ? Boolean(hydratingByAgent[agentId]) : false;
+
+  useEffect(() => {
+    if (!agentId || hydrated.current.has(agentId)) return;
+    const id = agentId;
+    // Marked before the request so StrictMode's second effect pass does not
+    // fire a duplicate. Nothing here is cancelled on agent switch: the response
+    // is applied to threads[id] by id, so a late arrival is still correct.
+    hydrated.current.add(id);
+    const requested = generation.current.get(id) ?? 0;
+    setHydratingByAgent((current) => ({ ...current, [id]: true }));
+
+    apiGet<Run[]>(`/api/runs?agentId=${encodeURIComponent(id)}&limit=${HISTORY_LIMIT}`)
+      .then((runs) => {
+        if (!mounted.current) return;
+        // A clear that landed while this was in flight already deleted these
+        // rows; applying them now would resurrect them on screen.
+        if ((generation.current.get(id) ?? 0) !== requested) return;
+        // Live work wins. A turn started while this was in flight owns the
+        // thread, and history must not overwrite it.
+        if (inFlight.current.has(id) || (threadsRef.current[id] ?? []).length > 0) return;
+        mutateThreads((current) => ({ ...current, [id]: runsToMessages(runs) }));
+      })
+      .catch(() => {
+        // History is a convenience, not the conversation. A failed load leaves
+        // an empty thread and lets the next visit try again.
+        hydrated.current.delete(id);
+      })
+      .finally(() => {
+        if (!mounted.current) return;
+        setHydratingByAgent((current) => {
+          if (!(id in current)) return current;
+          const next = { ...current };
+          delete next[id];
+          return next;
+        });
+      });
+  }, [agentId, mutateThreads]);
 
   /** Rewrites one run placeholder in place, leaving every other turn untouched. */
   const patchPlaceholder = useCallback(
@@ -186,10 +234,17 @@ export const useChat = (agentId: string | null) => {
     if (lastFailure) await retry(lastFailure.id);
   }, [agentId, retry]);
 
-  const clear = useCallback(() => {
+  const clear = useCallback(async () => {
     if (!agentId) return;
+    // The delete comes first: the thread empties only once the rows are gone,
+    // so a failed clear never shows an emptiness the database disagrees with.
+    // The agent stays marked hydrated, so returning to it does not refetch a
+    // history that is now legitimately empty.
+    await apiDelete(`/api/runs?agentId=${encodeURIComponent(agentId)}`);
+    // Invalidates any history response still in flight for this agent.
+    generation.current.set(agentId, (generation.current.get(agentId) ?? 0) + 1);
     mutateThreads((current) => ({ ...current, [agentId]: [] }));
   }, [agentId, mutateThreads]);
 
-  return { messages, sending, send, retry, retryLast, clear };
+  return { messages, sending, loading, send, retry, retryLast, clear };
 };

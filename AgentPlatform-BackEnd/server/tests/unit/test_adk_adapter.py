@@ -7,6 +7,7 @@ pass one. These tests pin the synthesized signature.
 
 import asyncio
 import inspect
+import time
 
 import pytest
 
@@ -117,6 +118,29 @@ async def test_the_recorder_captures_a_successful_call():
     assert call.result == "done"
     assert call.error is None
     assert call.duration_ms >= 0
+
+
+async def test_a_sub_millisecond_call_keeps_its_hundredths():
+    """An in-process tool answers in tens of microseconds. Truncating to whole
+    milliseconds reported every one of them as "0 ms", which reads as "the call
+    never ran". The recorder keeps hundredths so the trace stays honest."""
+
+    class BusyTool(FakeTool):
+        async def execute(self, **kwargs):
+            # Busy-wait rather than asyncio.sleep: the Windows timer granularity
+            # is ~15 ms, far too coarse to measure a sub-millisecond span.
+            deadline = time.perf_counter() + 0.0004
+            while time.perf_counter() < deadline:
+                pass
+            return await super().execute(**kwargs)
+
+    recorder = ToolRecorder()
+    await build_callable(BusyTool(), recorder)(text="x")
+
+    duration = recorder.calls[0].duration_ms
+    assert isinstance(duration, float)
+    assert 0 < duration < 1
+    assert round(duration, 2) == duration
 
 
 async def test_the_recorder_captures_a_failed_call():

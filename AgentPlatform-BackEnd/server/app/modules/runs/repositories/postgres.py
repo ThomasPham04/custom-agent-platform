@@ -135,3 +135,11 @@ class PostgresRunRepository(RunRepository):
         for record in calls:
             by_run.setdefault(record["run_id"], []).append(_row_to_call(record))
         return [_row_to_run(row, by_run.get(row["id"], [])) for row in rows]
+
+    async def delete_by_agent(self, agent_id: str) -> int:
+        async with self._pool.acquire() as conn:
+            # run_tool_calls rows leave with their parent through that table's
+            # ON DELETE CASCADE, so one statement is the whole delete.
+            tag = await conn.execute("DELETE FROM runs WHERE agent_id = $1", agent_id)
+        # asyncpg returns the command tag, e.g. "DELETE 3".
+        return int(tag.split()[-1])

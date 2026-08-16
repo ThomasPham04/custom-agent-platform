@@ -60,7 +60,7 @@ async def translate(
                 args=start.args,
                 result=end.result if end is not None else None,
                 error=error,
-                duration_ms=end.duration_ms if end is not None else 0,
+                duration_ms=end.duration_ms if end is not None else 0.0,
                 status="error" if error is not None else "ok",
             )
         )

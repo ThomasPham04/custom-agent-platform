@@ -118,6 +118,7 @@ reports — the first chat request returns `provider_error` instead.
 | POST | `/api/chat/:agentId/messages` | `{ message }` with `toolCalls[]` |
 | GET | `/api/runs?agentId=&limit=` | `Run[]` |
 | GET | `/api/runs/:id` | `Run` |
+| DELETE | `/api/runs?agentId=` | 204 |
 
 There is no streaming: the chat endpoint returns the complete assistant message,
 tool calls included, in one response.

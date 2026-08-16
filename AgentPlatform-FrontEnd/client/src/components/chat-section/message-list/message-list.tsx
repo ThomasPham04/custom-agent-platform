@@ -17,6 +17,7 @@ interface MessageListProps {
   onRetry: (messageId: string) => void;
   onPickPrompt: (prompt: string) => void;
   onGoToAgents?: () => void;
+  loading?: boolean;
 }
 
 const announcementFor = (messages: readonly Message[], agent: Agent | null): string => {
@@ -35,6 +36,7 @@ export const MessageList = ({
   onRetry,
   onPickPrompt,
   onGoToAgents,
+  loading = false,
 }: MessageListProps) => {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +50,12 @@ export const MessageList = ({
         {announcementFor(messages, agent)}
       </div>
 
+      {loading && messages.length === 0 && (
+        <p className="message-list__loading" role="status" aria-label="Loading conversation">
+          Loading conversation&hellip;
+        </p>
+      )}
+
       {messages.length === 0 && agents.length === 0 && (
         <EmptyState
           icon="▤"
@@ -57,7 +65,7 @@ export const MessageList = ({
         />
       )}
 
-      {messages.length === 0 && agent && (
+      {!loading && messages.length === 0 && agent && (
         <div className="message-list__intro">
           <span className="message-list__intro-icon" aria-hidden="true">
             {agent.icon}

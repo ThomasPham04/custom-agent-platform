@@ -32,7 +32,7 @@ class CallRecord:
     args: dict[str, Any]
     result: Any | None
     error: str | None
-    duration_ms: int
+    duration_ms: float
 
 
 @dataclass
@@ -56,7 +56,7 @@ def build_callable(tool: Tool, recorder: ToolRecorder) -> Callable[..., Awaitabl
         # it — by whichever call happened to finish first rather than by the
         # order the model made them in.
         record = CallRecord(
-            tool_id=schema.id, args=args, result=None, error=None, duration_ms=0
+            tool_id=schema.id, args=args, result=None, error=None, duration_ms=0.0
         )
         recorder.calls.append(record)
 
@@ -69,7 +69,11 @@ def build_callable(tool: Tool, recorder: ToolRecorder) -> Callable[..., Awaitabl
 
         record.result = value
         record.error = error
-        record.duration_ms = int((time.perf_counter() - started) * 1000)
+        # Hundredths, not whole milliseconds: an in-process tool answers in tens
+        # of microseconds, and int() truncation reported all of them as "0 ms" —
+        # indistinguishable from a call that never ran. Rounding here rather than
+        # at the edge keeps float noise out of the persisted value.
+        record.duration_ms = round((time.perf_counter() - started) * 1000, 2)
 
         # Returned to the model, not raised: ADK feeds this back so the model can
         # explain the failure instead of the turn collapsing.

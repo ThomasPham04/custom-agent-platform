@@ -24,8 +24,8 @@ from app.modules.tools.router import router as tools_router
 async def _lifespan(app: FastAPI):
     """Open the pool, apply the schema, seed once.
 
-    With STORE_BACKEND=memory this does nothing, which is what keeps pytest and
-    Playwright running without a database.
+    With STORE_BACKEND=memory this does nothing, which is what keeps the test
+    suites running without a database.
     """
     settings = get_settings()
     if settings.store_backend == "postgres":

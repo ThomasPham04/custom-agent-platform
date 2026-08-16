@@ -47,8 +47,24 @@ CREATE TABLE IF NOT EXISTS run_tool_calls (
   args        JSONB   NOT NULL DEFAULT '{}'::jsonb,
   result      JSONB,
   error       TEXT,
-  duration_ms INTEGER NOT NULL,
+  duration_ms DOUBLE PRECISION NOT NULL,
   status      TEXT    NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS run_tool_calls_run_id_idx ON run_tool_calls (run_id, seq);
+
+-- duration_ms was INTEGER, which truncated every in-process tool call to 0 ms.
+-- CREATE TABLE IF NOT EXISTS leaves an existing table alone, so widening it for
+-- a database created before that change needs its own guarded statement.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'run_tool_calls'
+      AND column_name = 'duration_ms'
+      AND data_type = 'integer'
+  ) THEN
+    ALTER TABLE run_tool_calls
+      ALTER COLUMN duration_ms TYPE DOUBLE PRECISION;
+  END IF;
+END $$;

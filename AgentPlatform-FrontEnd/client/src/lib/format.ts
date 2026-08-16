@@ -18,9 +18,14 @@ export const formatRelativeTime = (iso: string, now: Date = new Date()): string 
   return dateFormatter.format(new Date(iso));
 };
 
-/** "118 ms" below a second, "1.2 s" at or above it. */
+/**
+ * "118.00 ms" below a second, "1.2 s" at or above it.
+ *
+ * Two decimals because an in-process tool answers in tens of microseconds:
+ * rounding to whole milliseconds printed "0 ms" and read as "nothing ran".
+ */
 export const formatDuration = (ms: number): string =>
-  ms < SECOND ? `${Math.round(ms)} ms` : `${(ms / SECOND).toFixed(1)} s`;
+  ms < SECOND ? `${ms.toFixed(2)} ms` : `${(ms / SECOND).toFixed(1)} s`;
 
 /** Local wall-clock time, zero-padded: "21:04:12". */
 export const formatClockTime = (iso: string): string => {

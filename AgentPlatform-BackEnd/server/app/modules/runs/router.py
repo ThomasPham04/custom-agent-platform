@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from app.container import get_run_service
+from app.core.errors import BadRequestError
 from app.modules.runs.schemas import Run
 from app.modules.runs.service import RunService
 
@@ -14,6 +15,19 @@ async def list_runs(
     svc: RunService = Depends(get_run_service),
 ) -> list[Run]:
     return await svc.list(agent_id=agent_id, limit=limit)
+
+
+@router.delete("", status_code=204, response_class=Response)
+async def delete_runs(
+    agent_id: str | None = Query(default=None, alias="agentId"),
+    svc: RunService = Depends(get_run_service),
+) -> None:
+    # Deliberately asymmetric with GET, where omitting agentId means "every
+    # agent". On a delete that default would erase the whole history, so the
+    # parameter is required and a missing one is a client error.
+    if agent_id is None:
+        raise BadRequestError("agentId is required.")
+    await svc.delete_by_agent(agent_id)
 
 
 @router.get("/{run_id}", response_model=Run)

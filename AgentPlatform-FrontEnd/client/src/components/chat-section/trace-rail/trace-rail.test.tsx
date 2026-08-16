@@ -36,8 +36,8 @@ describe('TraceRail', () => {
     );
     expect(screen.getByRole('button', { name: /Current time/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /HTTP request/ })).toBeInTheDocument();
-    expect(screen.getByText('118 ms')).toBeInTheDocument();
-    expect(screen.getByText('412 ms')).toBeInTheDocument();
+    expect(screen.getByText('118.00 ms')).toBeInTheDocument();
+    expect(screen.getByText('412.00 ms')).toBeInTheDocument();
   });
 
   it('collapses every node by default', () => {
@@ -73,7 +73,7 @@ describe('TraceRail', () => {
   it('reads a running call as working rather than showing a duration', () => {
     render(<TraceRail toolCalls={[call({ status: 'running' })]} tools={tools} running />);
     expect(screen.getByText('working…')).toBeInTheDocument();
-    expect(screen.queryByText('118 ms')).not.toBeInTheDocument();
+    expect(screen.queryByText('118.00 ms')).not.toBeInTheDocument();
   });
 
   it('shows the error text instead of a result for a failed call', async () => {

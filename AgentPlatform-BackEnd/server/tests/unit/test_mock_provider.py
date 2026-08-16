@@ -1,8 +1,7 @@
 """Every fixture value here is transcribed from contract reference §5.
 
 The mock is not a stand-in for the real provider — it *is* the contract for
-tests/contract/test_chat.py and for the Playwright suite, both of which assert
-these exact numbers and strings.
+tests/contract/test_chat.py, which asserts these exact numbers and strings.
 """
 
 import pytest

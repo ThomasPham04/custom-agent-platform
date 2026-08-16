@@ -186,3 +186,25 @@ describe('MessageList turns', () => {
     expect(region).toHaveTextContent('Support Bot responded');
   });
 });
+
+describe('MessageList history loading', () => {
+  it('holds the intro back while history is loading', () => {
+    render(<MessageList {...defaults} messages={[]} loading />);
+    expect(screen.queryByText('Support Bot')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading conversation' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the intro once loading finishes with no history', () => {
+    render(<MessageList {...defaults} messages={[]} loading={false} />);
+    expect(screen.getByText('Support Bot')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading conversation' })).not.toBeInTheDocument();
+  });
+
+  it('does not announce loading once turns have arrived', () => {
+    render(<MessageList {...defaults} messages={[user]} loading />);
+    expect(screen.queryByRole('status', { name: 'Loading conversation' })).not.toBeInTheDocument();
+    expect(screen.getByText('what time is it in Tokyo?')).toBeInTheDocument();
+  });
+});

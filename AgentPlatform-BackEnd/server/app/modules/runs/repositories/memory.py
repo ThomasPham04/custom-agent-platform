@@ -29,3 +29,10 @@ class MemoryRunRepository(RunRepository):
         ]
         ordered = sorted(matching, key=lambda r: r.created_at, reverse=True)
         return [r.model_copy(deep=True) for r in ordered[:limit]]
+
+    async def delete_by_agent(self, agent_id: str) -> int:
+        # Collected first: deleting from the dict while iterating it raises.
+        doomed = [rid for rid, run in self._runs.items() if run.agent_id == agent_id]
+        for run_id in doomed:
+            del self._runs[run_id]
+        return len(doomed)
