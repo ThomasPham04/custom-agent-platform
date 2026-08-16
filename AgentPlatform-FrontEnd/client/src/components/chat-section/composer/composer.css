@@ -46,7 +46,10 @@
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
-  margin-bottom: var(--space-1);
+  /* Bottom-aligned so the button stays put as the textarea grows, lifted to sit
+     centred on the first line: the textarea's own padding plus half a line is
+     lower than half this button. */
+  margin-bottom: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--signal);
   color: var(--paper);
