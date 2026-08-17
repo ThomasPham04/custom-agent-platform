@@ -30,7 +30,7 @@ two environment variables.
 
 | Folder | What it is |
 | --- | --- |
-| `AgentPlatform-BackEnd/server` | The API. Python 3.12 + FastAPI, listening on port 4000. |
+| `AgentPlatform-BackEnd/server` | The API. Python 3.14 + FastAPI, listening on port 4000. |
 | `AgentPlatform-BackEnd/deployment` | Docker Compose scaffold — nginx serves the client and proxies `/api` to the API on the same origin |
 | `AgentPlatform-FrontEnd/client` | React 19 + TypeScript UI on Vite |
 | `docs/superpowers/specs` | Design and architecture specs |
@@ -41,10 +41,10 @@ two environment variables.
 
 | Tool | Version | Needed for |
 | --- | --- | --- |
-| Python | 3.12 or newer | backend |
 | [uv](https://docs.astral.sh/uv/) | recent release | backend dependencies and commands |
-| Node.js | 20.19+ or 22.12+ | frontend |
-| Docker Desktop | any recent release | the container stack only |
+| Python | 3.14 | backend — installed by uv, see below |
+| Node.js | 24 (active LTS) | frontend |
+| Docker | any recent release | the container stack only |
 
 Nothing else is required to start. The backend defaults to an in-memory agent
 store and a deterministic mock LLM provider, so it runs with no database and no
@@ -52,6 +52,49 @@ API key, and the tool-call trace still renders end to end.
 
 The backend and frontend are separate projects with separate toolchains. There
 is no root-level install step — run each command from the directory shown.
+
+### Installing the toolchains
+
+**uv** manages the backend, including its Python. You do not need to install
+Python yourself — uv downloads an interpreter on the first `uv sync` if a
+suitable one is not already present.
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows PowerShell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+It installs to `~/.local/bin`; open a new shell afterwards so it is on `PATH`.
+Verify with `uv --version`.
+
+**Node 24** is easiest through a version manager, so the pin travels with the
+project rather than with your machine:
+
+```bash
+# macOS / Linux, via nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 24 && nvm use 24
+
+# Windows, via winget
+winget install OpenJS.NodeJS.LTS
+```
+
+npm ships with Node — nothing separate to install. Verify with `node --version`
+(expect `v24.x`) and `npm --version`.
+
+Then install each side's dependencies:
+
+```bash
+cd AgentPlatform-BackEnd/server  && uv sync
+cd AgentPlatform-FrontEnd/client && npm ci
+```
+
+`uv sync` creates `.venv` from the lockfile; `uv run` executes inside it, so
+there is nothing to activate by hand. `npm ci` installs from
+`package-lock.json` exactly.
 
 ## Run it in development
 
@@ -116,19 +159,17 @@ Set it to an absolute origin only when the API is hosted somewhere else.
 The whole stack — Postgres, the API, and nginx serving the built client — comes
 up with one command. From `AgentPlatform-BackEnd/deployment`:
 
-```powershell
-Copy-Item .\deploy\env\backend.env.example .\deploy\env\backend.env
-docker compose up --build
-```
-
 ```bash
-cp deploy/env/backend.env.example deploy/env/backend.env
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. Startup is ordered by healthchecks, and the API
-applies its schema and seeds the sample agents on first boot. `backend.env`
-holds credentials and is not tracked — never commit it.
+Nothing to copy first — every value has a default in the compose file. Open
+`http://localhost:8080`. Startup is ordered by healthchecks, and the API applies
+its schema and seeds the sample agents on first boot.
+
+To change anything — the host port, the database password, or the LLM provider
+and its key — copy `.env.example` to `.env` in that directory. It holds
+credentials and is not tracked; never commit it.
 
 See `AgentPlatform-BackEnd/deployment/README.md` for the service breakdown and
 every configuration value.

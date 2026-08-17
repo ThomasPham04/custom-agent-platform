@@ -1,4 +1,6 @@
-FROM node:20-alpine AS build
+# Node 24, the active LTS. Only the build stage needs it — the runtime image
+# below is nginx serving the compiled output, so Node never ships to production.
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
