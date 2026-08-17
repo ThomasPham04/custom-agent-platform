@@ -14,7 +14,6 @@ interface AgentFormProps {
   agent: Agent;
   tools: readonly Tool[];
   onChange: (patch: AgentPatch) => void;
-  onFlush: () => void;
   /** False for an unsaved draft, which has no history to date. */
   showTimestamps?: boolean;
 }
@@ -25,12 +24,12 @@ const STATUS_OPTIONS = [
 ];
 
 const MODEL_OPTIONS = MODELS.map((model) => ({ value: model.id, label: model.label }));
+const SYSTEM_PROMPT_MAX_LENGTH = 500;
 
 export const AgentForm = ({
   agent,
   tools,
   onChange,
-  onFlush,
   showTimestamps = true,
 }: AgentFormProps) => {
   const toolButtonRef = useRef<HTMLButtonElement>(null);
@@ -46,10 +45,7 @@ export const AgentForm = ({
             hideLabel
             value={agent.status}
             options={STATUS_OPTIONS}
-            onChange={(value) => {
-              onChange({ status: value as AgentStatus });
-              onFlush();
-            }}
+            onChange={(value) => onChange({ status: value as AgentStatus })}
           />
         </div>
       </div>
@@ -63,10 +59,7 @@ export const AgentForm = ({
             mono
             value={agent.model}
             options={MODEL_OPTIONS}
-            onChange={(value) => {
-              onChange({ model: value });
-              onFlush();
-            }}
+            onChange={(value) => onChange({ model: value })}
           />
         </div>
       </div>
@@ -80,10 +73,9 @@ export const AgentForm = ({
                 key={toolId}
                 tone="trace"
                 removeLabel={`Remove ${toolLabel(tools, toolId)}`}
-                onRemove={() => {
-                  onChange({ toolIds: agent.toolIds.filter((id) => id !== toolId) });
-                  onFlush();
-                }}
+                onRemove={() =>
+                  onChange({ toolIds: agent.toolIds.filter((id) => id !== toolId) })
+                }
               >
                 {toolLabel(tools, toolId)}
               </Chip>
@@ -91,7 +83,7 @@ export const AgentForm = ({
             <button
               ref={toolButtonRef}
               type="button"
-              className="agent-form__add-tool"
+              className="button button--primary button--sm agent-form__add-tool"
               onClick={() => setPickerOpen(true)}
             >
               {agent.toolIds.length === 0 ? 'Attach a tool' : 'Add'}
@@ -103,10 +95,7 @@ export const AgentForm = ({
             anchor={toolButtonRef}
             tools={tools}
             selectedIds={agent.toolIds}
-            onChange={(toolIds) => {
-              onChange({ toolIds });
-              onFlush();
-            }}
+            onChange={(toolIds) => onChange({ toolIds })}
           />
         </div>
       </div>
@@ -137,13 +126,15 @@ export const AgentForm = ({
         hideLabel
         mono
         minRows={8}
-        maxHeight={420}
+        fixed
+        maxLength={SYSTEM_PROMPT_MAX_LENGTH}
         placeholder="Describe how this agent should behave, and when to reach for a tool."
         value={agent.systemPrompt}
         onChange={(value) => onChange({ systemPrompt: value })}
-        onBlur={onFlush}
       />
-      <p className="agent-form__count mono">{agent.systemPrompt.length} characters</p>
+      <p className="agent-form__count mono">
+        {agent.systemPrompt.length}/{SYSTEM_PROMPT_MAX_LENGTH} characters
+      </p>
 
       <hr className="agent-form__divider" />
 
@@ -157,7 +148,6 @@ export const AgentForm = ({
         placeholder="One line on what this agent is for."
         value={agent.description}
         onChange={(event) => onChange({ description: event.target.value })}
-        onBlur={onFlush}
       />
     </div>
   );

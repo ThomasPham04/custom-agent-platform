@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useRef, useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AgentPeek } from './agent-peek';
 import type { Agent } from '../../../types/agent';
@@ -28,10 +28,8 @@ const agent: Agent = {
 const defaults = {
   agent,
   tools,
-  saveState: { kind: 'idle' } as const,
   onChange: () => {},
-  onFlush: () => {},
-  onRetrySave: () => {},
+  onSave: () => {},
   onDelete: () => {},
   onClose: () => {},
 };
@@ -47,7 +45,7 @@ describe('AgentPeek', () => {
     );
   });
 
-  it('edits the name through a plain input, with no Save button anywhere', async () => {
+  it('edits the name through a plain input', async () => {
     const onChange = vi.fn();
     render(<AgentPeek {...defaults} onChange={onChange} />);
 
@@ -56,7 +54,6 @@ describe('AgentPeek', () => {
 
     await userEvent.type(nameInput, '!');
     expect(onChange).toHaveBeenLastCalledWith({ name: 'Support Bot!' });
-    expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument();
   });
 
   it('focuses and selects the name when opened with creation intent', () => {
@@ -67,17 +64,23 @@ describe('AgentPeek', () => {
     expect(name).toHaveProperty('selectionEnd', agent.name.length);
   });
 
-  it('flushes pending edits when a field loses focus', async () => {
-    const onFlush = vi.fn();
-    render(<AgentPeek {...defaults} onFlush={onFlush} />);
-    await userEvent.click(screen.getByRole('textbox', { name: 'Agent name' }));
-    await userEvent.tab();
-    expect(onFlush).toHaveBeenCalled();
-  });
-
   it('sets the system prompt in the mono face', () => {
     render(<AgentPeek {...defaults} />);
     expect(screen.getByRole('textbox', { name: 'System prompt' }).className).toContain('mono');
+  });
+
+  it('keeps the system prompt fixed at eight rows and limits it to 500 characters', () => {
+    const onChange = vi.fn();
+    render(<AgentPeek {...defaults} onChange={onChange} />);
+    const prompt = screen.getByRole('textbox', { name: 'System prompt' });
+
+    expect(prompt).toHaveAttribute('rows', '8');
+    expect(prompt).toHaveAttribute('maxlength', '500');
+    expect(prompt.style.height).toBe('');
+    expect(screen.getByText('9/500 characters')).toBeInTheDocument();
+
+    fireEvent.change(prompt, { target: { value: 'x'.repeat(501) } });
+    expect(onChange).toHaveBeenCalledWith({ systemPrompt: 'x'.repeat(500) });
   });
 
   it('shows the attached tools as removable chips', async () => {
@@ -87,25 +90,46 @@ describe('AgentPeek', () => {
     expect(onChange).toHaveBeenCalledWith({ toolIds: [] });
   });
 
-  it('reads the save state as a timestamp', () => {
-    render(
-      <AgentPeek {...defaults} saveState={{ kind: 'saved', at: '2026-08-04T21:04:12.000Z' }} />,
-    );
-    expect(screen.getByText(/^Saved \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
+  it('keeps Save changes disabled until the parent reports a change', () => {
+    const { rerender } = render(<AgentPeek {...defaults} dirty={false} />);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+
+    rerender(<AgentPeek {...defaults} dirty />);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   });
 
-  it('offers a retry when a save failed, and says what happened', async () => {
-    const onRetrySave = vi.fn();
-    render(
-      <AgentPeek
-        {...defaults}
-        saveState={{ kind: 'error', message: 'Unknown model "gpt-4".' }}
-        onRetrySave={onRetrySave}
-      />,
-    );
-    expect(screen.getByText(/Couldn’t save/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(onRetrySave).toHaveBeenCalledOnce();
+  it('places filled Delete and Save actions on the same saved-agent footer row', () => {
+    render(<AgentPeek {...defaults} />);
+    const save = screen.getByRole('button', { name: 'Save changes' });
+    const footer = save.closest('.agent-peek__footer');
+    expect(footer).not.toBeNull();
+
+    const deleteButton = within(footer as HTMLElement).getByRole('button', {
+      name: 'Delete agent',
+    });
+    expect(deleteButton).toHaveClass('agent-peek__delete');
+    expect(deleteButton).toHaveClass('button--danger');
+    expect(within(footer as HTMLElement).getByRole('button', { name: 'Save changes' })).toBe(save);
+  });
+
+  it('submits explicit saves and reports in-flight and failed states', async () => {
+    const onSave = vi.fn();
+    const { rerender } = render(<AgentPeek {...defaults} dirty onSave={onSave} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(onSave).toHaveBeenCalledOnce();
+
+    rerender(<AgentPeek {...defaults} dirty saving onSave={onSave} />);
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete agent' })).toBeDisabled();
+
+    rerender(<AgentPeek {...defaults} dirty saveError="Could not save." onSave={onSave} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not save.');
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  it('styles Add with the shared primary action treatment', () => {
+    render(<AgentPeek {...defaults} />);
+    expect(screen.getByRole('button', { name: 'Add' })).toHaveClass('button--primary');
   });
 
   it('keeps a failed delete and its operation retry visible inside a mobile peek', async () => {
@@ -231,9 +255,7 @@ describe('AgentPeek in draft mode', () => {
   });
 
   it('shows no autosave readout, because a draft never autosaves', () => {
-    render(
-      <AgentPeek {...draftDefaults} saveState={{ kind: 'saved', at: '2026-08-04T21:04:12.000Z' }} />,
-    );
+    render(<AgentPeek {...draftDefaults} />);
     expect(screen.queryByText(/^Saved /)).not.toBeInTheDocument();
   });
 

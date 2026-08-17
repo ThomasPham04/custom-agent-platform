@@ -6,10 +6,83 @@ import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/empty-state';
 import { useToast } from '../../components/ui/toast';
 import { useAgentsContext } from '../../hooks/useAgents';
+import type { SaveAgentResult } from '../../hooks/useAgents';
 import { useTools } from '../../hooks/useTools';
 import { newAgentDraft } from '../../lib/agent-draft';
-import type { AgentDraft } from '../../types/agent';
+import { agentPatch, hasAgentChanges } from '../../lib/agent-edit';
+import type { Agent, AgentDraft, AgentPatch } from '../../types/agent';
+import type { Tool } from '../../types/tool';
 import './agents.css';
+
+interface SavedAgentEditorProps {
+  agent: Agent;
+  tools: readonly Tool[];
+  saveAgent: (id: string, patch: AgentPatch) => Promise<SaveAgentResult>;
+  focusName: boolean;
+  onNameFocused: () => void;
+  operationError?: string;
+  onRetryOperation: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+const SavedAgentEditor = ({
+  agent,
+  tools,
+  saveAgent,
+  focusName,
+  onNameFocused,
+  operationError,
+  onRetryOperation,
+  onDelete,
+  onClose,
+}: SavedAgentEditorProps) => {
+  const [baseline, setBaseline] = useState(agent);
+  const [edited, setEdited] = useState(agent);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
+  const dirty = hasAgentChanges(baseline, edited);
+
+  const onSave = async () => {
+    const patch = agentPatch(baseline, edited);
+    if (Object.keys(patch).length === 0 || saving) return;
+
+    const submitted = edited;
+    setSaving(true);
+    setSaveError(undefined);
+    const result = await saveAgent(agent.id, patch);
+    setSaving(false);
+
+    if (!result.ok) {
+      setSaveError(result.message);
+      return;
+    }
+
+    setBaseline(result.agent);
+    setEdited((current) => ({ ...result.agent, ...agentPatch(submitted, current) }));
+  };
+
+  return (
+    <AgentPeek
+      agent={edited}
+      tools={tools}
+      dirty={dirty}
+      saving={saving}
+      saveError={saveError}
+      focusName={focusName}
+      onNameFocused={onNameFocused}
+      operationError={operationError}
+      onRetryOperation={onRetryOperation}
+      onChange={(patch) => {
+        setEdited((current) => ({ ...current, ...patch }));
+        setSaveError(undefined);
+      }}
+      onSave={() => void onSave()}
+      onDelete={onDelete}
+      onClose={onClose}
+    />
+  );
+};
 
 const AgentsPage = () => {
   const { agentId } = useParams();
@@ -19,15 +92,12 @@ const AgentsPage = () => {
     agents,
     loading,
     error,
-    saveStates,
     operationError,
     creating,
     saveDraft,
     duplicateAgent,
     deleteAgent,
-    updateAgent,
-    flushUpdates,
-    retrySave,
+    saveAgent,
     retryOperation,
     reload,
   } = useAgentsContext();
@@ -187,15 +257,12 @@ const AgentsPage = () => {
           // because draft mode hides the fields that would show them.
           agent={{ ...draft, id: '', createdAt: '', updatedAt: '' }}
           tools={tools}
-          saveState={{ kind: 'idle' }}
           focusName
           saving={creating}
           operationError={
             operationError?.kind === 'create' ? operationError.message : undefined
           }
           onChange={(patch) => setDraft((current) => (current ? { ...current, ...patch } : current))}
-          onFlush={() => {}}
-          onRetrySave={() => {}}
           onDelete={() => {}}
           onSaveDraft={() => void onSaveDraft()}
           onClose={() => setDraft(null)}
@@ -203,10 +270,11 @@ const AgentsPage = () => {
       )}
 
       {!draft && selected && (
-        <AgentPeek
+        <SavedAgentEditor
+          key={selected.id}
           agent={selected}
           tools={tools}
-          saveState={saveStates[selected.id] ?? { kind: 'idle' }}
+          saveAgent={saveAgent}
           focusName={focusNameId === selected.id}
           onNameFocused={() => setFocusNameId(null)}
           operationError={
@@ -215,9 +283,6 @@ const AgentsPage = () => {
               : undefined
           }
           onRetryOperation={() => void onRetryOperation()}
-          onChange={(patch) => updateAgent(selected.id, patch)}
-          onFlush={() => void flushUpdates(selected.id)}
-          onRetrySave={() => retrySave(selected.id)}
           onDelete={() => void onDelete(selected.id)}
           onClose={closePeek}
         />

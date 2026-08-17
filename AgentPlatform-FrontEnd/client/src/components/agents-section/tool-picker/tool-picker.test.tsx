@@ -40,12 +40,12 @@ const Harness = ({ onChange }: { onChange: (ids: string[]) => void }) => {
 const open = async () => userEvent.click(screen.getByRole('button', { name: 'Add tool' }));
 
 describe('ToolPicker', () => {
-  it('lists every tool with its id shown as machine data', async () => {
+  it('shows readable labels without rendering wire ids', async () => {
     render(<Harness onChange={() => {}} />);
     await open();
-    expect(screen.getByRole('checkbox', { name: /Current time/ })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /Calculator/ })).not.toBeChecked();
-    expect(screen.getByText('knowledge_search')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Current time' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Calculator' })).not.toBeChecked();
+    expect(screen.queryByText('knowledge_search')).not.toBeInTheDocument();
   });
 
   it('counts the selection', async () => {

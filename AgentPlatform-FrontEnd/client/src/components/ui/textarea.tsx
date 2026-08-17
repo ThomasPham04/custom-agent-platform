@@ -10,6 +10,8 @@ interface AutoTextareaProps {
   mono?: boolean;
   minRows?: number;
   maxHeight?: number;
+  fixed?: boolean;
+  maxLength?: number;
   placeholder?: string;
   disabled?: boolean;
   id?: string;
@@ -25,6 +27,8 @@ export const AutoTextarea = ({
   mono,
   minRows = 1,
   maxHeight = 200,
+  fixed = false,
+  maxLength,
   placeholder,
   disabled,
   id,
@@ -39,13 +43,18 @@ export const AutoTextarea = ({
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+    if (fixed) {
+      element.style.height = '';
+      element.style.overflowY = 'auto';
+      return;
+    }
     element.style.height = 'auto';
     const needed = element.scrollHeight;
     element.style.height = `${Math.min(needed, maxHeight)}px`;
     // Only scroll once the content actually exceeds the cap; otherwise `auto`
     // reserves a scrollbar gutter and an empty composer looks broken.
     element.style.overflowY = needed > maxHeight ? 'auto' : 'hidden';
-  }, [value, maxHeight]);
+  }, [value, maxHeight, fixed]);
 
   return (
     <div className="textarea">
@@ -58,12 +67,15 @@ export const AutoTextarea = ({
         className={['textarea__control', mono ? 'mono' : ''].filter(Boolean).join(' ')}
         value={value}
         rows={minRows}
+        maxLength={maxLength}
         placeholder={placeholder}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(maxLength === undefined ? event.target.value : event.target.value.slice(0, maxLength))
+        }
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        style={{ maxHeight: `${maxHeight}px` }}
+        style={fixed ? undefined : { maxHeight: `${maxHeight}px` }}
       />
     </div>
   );

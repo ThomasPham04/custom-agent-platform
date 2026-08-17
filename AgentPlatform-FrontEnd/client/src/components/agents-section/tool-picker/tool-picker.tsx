@@ -130,10 +130,7 @@ export const ToolPicker = ({
                   tabIndex={tool.id === activeToolId ? 0 : -1}
                   onChange={() => toggle(tool.id)}
                 />
-                <span className="tool-picker__text">
-                  <span className="tool-picker__label">{tool.label}</span>
-                  <span className="tool-picker__id mono">{tool.id}</span>
-                </span>
+                <span className="tool-picker__label">{tool.label}</span>
               </label>
             </li>
           ))}

@@ -3,10 +3,8 @@ import { AgentForm } from '../agent-form/agent-form';
 import { ConfirmDelete } from '../../ui/confirm-delete';
 import { Popover } from '../../ui/popover';
 import { AGENT_ICONS } from '../../../lib/agent-icons';
-import { formatClockTime } from '../../../lib/format';
 import { BREAKPOINT_SHEET, useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useModalFocus } from '../../../hooks/useModalFocus';
-import type { SaveState } from '../../../hooks/useAgents';
 import type { Agent, AgentPatch } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
 import './agent-peek.css';
@@ -14,10 +12,10 @@ import './agent-peek.css';
 interface AgentPeekProps {
   agent: Agent;
   tools: readonly Tool[];
-  saveState: SaveState;
   onChange: (patch: AgentPatch) => void;
-  onFlush: () => void;
-  onRetrySave: () => void;
+  dirty?: boolean;
+  saveError?: string;
+  onSave?: () => void;
   onDelete: () => void;
   onClose: () => void;
   returnFocusRef?: RefObject<HTMLElement | null>;
@@ -33,33 +31,6 @@ interface AgentPeekProps {
   onSaveDraft?: () => void;
   saving?: boolean;
 }
-
-const SaveReadout = ({
-  saveState,
-  onRetrySave,
-}: {
-  saveState: SaveState;
-  onRetrySave: () => void;
-}) => {
-  if (saveState.kind === 'idle') return null;
-
-  if (saveState.kind === 'error') {
-    return (
-      <p className="agent-peek__save agent-peek__save--error" role="alert">
-        <span className="mono">Couldn&rsquo;t save. {saveState.message}</span>
-        <button type="button" className="agent-peek__retry" onClick={onRetrySave}>
-          Retry
-        </button>
-      </p>
-    );
-  }
-
-  return (
-    <p className="agent-peek__save mono">
-      {saveState.kind === 'saving' ? 'Saving…' : `Saved ${formatClockTime(saveState.at)}`}
-    </p>
-  );
-};
 
 const OperationReadout = ({
   message,
@@ -84,10 +55,10 @@ const OperationReadout = ({
 export const AgentPeek = ({
   agent,
   tools,
-  saveState,
   onChange,
-  onFlush,
-  onRetrySave,
+  dirty = false,
+  saveError,
+  onSave,
   onDelete,
   onClose,
   returnFocusRef,
@@ -168,7 +139,6 @@ export const AgentPeek = ({
                 aria-pressed={icon === agent.icon}
                 onClick={() => {
                   onChange({ icon });
-                  onFlush();
                   setIconOpen(false);
                 }}
               >
@@ -185,7 +155,6 @@ export const AgentPeek = ({
           aria-label="Agent name"
           value={agent.name}
           onChange={(event) => onChange({ name: event.target.value })}
-          onBlur={onFlush}
         />
 
         <button
@@ -211,26 +180,9 @@ export const AgentPeek = ({
           agent={agent}
           tools={tools}
           onChange={onChange}
-          onFlush={onFlush}
           showTimestamps={!isDraft}
         />
 
-        {!isDraft && (
-          <div className="agent-peek__danger">
-            {/*
-              A plain button, not <Button>: the confirm popover anchors to this
-              element and Button does not forward a ref. Same classes, same look.
-            */}
-            <button
-              ref={deleteRef}
-              type="button"
-              className="button button--danger button--sm"
-              onClick={() => setConfirmOpen(true)}
-            >
-              Delete agent
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="agent-peek__footer">
@@ -256,12 +208,39 @@ export const AgentPeek = ({
             </div>
           </div>
         ) : (
-          <>
-            <SaveReadout saveState={saveState} onRetrySave={onRetrySave} />
+          <div className="agent-peek__commit">
+            {saveError && (
+              <p className="agent-peek__save agent-peek__save--error" role="alert">
+                <span className="mono">Couldn&rsquo;t save. {saveError}</span>
+              </p>
+            )}
             {operationError && onRetryOperation && (
               <OperationReadout message={operationError} onRetry={onRetryOperation} />
             )}
-          </>
+            <div className="agent-peek__commit-actions agent-peek__commit-actions--saved">
+              {/*
+                A plain button, not <Button>: the confirm popover anchors to this
+                element and Button does not forward a ref. Same classes, same look.
+              */}
+              <button
+                ref={deleteRef}
+                type="button"
+                className="button button--danger button--sm agent-peek__delete"
+                disabled={saving}
+                onClick={() => setConfirmOpen(true)}
+              >
+                Delete agent
+              </button>
+              <button
+                type="button"
+                className="button button--primary button--sm"
+                disabled={!dirty || saving}
+                onClick={onSave}
+              >
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

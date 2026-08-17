@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AutoTextarea } from './textarea';
 
@@ -34,6 +34,26 @@ describe('AutoTextarea', () => {
       <AutoTextarea label="Prompt" value={'x\n'.repeat(200)} onChange={() => {}} maxHeight={120} />,
     );
     expect((screen.getByLabelText('Prompt') as HTMLTextAreaElement).style.maxHeight).toBe('120px');
+  });
+
+  it('keeps a fixed field at its row height and scrolls overflowing content internally', () => {
+    render(<AutoTextarea label="Prompt" value="one line" onChange={() => {}} minRows={8} fixed />);
+    const textarea = screen.getByLabelText('Prompt') as HTMLTextAreaElement;
+    expect(textarea).toHaveAttribute('rows', '8');
+    expect(textarea.style.height).toBe('');
+    expect(textarea.style.overflowY).toBe('auto');
+  });
+
+  it('enforces an optional maximum length before reporting a changed value', () => {
+    const onChange = vi.fn();
+    render(
+      <AutoTextarea label="Prompt" value="" onChange={onChange} maxLength={500} />,
+    );
+    const textarea = screen.getByLabelText('Prompt');
+    expect(textarea).toHaveAttribute('maxlength', '500');
+
+    fireEvent.change(textarea, { target: { value: 'x'.repeat(501) } });
+    expect(onChange).toHaveBeenCalledWith('x'.repeat(500));
   });
 
   it('hides the scrollbar while the content fits, so an empty field looks clean', () => {

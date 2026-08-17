@@ -222,3 +222,150 @@ describe('new agent draft', () => {
     expect(attempts).toBe(2);
   });
 });
+
+describe('existing agent manual save', () => {
+  const tool = {
+    id: 'current_time',
+    label: 'Current time',
+    description: 'Reads the time.',
+    params: [],
+  };
+
+  const stubSavedAgentApi = (
+    onPatch: (body: Record<string, unknown>) => Response | Promise<Response> = (body) =>
+      json({ ...agent, ...body, updatedAt: '2026-08-17T10:00:00.000Z' }),
+    listedAgents: Agent[] = [agent],
+  ) => {
+    const calls: { method: string; body: Record<string, unknown> }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
+        if (url.includes('/api/tools')) return json([tool]);
+        if (url.includes('/api/sessions')) return json([]);
+        const method = init?.method ?? 'GET';
+        if (method === 'PATCH') {
+          const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          calls.push({ method, body });
+          return onPatch(body);
+        }
+        return json(listedAgents);
+      }),
+    );
+    return calls;
+  };
+
+  const deferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+
+  const openSavedAgent = async () => {
+    window.history.pushState({}, '', `/agents/${agent.id}`);
+    render(<App />);
+    return screen.findByRole('textbox', { name: 'Agent name' });
+  };
+
+  it('does not patch while editing and saves one merged patch on demand', async () => {
+    const calls = stubSavedAgentApi();
+    const name = await openSavedAgent();
+    const description = screen.getByRole('textbox', { name: 'Description' });
+
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Renamed');
+    await userEvent.type(description, 'Updated description');
+
+    expect(calls).toEqual([]);
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toEqual({
+      method: 'PATCH',
+      body: { name: 'Renamed', description: 'Updated description' },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled(),
+    );
+  });
+
+  it('discards unsaved edits when the panel closes', async () => {
+    const calls = stubSavedAgentApi();
+    const name = await openSavedAgent();
+
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Discard me');
+    await userEvent.click(screen.getByRole('button', { name: 'Close panel' }));
+    await userEvent.click(screen.getByRole('row', { name: /Support Bot/ }));
+
+    expect(screen.getByRole('textbox', { name: 'Agent name' })).toHaveValue('Support Bot');
+    expect(calls).toEqual([]);
+  });
+
+  it('disables Save again when a value is restored to the baseline', async () => {
+    stubSavedAgentApi();
+    const name = await openSavedAgent();
+
+    await userEvent.type(name, '!');
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+    await userEvent.clear(name);
+    await userEvent.type(name, agent.name);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+
+  it('retains the local draft and permits retry after a failed save', async () => {
+    let attempt = 0;
+    const calls = stubSavedAgentApi((body) => {
+      attempt += 1;
+      return attempt === 1
+        ? json({ error: { code: 'internal_error', message: 'Save failed.' } }, 500)
+        : json({ ...agent, ...body });
+    });
+    const name = await openSavedAgent();
+
+    await userEvent.type(name, '!');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Save failed.');
+    expect(name).toHaveValue('Support Bot!');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(calls).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled(),
+    );
+  });
+
+  it('keeps edits made while Save is in flight dirty after the response', async () => {
+    const pending = deferred<Response>();
+    stubSavedAgentApi(() => pending.promise);
+    const name = await openSavedAgent();
+
+    await userEvent.clear(name);
+    await userEvent.type(name, 'First');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Second');
+    pending.resolve(json({ ...agent, name: 'First' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled(),
+    );
+    expect(name).toHaveValue('Second');
+  });
+
+  it('discards one agent draft when another agent is selected', async () => {
+    const other = { ...agent, id: 'agent_research', name: 'Research Assistant' };
+    stubSavedAgentApi(undefined, [agent, other]);
+    const name = await openSavedAgent();
+
+    await userEvent.type(name, '!');
+    await userEvent.click(screen.getByRole('row', { name: /Research Assistant/ }));
+    await userEvent.click(screen.getByRole('row', { name: /Support Bot/ }));
+
+    expect(screen.getByRole('textbox', { name: 'Agent name' })).toHaveValue('Support Bot');
+  });
+});
