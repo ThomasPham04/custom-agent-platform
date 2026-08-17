@@ -11,9 +11,14 @@ router = APIRouter(prefix="/api/runs", tags=["runs"])
 @router.get("", response_model=list[Run])
 async def list_runs(
     agent_id: str | None = Query(default=None, alias="agentId"),
+    session_id: str | None = Query(default=None, alias="sessionId"),
     limit: int = Query(default=50, ge=1, le=200),
     svc: RunService = Depends(get_run_service),
 ) -> list[Run]:
+    if agent_id is not None and session_id is not None:
+        raise BadRequestError("Pass agentId or sessionId, not both.")
+    if session_id is not None:
+        return await svc.list_by_session(session_id=session_id, limit=limit)
     return await svc.list(agent_id=agent_id, limit=limit)
 
 

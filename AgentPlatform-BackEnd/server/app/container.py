@@ -23,6 +23,10 @@ from app.modules.runs.repositories.memory import MemoryRunRepository
 from app.modules.runs.repositories.postgres import PostgresRunRepository
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.service import RunService
+from app.modules.sessions.repositories.memory import MemorySessionRepository
+from app.modules.sessions.repositories.postgres import PostgresSessionRepository
+from app.modules.sessions.repository import SessionRepository
+from app.modules.sessions.service import SessionService
 from app.modules.tools.registry import ToolRegistry, default_tools
 
 
@@ -65,6 +69,7 @@ def get_agent_service() -> AgentService:
         tools=get_tool_registry(),
         model_ids=MODEL_IDS,
         default_model=DEFAULT_MODEL,
+        sessions=get_session_repository(),
     )
 
 
@@ -80,6 +85,18 @@ def get_run_service() -> RunService:
     return RunService(repo=get_run_repository())
 
 
+@lru_cache
+def get_session_repository() -> SessionRepository:
+    settings = get_settings()
+    if settings.store_backend == "memory":
+        return MemorySessionRepository()
+    return PostgresSessionRepository(pool=get_pool())
+
+
+def get_session_service() -> SessionService:
+    return SessionService(sessions=get_session_repository(), runs=get_run_repository())
+
+
 def get_execution_service() -> ExecutionService:
     settings = get_settings()
     return ExecutionService(
@@ -87,6 +104,7 @@ def get_execution_service() -> ExecutionService:
         tools=get_tool_registry(),
         llm=get_llm_provider(),
         runs=get_run_repository(),
+        sessions=get_session_repository(),
         log_payload_max_bytes=settings.log_payload_max_bytes,
     )
 
@@ -102,3 +120,4 @@ def reset_container() -> None:
     get_llm_provider.cache_clear()
     get_agent_repository.cache_clear()
     get_run_repository.cache_clear()
+    get_session_repository.cache_clear()

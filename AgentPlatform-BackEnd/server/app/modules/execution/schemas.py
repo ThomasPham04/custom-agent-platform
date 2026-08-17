@@ -7,6 +7,7 @@ required, trimmed, non-empty, and at most 10000 characters.
 from typing import Any, Literal
 
 from app.core.wire import WireModel
+from app.modules.sessions.schemas import Session
 
 MessageStatus = Literal["done", "error"]
 CallStatus = Literal["ok", "error"]
@@ -19,6 +20,8 @@ class MessageRequest(WireModel):
     # Request metadata, not server state: identical messages from different
     # clients stay independent (spec §5.2).
     retry: bool = False
+    # Absent on the first message of a chat: the session is created by the send.
+    session_id: str | None = None
 
 
 class ToolCall(WireModel):
@@ -43,6 +46,7 @@ class MessageResponse(WireModel):
 
 
 class MessageEnvelope(WireModel):
-    """The endpoint returns {"message": ...}, matching Express."""
+    """{"message": ...}, plus {"session": ...} on the request that created one."""
 
     message: MessageResponse
+    session: Session | None = None

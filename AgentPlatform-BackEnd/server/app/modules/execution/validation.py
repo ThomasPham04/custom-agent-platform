@@ -47,4 +47,8 @@ def validate_message_request(body: Any) -> MessageRequest:
     if not isinstance(retry, bool):
         raise BadRequestError("retry must be a boolean.")
 
-    return MessageRequest(content=trimmed, retry=retry)
+    session_id = body.get("sessionId")
+    if session_id is not None and not isinstance(session_id, str):
+        raise BadRequestError("sessionId must be a string.")
+
+    return MessageRequest(content=trimmed, retry=retry, session_id=session_id)

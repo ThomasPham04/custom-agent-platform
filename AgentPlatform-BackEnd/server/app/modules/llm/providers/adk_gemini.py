@@ -15,7 +15,7 @@ from typing import Any
 from app.core.errors import ProviderError
 from app.core.ids import create_id
 from app.modules.execution.agent_factory import build_adk_agent
-from app.modules.llm.catalog import MODELS
+from app.modules.llm.catalog import DEFAULT_MODEL, MODELS
 from app.modules.llm.failures import provider_message
 from app.modules.llm.provider import (
     LLMProvider,
@@ -27,6 +27,7 @@ from app.modules.llm.provider import (
     ToolCallStarted,
     TurnFinished,
 )
+from app.modules.sessions.titles import truncate_title
 from app.modules.tools.adk_adapter import ToolRecorder, to_adk_tools
 
 _APP_NAME = "agent-platform"
@@ -35,16 +36,52 @@ _APP_NAME = "agent-platform"
 # (spec §5.2, "Sessions").
 _USER_ID = "local"
 
+_TITLE_INSTRUCTION = (
+    "Write a title of at most six words for a conversation that starts with the "
+    "message below. Reply with the title only — no quotes, no punctuation at the "
+    "end, no explanation."
+)
+
 
 class AdkGeminiProvider(LLMProvider):
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
+        self._model_for_titles = DEFAULT_MODEL
 
     def models(self) -> list[ModelInfo]:
         return MODELS
 
     def run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         return self._run(spec)
+
+    async def summarize(self, text: str) -> str:
+        """One short, tool-free call.
+
+        A failure here must never cost the user their answer, so the caller
+        catches; this only has to be honest about failing.
+        """
+        spec = RunSpec(
+            agent_id="internal_titler",
+            name="Titler",
+            model=self._model_for_titles,
+            system_prompt=_TITLE_INSTRUCTION,
+            tools=[],
+            user_message=text,
+            retry=False,
+        )
+        parts: list[str] = []
+        recorder = ToolRecorder()
+        async for event in self._stream(spec, recorder):
+            chunk = _text_of(event)
+            if chunk:
+                parts.append(chunk)
+        title = " ".join("".join(parts).split())
+        if not title:
+            raise ProviderError("The model returned no title.")
+        # The model's own output must satisfy the same js_length(<=120) invariant
+        # as any user-supplied title: truncate_title is the one place that
+        # guarantee is enforced, so route through it rather than slicing here.
+        return truncate_title(title)
 
     async def _run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         recorder = ToolRecorder()

@@ -17,7 +17,9 @@ const AppRoutes = () => (
     <Route path="/agents" element={<AgentsPage />} />
     <Route path="/agents/:agentId" element={<AgentsPage />} />
     <Route path="/chat" element={<ChatPage />} />
-    <Route path="/chat/:agentId" element={<ChatPage />} />
+    {/* One param, two id kinds: sess_* opens that chat, agent_* opens the
+        agent's most recent one. */}
+    <Route path="/chat/:id" element={<ChatPage />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

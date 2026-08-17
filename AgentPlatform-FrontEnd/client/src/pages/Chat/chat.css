@@ -27,15 +27,48 @@
   color: var(--ink-muted);
 }
 
-.chat__clear {
-  font-size: var(--text-label);
-  font-weight: 500;
+/* The conversation the menu acts on, so renaming has something to change. */
+.chat__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-ui);
   color: var(--ink-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.chat__clear:hover {
+/* Sits where the title sits, so renaming does not shift the header. */
+.chat__title-input {
+  min-width: 0;
+  max-width: 320px;
+  flex: 1 1 auto;
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: var(--paper);
+  border: 1px solid var(--signal);
+  border-radius: var(--radius-sm);
   color: var(--ink);
-  text-decoration: underline;
+  font-size: var(--text-ui);
+}
+
+.chat__menu {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: var(--text-label);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.chat__menu:hover:not(:disabled) {
+  background: var(--active);
+  color: var(--ink);
+}
+
+.chat__menu:disabled {
+  opacity: 0.4;
 }
 
 /* Notion's page width. The trace and the prose share one measure. */

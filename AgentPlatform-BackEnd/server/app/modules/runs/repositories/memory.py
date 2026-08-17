@@ -5,6 +5,8 @@ implementation normalizes them into a child table instead (spec §5.3, §6).
 Ordering and cloning match the agent store; Task 11 mirrors both in SQL.
 """
 
+from __future__ import annotations
+
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
 
@@ -36,3 +38,27 @@ class MemoryRunRepository(RunRepository):
         for run_id in doomed:
             del self._runs[run_id]
         return len(doomed)
+
+    async def list_by_session(self, session_id: str, limit: int) -> list[Run]:
+        matching = [r for r in self._runs.values() if r.session_id == session_id]
+        ordered = sorted(matching, key=lambda r: r.created_at, reverse=True)
+        return [r.model_copy(deep=True) for r in ordered[:limit]]
+
+    async def delete_by_session(self, session_id: str) -> int:
+        doomed = [rid for rid, r in self._runs.items() if r.session_id == session_id]
+        for run_id in doomed:
+            del self._runs[run_id]
+        return len(doomed)
+
+    async def assign_session(self, run_ids: list[str], session_id: str) -> None:
+        for run_id in run_ids:
+            run = self._runs.get(run_id)
+            if run is not None:
+                self._runs[run_id] = run.model_copy(update={"session_id": session_id})
+
+    async def list_orphans(self, limit: int) -> list[Run]:
+        # Oldest first, unlike list(): the backfill drains the table from the
+        # front so a batch it just migrated can never occupy the next window.
+        orphans = [r for r in self._runs.values() if r.session_id is None]
+        ordered = sorted(orphans, key=lambda r: r.created_at)
+        return [r.model_copy(deep=True) for r in ordered[:limit]]

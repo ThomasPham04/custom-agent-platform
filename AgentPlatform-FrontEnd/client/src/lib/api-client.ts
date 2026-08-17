@@ -1,4 +1,7 @@
 import { apiUrl } from './api-host';
+import type { Message } from '../types/message';
+import type { Run } from '../types/run';
+import type { Session } from '../types/session';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -64,3 +67,34 @@ export const apiPatch = async <T>(path: string, body: unknown): Promise<T> =>
 export const apiDelete = async (path: string): Promise<void> => {
   await request(path, { method: 'DELETE' });
 };
+
+export const listSessions = (): Promise<Session[]> => apiGet<Session[]>('/api/sessions');
+
+export const renameSession = (id: string, title: string): Promise<Session> =>
+  apiPatch<Session>(`/api/sessions/${id}`, { title });
+
+export const deleteSession = (id: string): Promise<void> => apiDelete(`/api/sessions/${id}`);
+
+export const listRunsBySession = (sessionId: string): Promise<Run[]> =>
+  apiGet<Run[]>(`/api/runs?sessionId=${encodeURIComponent(sessionId)}`);
+
+interface SendMessageOptions {
+  retry?: boolean;
+  sessionId?: string;
+}
+
+/**
+ * The response only carries `session` on the request that creates one: the
+ * route sets response_model_exclude_none, so a later message's response omits
+ * the key entirely rather than sending it as null. Check with `if (response.session)`.
+ */
+export const sendMessage = (
+  agentId: string,
+  content: string,
+  options: SendMessageOptions = {},
+): Promise<{ message: Message; session?: Session }> =>
+  apiPost<{ message: Message; session?: Session }>(`/api/chat/${agentId}/messages`, {
+    content,
+    ...(options.retry ? { retry: true } : {}),
+    ...(options.sessionId === undefined ? {} : { sessionId: options.sessionId }),
+  });

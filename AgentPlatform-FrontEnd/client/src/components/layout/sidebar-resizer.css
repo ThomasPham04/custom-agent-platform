@@ -1,0 +1,39 @@
+/*
+  A 6px grab strip that reads as the sidebar's own border until you reach for
+  it. The sidebar keeps its border-right, so this sits flush against it and
+  only paints when hovered, dragged, or focused.
+*/
+.sidebar-resizer {
+  flex: 0 0 6px;
+  /* Pulled over the sidebar's border so the visible line stays one pixel wide. */
+  margin-left: -1px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease);
+  touch-action: none;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active {
+  border-left-color: var(--signal);
+}
+
+.sidebar-resizer:focus-visible {
+  outline: none;
+  border-left-color: var(--signal);
+  box-shadow: 0 0 0 2px var(--signal-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-resizer {
+    transition: none;
+  }
+}
+
+/* Below this the sidebar is a drawer with a fixed width, so there is nothing to drag. */
+@media (max-width: 900px) {
+  .sidebar-resizer {
+    display: none;
+  }
+}

@@ -40,6 +40,8 @@ beforeEach(() => {
       const url = String(input);
       if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
       if (url.includes('/api/tools')) return json([]);
+      // Sessions are a distinct shape; the catch-all below would serve agents here.
+      if (url.includes('/api/sessions')) return json([]);
       return json([agent]);
     }),
   );
@@ -114,6 +116,8 @@ describe('new agent draft', () => {
         const url = String(input);
         if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
         if (url.includes('/api/tools')) return json([]);
+        // Sessions are a distinct shape; the catch-all below would serve agents here.
+        if (url.includes('/api/sessions')) return json([]);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           const body = init?.body ? JSON.parse(String(init.body)) : null;

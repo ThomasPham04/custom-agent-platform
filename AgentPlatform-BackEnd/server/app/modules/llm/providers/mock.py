@@ -22,6 +22,7 @@ from app.modules.llm.provider import (
     ToolCallStarted,
     TurnFinished,
 )
+from app.modules.sessions.titles import truncate_title
 
 MAX_CALLS = 2
 MODEL_TIME_MS = 180
@@ -93,6 +94,11 @@ class MockLLMProvider(LLMProvider):
 
     def run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         return self._run(spec)
+
+    async def summarize(self, text: str) -> str:
+        # Truncation, not invention: every mock response is asserted verbatim
+        # somewhere, and a generated title would make those tests unstable.
+        return truncate_title(text)
 
     async def _run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         # Unknown ids are skipped rather than raising (contract §5). Every

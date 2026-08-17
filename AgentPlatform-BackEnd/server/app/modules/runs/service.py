@@ -4,6 +4,8 @@ execution/ writes runs; this module reads them. Separate lifecycles, separate
 modules (spec D4).
 """
 
+from __future__ import annotations
+
 from app.core.errors import NotFoundError
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
@@ -24,3 +26,9 @@ class RunService:
 
     async def delete_by_agent(self, agent_id: str) -> int:
         return await self._repo.delete_by_agent(agent_id)
+
+    async def list_by_session(self, session_id: str, limit: int = 50) -> list[Run]:
+        return await self._repo.list_by_session(session_id=session_id, limit=limit)
+
+    async def delete_by_session(self, session_id: str) -> int:
+        return await self._repo.delete_by_session(session_id)

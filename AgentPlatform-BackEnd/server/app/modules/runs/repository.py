@@ -1,5 +1,7 @@
 """Execution history persistence port."""
 
+from __future__ import annotations
+
 from typing import Protocol
 
 from app.modules.runs.schemas import Run
@@ -13,3 +15,11 @@ class RunRepository(Protocol):
     async def list(self, agent_id: str | None, limit: int) -> list[Run]: ...
 
     async def delete_by_agent(self, agent_id: str) -> int: ...
+
+    async def list_by_session(self, session_id: str, limit: int) -> list[Run]: ...
+
+    async def delete_by_session(self, session_id: str) -> int: ...
+
+    async def assign_session(self, run_ids: list[str], session_id: str) -> None: ...
+
+    async def list_orphans(self, limit: int) -> list[Run]: ...

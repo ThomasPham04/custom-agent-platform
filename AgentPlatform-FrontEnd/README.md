@@ -17,7 +17,13 @@ duplicated, deleted, or sent straight into Chat to try.
 the header. Sending a message returns the agent's reply together with the
 trace of any tools it called along the way — each call's arguments, result,
 timing, and outcome. A failed tool call is shown with its error and a retry
-action. The conversation can be cleared, and the last agent used is
+action.
+
+Each conversation is kept. The first message of a new chat starts one and
+titles it from what was asked, and past chats are listed in the sidebar under
+Chat, newest first, so any of them can be reopened where it left off. A chat
+can be renamed or deleted from the sidebar or from the header of the chat
+itself; deleting one takes its history with it. The last agent used is
 remembered between visits.
 
 **Workspace status.** The sidebar reports whether the API is reachable and

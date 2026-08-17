@@ -1,9 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { Chevron } from './chevron';
 import { AgentSwitcher } from '../../chat-section/agent-switcher/agent-switcher';
 import { Sidebar } from '../../layout/Sidebar';
+
+// The sidebar reads the shared session list, which throws outside its provider.
+// This file is about the chevron, so the list is stubbed empty rather than run.
+vi.mock('../../../hooks/useSessions', () => ({
+  useSessionsContext: () => ({
+    sessions: [],
+    loading: false,
+    rename: vi.fn(),
+    remove: vi.fn(),
+    adopt: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 /**
  * U+2304 is missing from the UI font stack, so the browser substituted whatever

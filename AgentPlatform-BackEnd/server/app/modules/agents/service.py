@@ -19,6 +19,7 @@ from app.modules.agents.repository import AgentRepository
 from app.modules.agents.schemas import Agent
 from app.modules.agents.seeds import AGENT_DEFAULTS
 from app.modules.agents.validation import validate_agent_write
+from app.modules.sessions.repository import SessionRepository
 from app.modules.tools.registry import ToolRegistry
 
 
@@ -29,11 +30,13 @@ class AgentService:
         tools: ToolRegistry,
         model_ids: set[str],
         default_model: str,
+        sessions: SessionRepository,
     ) -> None:
         self._repo = repo
         self._tools = tools
         self._model_ids = model_ids
         self._default_model = default_model
+        self._sessions = sessions
 
     async def list(self) -> list[Agent]:
         return await self._repo.list()
@@ -73,6 +76,9 @@ class AgentService:
     async def delete(self, agent_id: str) -> None:
         if not await self._repo.delete(agent_id):
             raise NotFoundError(f'No agent with id "{agent_id}".')
+        # Sessions are navigation: a chat with a deleted agent cannot be
+        # continued. Runs stay — the audit trail outlives the agent.
+        await self._sessions.delete_by_agent(agent_id)
 
     def _validate(self, body: Any) -> dict[str, Any]:
         return validate_agent_write(

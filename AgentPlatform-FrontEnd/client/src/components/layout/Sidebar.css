@@ -83,6 +83,39 @@
   pointer-events: none;
 }
 
+/*
+  Starting a chat is one click from anywhere, but it stays quiet until the group
+  is hovered or something inside it holds focus, so the rail keeps its calm.
+*/
+.sidebar__add {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: var(--text-ui);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.sidebar__group:hover .sidebar__add,
+.sidebar__group:focus-within .sidebar__add {
+  opacity: 1;
+}
+
+.sidebar__add:hover {
+  background: var(--active);
+  color: var(--ink);
+}
+
+/* A touch device has no hover to reveal it with, so it is simply always there. */
+@media (hover: none) {
+  .sidebar__add {
+    opacity: 1;
+  }
+}
+
 .sidebar__triangle {
   display: block;
   transition: transform var(--dur-fast) var(--ease);
@@ -139,7 +172,7 @@
 
 /*
   Children start one step in from where the parent row's own item starts, so a
-  nested agent reads as below "Agents" rather than beside it. The parent item
+  nested chat reads as below "Chat" rather than beside it. The parent item
   begins after the 24px disclosure column; anything less than that (it was 18px)
   pushes the children left of their parent and inverts the hierarchy.
 */

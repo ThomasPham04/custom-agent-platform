@@ -10,8 +10,13 @@ agents, each configured with a model, a system prompt, and a set of tools it
 can call. Sending a chat message runs the agent and returns its complete
 reply in one response — no streaming — together with the trace of every tool
 call it made: arguments, result, timing, and outcome. Every run is recorded
-and queryable by agent, snapshotting the agent's name, model, and system
-prompt as they were at execution time.
+and queryable by agent or by conversation, snapshotting the agent's name,
+model, and system prompt as they were at execution time.
+
+Messages are grouped into chat sessions: one session is one conversation with
+one agent. Sending the first message of a chat creates the session and titles
+it from what was asked, so a client can list past conversations, reopen one,
+rename it, or delete it.
 
 Two LLM providers implement the same interface: a deterministic mock that
 needs no credentials and keeps the whole API usable offline, and Google ADK
@@ -115,13 +120,24 @@ reports — the first chat request returns `provider_error` instead.
 | DELETE | `/api/agents/:id` | 204 |
 | GET | `/api/tools` | `Tool[]` |
 | GET | `/api/models` | `Model[]` |
-| POST | `/api/chat/:agentId/messages` | `{ message }` with `toolCalls[]` |
+| POST | `/api/chat/:agentId/messages` | `{ message, session? }` with `toolCalls[]` |
+| GET | `/api/sessions?limit=` | `Session[]`, newest activity first |
+| PATCH | `/api/sessions/:id` | `Session` |
+| DELETE | `/api/sessions/:id` | 204 |
 | GET | `/api/runs?agentId=&limit=` | `Run[]` |
+| GET | `/api/runs?sessionId=&limit=` | `Run[]` for one conversation |
 | GET | `/api/runs/:id` | `Run` |
 | DELETE | `/api/runs?agentId=` | 204 |
 
 There is no streaming: the chat endpoint returns the complete assistant message,
 tool calls included, in one response.
+
+Sessions have no create route. A chat message with no `sessionId` starts one, and
+the response carries the new session alongside the message; later messages pass
+that id and the response omits it. Runs can be filtered by agent or by session,
+but not both at once. Deleting a session deletes its runs. Deleting an agent
+deletes its sessions and keeps its runs, so the record of what an agent did
+outlives the agent itself.
 
 Errors return `{ error: { code, message } }` and nothing else. FastAPI's default
 422 validation body and its `{"detail": ...}` shape are both remapped. A tool

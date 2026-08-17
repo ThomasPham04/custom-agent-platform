@@ -45,5 +45,5 @@ async def create_message(
     svc: ExecutionService = Depends(get_execution_service),
 ) -> MessageEnvelope:
     payload = validate_message_request(await json_body(request))
-    message = await svc.send_message(agent_id, payload)
-    return MessageEnvelope(message=message)
+    message, session = await svc.send_message(agent_id, payload)
+    return MessageEnvelope(message=message, session=session)

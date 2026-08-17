@@ -1,0 +1,51 @@
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/*
+  The menu stays out of the way until the row is wanted, the same way the agent
+  table's row menu does. Keyboard users get it through :focus-within, so it is
+  never a hover-only control.
+*/
+.session-row__menu {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: var(--text-label);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.session-row:hover .session-row__menu,
+.session-row:focus-within .session-row__menu {
+  opacity: 1;
+}
+
+.session-row__menu:hover {
+  background: var(--active);
+  color: var(--ink);
+}
+
+/* A touch device has no hover to reveal it with, so it is simply always there. */
+@media (hover: none) {
+  .session-row__menu {
+    opacity: 1;
+  }
+}
+
+/* Sits exactly where the row's own text sits, so renaming does not shift the list. */
+.session-row__input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: var(--paper);
+  border: 1px solid var(--signal);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-ui);
+}

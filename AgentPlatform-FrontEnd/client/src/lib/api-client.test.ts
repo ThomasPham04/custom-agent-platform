@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from './api-client';
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost, sendMessage } from './api-client';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -81,6 +81,35 @@ describe('apiPatch', () => {
     vi.stubGlobal('fetch', fetchMock);
     await apiPatch('/api/agents/agent_support', { name: 'Renamed' });
     expect(fetchMock.mock.calls[0]![1]!.method).toBe('PATCH');
+  });
+});
+
+describe('sendMessage', () => {
+  it('sends sessionId with a follow-up message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: {} }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendMessage('agent_support', 'hello', { sessionId: 'sess_1' });
+
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({
+      content: 'hello',
+      sessionId: 'sess_1',
+    });
+  });
+
+  it('omits sessionId on the first message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: {} }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendMessage('agent_support', 'hello', {});
+
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ content: 'hello' });
   });
 });
 

@@ -53,6 +53,19 @@ CREATE TABLE IF NOT EXISTS run_tool_calls (
 
 CREATE INDEX IF NOT EXISTS run_tool_calls_run_id_idx ON run_tool_calls (run_id, seq);
 
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id         TEXT PRIMARY KEY,
+  agent_id   TEXT        NOT NULL,
+  title      TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS chat_sessions_updated_at_idx
+  ON chat_sessions (updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS runs_session_id_idx ON runs (session_id, created_at DESC);
+
 -- duration_ms was INTEGER, which truncated every in-process tool call to 0 ms.
 -- CREATE TABLE IF NOT EXISTS leaves an existing table alone, so widening it for
 -- a database created before that change needs its own guarded statement.

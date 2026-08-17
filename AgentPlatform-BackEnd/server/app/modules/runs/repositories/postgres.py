@@ -8,6 +8,8 @@ args and result are already capped at LOG_PAYLOAD_MAX_BYTES by execution/service
 before they reach here (spec §6).
 """
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 
@@ -143,3 +145,67 @@ class PostgresRunRepository(RunRepository):
             tag = await conn.execute("DELETE FROM runs WHERE agent_id = $1", agent_id)
         # asyncpg returns the command tag, e.g. "DELETE 3".
         return int(tag.split()[-1])
+
+    async def list_by_session(self, session_id: str, limit: int) -> list[Run]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""SELECT {_RUN_COLUMNS} FROM runs WHERE session_id = $1
+                    ORDER BY created_at DESC LIMIT $2""",
+                session_id,
+                limit,
+            )
+            if not rows:
+                return []
+            # One query for every child rather than one per run, exactly as
+            # list() does: 50 runs would otherwise be 51 round trips.
+            calls = await conn.fetch(
+                f"""SELECT {_CALL_COLUMNS} FROM run_tool_calls
+                    WHERE run_id = ANY($1::text[]) ORDER BY run_id, seq""",
+                [row["id"] for row in rows],
+            )
+
+        by_run: dict[str, list[RunToolCall]] = {}
+        for record in calls:
+            by_run.setdefault(record["run_id"], []).append(_row_to_call(record))
+        return [_row_to_run(row, by_run.get(row["id"], [])) for row in rows]
+
+    async def delete_by_session(self, session_id: str) -> int:
+        async with self._pool.acquire() as conn:
+            # run_tool_calls rows leave with their parent through that table's
+            # ON DELETE CASCADE, so one statement is the whole delete.
+            tag = await conn.execute(
+                "DELETE FROM runs WHERE session_id = $1", session_id
+            )
+        # asyncpg returns the command tag, e.g. "DELETE 3".
+        return int(tag.split()[-1])
+
+    async def assign_session(self, run_ids: list[str], session_id: str) -> None:
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE runs SET session_id = $2 WHERE id = ANY($1::text[])",
+                run_ids,
+                session_id,
+            )
+
+    async def list_orphans(self, limit: int) -> list[Run]:
+        # Oldest first, unlike list(): the backfill drains the table from the
+        # front, batch by batch, so a batch it just migrated (and which no
+        # longer matches this WHERE) can never occupy the next window.
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""SELECT {_RUN_COLUMNS} FROM runs WHERE session_id IS NULL
+                    ORDER BY created_at ASC LIMIT $1""",
+                limit,
+            )
+            if not rows:
+                return []
+            calls = await conn.fetch(
+                f"""SELECT {_CALL_COLUMNS} FROM run_tool_calls
+                    WHERE run_id = ANY($1::text[]) ORDER BY run_id, seq""",
+                [row["id"] for row in rows],
+            )
+
+        by_run: dict[str, list[RunToolCall]] = {}
+        for record in calls:
+            by_run.setdefault(record["run_id"], []).append(_row_to_call(record))
+        return [_row_to_run(row, by_run.get(row["id"], [])) for row in rows]
