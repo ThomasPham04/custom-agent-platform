@@ -1,7 +1,11 @@
 [project]
 name = "agent-platform-service"
 version = "0.1.0"
-requires-python = ">=3.12"
+# 3.14, matching python:3.14-slim in the Dockerfile. This is what makes the dev
+# interpreter deterministic without a .python-version file: uv prefers its own
+# managed interpreters over the system one, so a looser floor here lets it pick
+# whatever older version it happens to have cached.
+requires-python = ">=3.14"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.32",

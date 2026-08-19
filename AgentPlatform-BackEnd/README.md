@@ -1,6 +1,6 @@
 # Agent Platform — Backend
 
-The API for the AI Agent Platform: Python 3.12, FastAPI, and Google ADK,
+The API for the AI Agent Platform: Python 3.14, FastAPI, and Google ADK,
 listening on port 4000.
 
 ## What it delivers
@@ -42,7 +42,7 @@ that outlive a restart.
 
 ## Run
 
-Needs Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
+Needs [uv](https://docs.astral.sh/uv/), which supplies Python itself.
 
 ```bash
 cd server

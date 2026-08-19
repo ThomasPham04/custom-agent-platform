@@ -32,8 +32,9 @@ from the backend rather than hardcoded.
 
 ## Run it
 
-Needs Node.js 20.19+ or 22.12+, the versions Vite 7 supports. Start the
-backend first, on port 4000 — see `AgentPlatform-BackEnd/README.md` — then:
+Needs Node.js 24, the active LTS — `package.json` sets `engines.node` to
+`>=24`, and the client image builds on `node:24-alpine`. Start the backend
+first, on port 4000 — see `AgentPlatform-BackEnd/README.md` — then:
 
 Windows PowerShell:
 

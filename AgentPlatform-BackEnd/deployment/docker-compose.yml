@@ -1,11 +1,17 @@
 # Runs the proof of concept end to end: Postgres, the Python API, and nginx
 # serving the built client and proxying /api to api:4000.
+#
+# `docker compose up --build` is the whole setup. Every setting comes from one
+# optional file, deployment/.env, read by Compose itself — see .env.example.
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
+      # Postgres sets this at initdb, so changing it against an existing pgdata
+      # volume has no effect. `docker compose down -v` first, or change it here
+      # and in nothing else — DATABASE_URL below reads the same variable.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: agents
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -18,8 +24,27 @@ services:
   api:
     build:
       context: ../server
-    env_file:
-      - ./deploy/env/backend.env
+    # No env_file. Everything the container needs is listed here and filled from
+    # deployment/.env, so there is one file to edit and this block is the
+    # complete, readable list of what the API actually receives. Adding a
+    # setting to app/config.py means adding a line here too — deliberate: an
+    # env_file passes through anything, including variables meant for Compose
+    # alone (the Cloudflare tunnel token among them).
+    environment:
+      # Topology. Describes the compose network, so it is fixed rather than
+      # interpolated: STORE_BACKEND=memory here would detach the API from the
+      # database it just waited for.
+      STORE_BACKEND: postgres
+      DATABASE_URL: postgresql://app:${POSTGRES_PASSWORD:-app}@db:5432/agents
+      # nginx proxies /api on the same origin, so this is only a fallback for
+      # direct cross-origin access to the API.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      # Application settings. Each default repeats the one in app/config.py, so
+      # an empty .env runs the mock provider offline with no credentials.
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      TOOL_HTTP_TIMEOUT_MS: ${TOOL_HTTP_TIMEOUT_MS:-5000}
+      LOG_PAYLOAD_MAX_BYTES: ${LOG_PAYLOAD_MAX_BYTES:-32768}
     # The API applies schema.sql on startup, so it must not race the database.
     depends_on:
       db:
@@ -35,8 +60,15 @@ services:
   web:
     build:
       context: ../../AgentPlatform-FrontEnd/client
+    # WEB_BIND defaults to all interfaces, which is what makes the local run
+    # reachable at localhost:8080. On a public host set WEB_BIND=127.0.0.1 in
+    # .env: cloudflared reaches web:80 over the compose network, so the tunnel
+    # keeps working while the published port stops being an open door that
+    # bypasses Cloudflare Access. It has to be here rather than in the prod
+    # overlay because Compose appends port mappings across files instead of
+    # replacing them — an override would bind 8080 twice and conflict.
     ports:
-      - '8080:80'
+      - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80'
     depends_on:
       api:
         condition: service_healthy

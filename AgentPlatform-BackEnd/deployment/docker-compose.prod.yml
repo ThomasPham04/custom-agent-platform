@@ -1,0 +1,64 @@
+# Public deployment overlay: serves the stack on your own domain through a
+# Cloudflare Tunnel.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# This is deliberately a separate file. docker-compose.yml on its own has to
+# stay zero-config so that anyone can clone the repo and run one command; a base
+# file that tried to provision certificates for a domain it does not own would
+# fail on every machine but this one.
+#
+# Why a tunnel rather than Caddy or bare nginx: no port forwarding, no public
+# IP, TLS handled by Cloudflare, and Cloudflare Access can sit in front. Use
+# Caddy instead only if this moves to a VPS that already has 80/443 open.
+#
+# ---------------------------------------------------------------------------
+# READ THIS BEFORE EXPOSING IT
+#
+# The API has no authentication. Every route is open, including DELETE /api/
+# agents/:id. Two consequences:
+#
+#   1. Keep LLM_PROVIDER on `mock` for a public demo. The mock provider runs the
+#      complete flow — tool calls, trace, execution logs — with no API calls and
+#      therefore no billing. A stranger cannot spend your Gemini credit.
+#   2. If you do want live Gemini reachable from the internet, put Cloudflare
+#      Access in front of the tunnel hostname first. Do not run it open.
+#
+# Worst case someone deletes the seeded agents; `docker compose down -v` and a
+# restart puts all four back.
+# ---------------------------------------------------------------------------
+
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      # The browser reaches /api through nginx on the same origin, so this is a
+      # fallback only. Set PUBLIC_ORIGIN to your domain, e.g.
+      # https://agents.example.com
+      CORS_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN to your https:// domain}
+      # LLM_PROVIDER is not repeated here. The base file already reads it from
+      # .env and defaults to mock, so a public instance is safe by default and
+      # there is exactly one place to change it. Set adk_gemini only behind
+      # Cloudflare Access.
+
+  db:
+    restart: unless-stopped
+
+  web:
+    restart: unless-stopped
+
+  # Routes your Cloudflare hostname to web:80 over the compose network. The
+  # published host port from the base file stays up too, which is handy for
+  # checking the box locally, but the tunnel does not depend on it.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # Create the tunnel in the Cloudflare dashboard (Zero Trust > Networks >
+      # Tunnels), point its public hostname at http://web:80, and paste the
+      # token here via the shell or deployment/.env.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      web:
+        condition: service_started
