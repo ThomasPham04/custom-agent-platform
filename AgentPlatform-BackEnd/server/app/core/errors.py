@@ -51,16 +51,8 @@ def _too_large() -> JSONResponse:
 
 
 class BodySizeLimitMiddleware:
-    """Rejects oversized bodies, matching express.json({limit:'256kb'}).
-
-    Pure ASGI rather than BaseHTTPMiddleware because the body has to be measured,
-    not trusted: a chunked request carries no Content-Length, and express's
-    raw-body reader enforced the cap while consuming the stream. The body is
-    buffered here and replayed to the app, stopping the moment the cap is passed,
-    so an unbounded upload is never fully read into memory.
-
-    Raising from a wrapped receive() would not work: FastAPI catches every
-    exception thrown while reading the body and reports it as a 400.
+    """
+    Rejects oversized bodies, matching express.json({limit:'256kb'}).
     """
 
     def __init__(self, app, max_bytes: int) -> None:
@@ -102,7 +94,10 @@ class BodySizeLimitMiddleware:
         async def replay():
             nonlocal replayed
             if replayed:
-                return {"type": "http.disconnect"}
+                # StreamingResponse listens for a real disconnect while its body
+                # iterator is awaiting work. Synthesising one here cancels every
+                # slow stream immediately after request parsing.
+                return await receive()
             replayed = True
             return {"type": "http.request", "body": body, "more_body": False}
 

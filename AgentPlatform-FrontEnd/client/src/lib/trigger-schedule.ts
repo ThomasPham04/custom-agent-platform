@@ -42,12 +42,15 @@ const daysLabel = (weekdays: number[]): string => {
   return sorted.map((day) => DAY_LABELS[day]).join(', ');
 };
 
+type TriggerSchedule = Pick<Trigger, 'kind'> &
+  Partial<Pick<Trigger, 'intervalMinutes' | 'timeOfDay' | 'weekdays' | 'timezone'>>;
+
 /** One line a person can read, e.g. "Daily at 09:00 - Mon to Fri - Asia/Ho_Chi_Minh". */
-export const scheduleLabel = (trigger: Trigger): string => {
+export const scheduleLabel = (trigger: TriggerSchedule): string => {
   if (trigger.kind === 'interval') {
-    return `${everyLabel(trigger.intervalMinutes ?? 1)} - ${trigger.timezone}`;
+    return `${everyLabel(trigger.intervalMinutes ?? 1)} - ${trigger.timezone ?? 'UTC'}`;
   }
-  return `Daily at ${trigger.timeOfDay ?? '00:00'} - ${daysLabel(trigger.weekdays)} - ${trigger.timezone}`;
+  return `Daily at ${trigger.timeOfDay ?? '00:00'} - ${daysLabel(trigger.weekdays ?? [])} - ${trigger.timezone ?? 'UTC'}`;
 };
 
 /** An absolute time, or a dash when the server has none yet. */

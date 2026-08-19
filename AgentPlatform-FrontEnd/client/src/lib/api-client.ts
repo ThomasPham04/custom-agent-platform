@@ -84,6 +84,21 @@ interface SendMessageOptions {
   sessionId?: string;
 }
 
+export type ChatStreamEvent =
+  | { type: 'session'; session: Session }
+  | { type: 'textDelta'; text: string }
+  | { type: 'toolStarted'; call: NonNullable<Message['toolCalls']>[number] }
+  | {
+      type: 'toolFinished';
+      callId: string;
+      result?: unknown;
+      error?: string;
+      durationMs: number;
+      status: 'ok' | 'error';
+    }
+  | { type: 'done'; message: Message }
+  | { type: 'error'; error: { code: string; message: string } };
+
 /**
  * The response only carries `session` on the request that creates one: the
  * route sets response_model_exclude_none, so a later message's response omits
@@ -99,6 +114,63 @@ export const sendMessage = (
     ...(options.retry ? { retry: true } : {}),
     ...(options.sessionId === undefined ? {} : { sessionId: options.sessionId }),
   });
+
+/** Streams one chat turn as newline-delimited JSON, with JSON fallback for older servers. */
+export const streamMessage = async (
+  agentId: string,
+  content: string,
+  options: SendMessageOptions,
+  onEvent: (event: ChatStreamEvent) => void,
+): Promise<void> => {
+  const response = await request(
+    `/api/chat/${agentId}/messages/stream`,
+    jsonInit('POST', {
+      content,
+      ...(options.retry ? { retry: true } : {}),
+      ...(options.sessionId === undefined ? {} : { sessionId: options.sessionId }),
+    }),
+  );
+
+  if (!response.headers.get('Content-Type')?.includes('application/x-ndjson')) {
+    const envelope = (await response.json()) as { message: Message; session?: Session };
+    if (envelope.session) onEvent({ type: 'session', session: envelope.session });
+    onEvent({ type: 'done', message: envelope.message });
+    return;
+  }
+
+  if (!response.body) {
+    throw new ApiError(0, 'stream_unavailable', 'The server returned no response stream.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  let completed = false;
+
+  const consume = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as ChatStreamEvent;
+    if (event.type === 'error') {
+      throw new ApiError(502, event.error.code, event.error.message);
+    }
+    if (event.type === 'done') completed = true;
+    onEvent(event);
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    pending += decoder.decode(value, { stream: !done });
+    const lines = pending.split('\n');
+    pending = lines.pop() ?? '';
+    lines.forEach(consume);
+    if (done) break;
+  }
+  consume(pending);
+
+  if (!completed) {
+    throw new ApiError(0, 'stream_incomplete', 'The response stream ended before completion.');
+  }
+};
 
 export const listTriggers = (agentId?: string): Promise<Trigger[]> =>
   apiGet<Trigger[]>(

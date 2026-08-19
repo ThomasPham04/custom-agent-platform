@@ -28,6 +28,7 @@ through chat.
 """
 
 import json
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app.core.clock import now
@@ -35,9 +36,9 @@ from app.core.errors import BadRequestError, NotFoundError
 from app.core.ids import create_id
 from app.modules.agents.repository import AgentRepository
 from app.modules.agents.schemas import Agent
-from app.modules.execution.event_translator import translate
+from app.modules.execution.event_translator import EventAccumulator, translate
 from app.modules.execution.schemas import MessageRequest, MessageResponse
-from app.modules.llm.provider import LLMProvider, RunSpec
+from app.modules.llm.provider import LLMProvider, RunEvent, RunSpec, TurnFinished
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
 from app.modules.sessions.repository import SessionRepository
@@ -66,6 +67,46 @@ class ExecutionService:
     async def send_message(
         self, agent_id: str, payload: MessageRequest
     ) -> tuple[MessageResponse, Session | None]:
+        agent, session_id, created = await self._prepare_message(agent_id, payload)
+        message, _run = await self._execute(
+            agent,
+            payload.content,
+            retry=payload.retry,
+            session_id=session_id,
+            trigger_id=None,
+        )
+        await self._sessions.touch(session_id)
+        return message, created
+
+    async def stream_message(
+        self, agent_id: str, payload: MessageRequest
+    ) -> tuple[Session | None, AsyncIterator[RunEvent | MessageResponse]]:
+        """Validate before headers, then stream events and the persisted reply."""
+        agent, session_id, created = await self._prepare_message(agent_id, payload)
+
+        async def stream() -> AsyncIterator[RunEvent | MessageResponse]:
+            spec = self._spec(
+                agent,
+                payload.content,
+                retry=payload.retry,
+                session_id=session_id,
+                trigger_id=None,
+            )
+            accumulator = EventAccumulator()
+            async for event in self._llm.run(spec):
+                accumulator.accept(event)
+                if not isinstance(event, TurnFinished):
+                    yield event
+            response, run = accumulator.finish(spec)
+            await self._runs.append(self._capped(run))
+            await self._sessions.touch(session_id)
+            yield response
+
+        return created, stream()
+
+    async def _prepare_message(
+        self, agent_id: str, payload: MessageRequest
+    ) -> tuple[Agent, str, Session | None]:
         agent = await self._agents.get(agent_id)
         if agent is None:
             raise NotFoundError(f'No agent with id "{agent_id}".')
@@ -77,7 +118,7 @@ class ExecutionService:
                 Session(
                     id=create_id("sess"),
                     agent_id=agent.id,
-                    # Truncated now so the row is never titleless; upgraded below.
+                    # Immediate and stable: a title must not add another model call.
                     title=truncate_title(payload.content),
                     created_at=now(),
                     updated_at=now(),
@@ -104,18 +145,7 @@ class ExecutionService:
                     f'Session "{session_id}" does not belong to agent "{agent_id}".'
                 )
 
-        message, _run = await self._execute(
-            agent,
-            payload.content,
-            retry=payload.retry,
-            session_id=session_id,
-            trigger_id=None,
-        )
-        await self._sessions.touch(session_id)
-
-        if created is not None:
-            created = await self._retitle(created, payload.content)
-        return message, created
+        return agent, session_id, created
 
     async def _execute(
         self,
@@ -131,13 +161,9 @@ class ExecutionService:
         Shared by the chat path and the trigger path. Everything about sessions
         stays in send_message: a triggered run deliberately creates none.
         """
-        spec = RunSpec(
-            agent_id=agent.id,
-            name=agent.name,
-            model=agent.model,
-            system_prompt=agent.system_prompt,
-            tools=self._tools.resolve(agent.tool_ids),
-            user_message=message,
+        spec = self._spec(
+            agent,
+            message,
             retry=retry,
             session_id=session_id,
             trigger_id=trigger_id,
@@ -149,6 +175,27 @@ class ExecutionService:
         stored = self._capped(run)
         await self._runs.append(stored)
         return response, stored
+
+    def _spec(
+        self,
+        agent: Agent,
+        message: str,
+        *,
+        retry: bool,
+        session_id: str | None,
+        trigger_id: str | None,
+    ) -> RunSpec:
+        return RunSpec(
+            agent_id=agent.id,
+            name=agent.name,
+            model=agent.model,
+            system_prompt=agent.system_prompt,
+            tools=self._tools.resolve(agent.tool_ids),
+            user_message=message,
+            retry=retry,
+            session_id=session_id,
+            trigger_id=trigger_id,
+        )
 
     async def run_trigger(self, agent_id: str, message: str, trigger_id: str) -> Run:
         """One firing of a trigger.
@@ -167,27 +214,6 @@ class ExecutionService:
             trigger_id=trigger_id,
         )
         return run
-
-    async def _retitle(self, created: Session, first_message: str) -> Session:
-        """Upgrade the truncated title with the model's summary.
-
-        Only if the title is still the truncated one: a rename typed in the
-        seconds before this returns must not be silently clobbered. By the
-        time this runs the run is already durably appended and the session
-        already touched, so nothing in here — summarize, the re-read, or the
-        rename itself — may raise out of send_message. A dropped connection
-        on `rename` must not turn a completed reply into a 500; the title is
-        a nicety, the answer is the product. Any failure at any step leaves
-        the truncated title in place.
-        """
-        try:
-            title = await self._llm.summarize(first_message)
-            current = await self._sessions.get(created.id)
-            if current is None or current.title != created.title:
-                return current or created
-            return await self._sessions.rename(created.id, title) or created
-        except Exception:  # noqa: BLE001 - a title must not fail the turn
-            return created
 
     def _capped(self, run: Run) -> Run:
         return run.model_copy(

@@ -4,9 +4,9 @@ The abstraction is one agent turn, not one model call. ADK's Runner already owns
 the tool-calling loop, so wrapping a raw completion would fight the framework
 (spec D7, §5.2).
 
-TextDelta exists because ADK yields partial text internally. It does not imply a
-streaming HTTP response — event_translator accumulates deltas and the endpoint
-returns one finished message.
+TextDelta carries partial output through the provider boundary. The JSON endpoint
+accumulates it; the streaming endpoint forwards it while preserving the same
+finished message and persisted run.
 """
 
 from collections.abc import AsyncIterator
@@ -69,5 +69,3 @@ class LLMProvider(Protocol):
     def models(self) -> list[ModelInfo]: ...
 
     def run(self, spec: RunSpec) -> AsyncIterator[RunEvent]: ...
-
-    async def summarize(self, text: str) -> str: ...
