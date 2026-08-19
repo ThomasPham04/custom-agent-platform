@@ -446,6 +446,7 @@ const historyRun = (over: Partial<Run> = {}): Run => ({
   error: null,
   latencyMs: 480,
   sessionId: 'sess_1',
+  triggerId: null,
   createdAt: '2026-08-04T12:00:00+00:00',
   toolCalls: [],
   ...over,

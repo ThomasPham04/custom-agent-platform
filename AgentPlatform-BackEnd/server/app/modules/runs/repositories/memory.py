@@ -50,6 +50,11 @@ class MemoryRunRepository(RunRepository):
             del self._runs[run_id]
         return len(doomed)
 
+    async def list_by_trigger(self, trigger_id: str, limit: int) -> list[Run]:
+        matching = [r for r in self._runs.values() if r.trigger_id == trigger_id]
+        ordered = sorted(matching, key=lambda r: r.created_at, reverse=True)
+        return [r.model_copy(deep=True) for r in ordered[:limit]]
+
     async def assign_session(self, run_ids: list[str], session_id: str) -> None:
         for run_id in run_ids:
             run = self._runs.get(run_id)

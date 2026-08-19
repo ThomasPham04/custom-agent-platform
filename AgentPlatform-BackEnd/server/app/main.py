@@ -4,6 +4,7 @@ Kept as a factory (rather than a module-level app) so tests can build an
 isolated instance per test, the same way server.js exported createApp().
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -11,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.container import get_run_repository, get_session_repository
+from app.container import get_run_repository, get_session_repository, get_trigger_scheduler
 from app.core import db
 from app.core.errors import BodySizeLimitMiddleware, register_error_handlers
 from app.modules.agents.router import router as agents_router
@@ -22,6 +23,8 @@ from app.modules.runs.router import router as runs_router
 from app.modules.sessions.backfill import backfill_sessions
 from app.modules.sessions.router import router as sessions_router
 from app.modules.tools.router import router as tools_router
+from app.modules.triggers.router import router as triggers_router
+from app.modules.triggers.scheduler import run_scheduler_loop
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,20 @@ async def _lifespan(app: FastAPI):
     else:
         if created:
             print(f"backfilled {created} session(s) from legacy runs")
+    scheduler_task: asyncio.Task | None = None
+    if settings.triggers_enabled:
+        scheduler_task = asyncio.create_task(
+            run_scheduler_loop(get_trigger_scheduler(), settings.trigger_tick_seconds)
+        )
     yield
+    if scheduler_task is not None:
+        # Cancel and await, or shutdown races the in-flight tick and asyncio
+        # complains about a task destroyed while pending.
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
     await db.close_pool()
 
 
@@ -82,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(agents_router)
     app.include_router(runs_router)
     app.include_router(sessions_router)
+    app.include_router(triggers_router)
     app.include_router(execution_router)
 
     @app.get("/api/health")

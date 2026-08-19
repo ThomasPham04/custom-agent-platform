@@ -98,6 +98,7 @@ async def translate(
         error=failure,
         latency_ms=turn.latency_ms,
         session_id=spec.session_id,
+        trigger_id=spec.trigger_id,
         created_at=timestamp,
         tool_calls=[
             RunToolCall(

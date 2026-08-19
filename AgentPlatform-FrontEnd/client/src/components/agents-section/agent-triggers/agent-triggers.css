@@ -1,0 +1,170 @@
+.agent-triggers {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.agent-triggers__toolbar,
+.agent-triggers__item,
+.agent-triggers__editor-header,
+.agent-triggers__actions {
+  display: flex;
+  align-items: center;
+}
+
+.agent-triggers__toolbar,
+.agent-triggers__editor-header {
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.agent-triggers__count,
+.agent-triggers__empty {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.agent-triggers__add {
+  color: var(--signal);
+  font-size: var(--text-ui);
+  font-weight: 600;
+}
+
+.agent-triggers__add:hover:not(:disabled),
+.agent-triggers__error button:hover {
+  text-decoration: underline;
+}
+
+.agent-triggers__list {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.agent-triggers__item {
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+}
+
+.agent-triggers__item + .agent-triggers__item {
+  border-top: 1px solid var(--rule);
+}
+
+.agent-triggers__summary {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-1);
+  text-align: left;
+}
+
+.agent-triggers__name,
+.agent-triggers__schedule {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.agent-triggers__name {
+  font-size: var(--text-ui);
+  color: var(--ink);
+}
+
+.agent-triggers__schedule {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.agent-triggers__toggle {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.agent-triggers__toggle input {
+  accent-color: var(--signal);
+}
+
+.agent-triggers__editor {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--shell);
+}
+
+.agent-triggers__activity h3 {
+  font-size: var(--text-ui);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.agent-triggers__close {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: 18px;
+}
+
+.agent-triggers__close:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.agent-triggers__actions {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.agent-triggers__error {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--err-wash);
+  color: var(--err);
+  font-size: var(--text-meta);
+}
+
+.agent-triggers__error button {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.agent-triggers__activity {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.agent-triggers .trigger-form {
+  gap: var(--space-4);
+}
+
+.agent-triggers .trigger-form__field input,
+.agent-triggers .trigger-form__field select,
+.agent-triggers .trigger-form__field textarea {
+  background: var(--paper);
+  padding: var(--space-3) var(--space-4);
+}
+
+.agent-triggers .trigger-form__days {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--paper);
+}
+
+.agent-triggers .trigger-activity__row {
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+}
+
+.agent-triggers .trigger-activity__answer {
+  grid-column: 1 / -1;
+}

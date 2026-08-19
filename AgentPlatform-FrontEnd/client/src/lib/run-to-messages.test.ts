@@ -14,6 +14,7 @@ const run = (over: Partial<Run> = {}): Run => ({
   error: null,
   latencyMs: 480,
   sessionId: null,
+  triggerId: null,
   createdAt: '2026-08-04T12:00:00+00:00',
   toolCalls: [],
   ...over,

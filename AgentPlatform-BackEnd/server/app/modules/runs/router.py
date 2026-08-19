@@ -12,11 +12,20 @@ router = APIRouter(prefix="/api/runs", tags=["runs"])
 async def list_runs(
     agent_id: str | None = Query(default=None, alias="agentId"),
     session_id: str | None = Query(default=None, alias="sessionId"),
+    trigger_id: str | None = Query(default=None, alias="triggerId"),
     limit: int = Query(default=50, ge=1, le=200),
     svc: RunService = Depends(get_run_service),
 ) -> list[Run]:
-    if agent_id is not None and session_id is not None:
-        raise BadRequestError("Pass agentId or sessionId, not both.")
+    supplied = [p for p in (agent_id, session_id, trigger_id) if p is not None]
+    if len(supplied) > 1:
+        # agentId+sessionId has a documented message in the Express contract
+        # reference, which outranks this feature's design spec. Widening the
+        # guard to a third parameter must not reword the documented case.
+        if trigger_id is None:
+            raise BadRequestError("Pass agentId or sessionId, not both.")
+        raise BadRequestError("Pass at most one of agentId, sessionId, triggerId.")
+    if trigger_id is not None:
+        return await svc.list_by_trigger(trigger_id=trigger_id, limit=limit)
     if session_id is not None:
         return await svc.list_by_session(session_id=session_id, limit=limit)
     return await svc.list(agent_id=agent_id, limit=limit)

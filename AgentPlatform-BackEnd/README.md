@@ -18,6 +18,15 @@ one agent. Sending the first message of a chat creates the session and titles
 it from what was asked, so a client can list past conversations, reopen one,
 rename it, or delete it.
 
+An agent can also run on a schedule instead of waiting for a message: a
+trigger fires itself on an interval or at a daily time, sending its own fixed
+message to its agent with no chat session involved. A trigger's firings show
+up as their own activity log (`GET /api/runs?triggerId=`), and a trigger can
+always be fired once, immediately, from `POST /api/triggers/{id}/run`. A
+background scheduler task checks for due triggers on a fixed poll interval;
+`TRIGGERS_ENABLED=false` stops that clock while leaving the rest of the
+trigger REST surface, including fire-now, working normally.
+
 Two LLM providers implement the same interface: a deterministic mock that
 needs no credentials and keeps the whole API usable offline, and Google ADK
 against live Gemini. Two repository backends implement the same contract: an
@@ -72,6 +81,9 @@ The service reads the environment, or a `.env` file beside `pyproject.toml`.
 | `GEMINI_API_KEY` | empty | Required when the provider is `adk_gemini` |
 | `TOOL_HTTP_TIMEOUT_MS` | `5000` | Timeout for the `http_request` tool |
 | `LOG_PAYLOAD_MAX_BYTES` | `32768` | Cap on tool payloads stored in run history |
+| `TRIGGERS_ENABLED` | `true` | `false` stops the scheduler clock; the REST surface, including fire-now, still works |
+| `TRIGGER_TICK_SECONDS` | `30` | How often the scheduler polls for due triggers |
+| `TRIGGER_MAX_PER_TICK` | `20` | Cap on triggers fired in a single poll |
 
 The database host in `.env.example` is the compose service name `db`. Running
 the API outside Docker against a local database means changing it to
@@ -124,8 +136,15 @@ reports — the first chat request returns `provider_error` instead.
 | GET | `/api/sessions?limit=` | `Session[]`, newest activity first |
 | PATCH | `/api/sessions/:id` | `Session` |
 | DELETE | `/api/sessions/:id` | 204 |
+| GET | `/api/triggers?agentId=&limit=` | `Trigger[]` |
+| POST | `/api/triggers` | `Trigger` (201) |
+| GET | `/api/triggers/:id` | `Trigger` |
+| PATCH | `/api/triggers/:id` | `Trigger` |
+| DELETE | `/api/triggers/:id` | 204 |
+| POST | `/api/triggers/:id/run` | `Run` — fires once, immediately |
 | GET | `/api/runs?agentId=&limit=` | `Run[]` |
 | GET | `/api/runs?sessionId=&limit=` | `Run[]` for one conversation |
+| GET | `/api/runs?triggerId=&limit=` | `Run[]` for one trigger's activity log |
 | GET | `/api/runs/:id` | `Run` |
 | DELETE | `/api/runs?agentId=` | 204 |
 

@@ -28,6 +28,11 @@ from app.modules.sessions.repositories.postgres import PostgresSessionRepository
 from app.modules.sessions.repository import SessionRepository
 from app.modules.sessions.service import SessionService
 from app.modules.tools.registry import ToolRegistry, default_tools
+from app.modules.triggers.repositories.memory import MemoryTriggerRepository
+from app.modules.triggers.repositories.postgres import PostgresTriggerRepository
+from app.modules.triggers.repository import TriggerRepository
+from app.modules.triggers.scheduler import TriggerScheduler
+from app.modules.triggers.service import TriggerService
 
 
 @lru_cache
@@ -70,6 +75,7 @@ def get_agent_service() -> AgentService:
         model_ids=MODEL_IDS,
         default_model=DEFAULT_MODEL,
         sessions=get_session_repository(),
+        triggers=get_trigger_repository(),
     )
 
 
@@ -97,6 +103,30 @@ def get_session_service() -> SessionService:
     return SessionService(sessions=get_session_repository(), runs=get_run_repository())
 
 
+@lru_cache
+def get_trigger_repository() -> TriggerRepository:
+    settings = get_settings()
+    if settings.store_backend == "memory":
+        return MemoryTriggerRepository()
+    return PostgresTriggerRepository(pool=get_pool())
+
+
+def get_trigger_service() -> TriggerService:
+    return TriggerService(
+        repo=get_trigger_repository(),
+        agents=get_agent_repository(),
+        execution=get_execution_service(),
+    )
+
+
+def get_trigger_scheduler() -> TriggerScheduler:
+    return TriggerScheduler(
+        triggers=get_trigger_repository(),
+        execution=get_execution_service(),
+        max_per_tick=get_settings().trigger_max_per_tick,
+    )
+
+
 def get_execution_service() -> ExecutionService:
     settings = get_settings()
     return ExecutionService(
@@ -121,3 +151,4 @@ def reset_container() -> None:
     get_agent_repository.cache_clear()
     get_run_repository.cache_clear()
     get_session_repository.cache_clear()
+    get_trigger_repository.cache_clear()

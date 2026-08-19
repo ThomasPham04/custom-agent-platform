@@ -17,7 +17,8 @@ from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run, RunToolCall
 
 _RUN_COLUMNS = """id, agent_id, agent_name, model, system_prompt, user_message,
-                  answer, status, error, latency_ms, session_id, created_at"""
+                  answer, status, error, latency_ms, session_id, trigger_id,
+                  created_at"""
 _CALL_COLUMNS = "id, run_id, seq, tool_id, args, result, error, duration_ms, status"
 
 
@@ -38,6 +39,7 @@ def _row_to_run(record: Any, calls: list[RunToolCall]) -> Run:
         error=record["error"],
         latency_ms=record["latency_ms"],
         session_id=record["session_id"],
+        trigger_id=record["trigger_id"],
         created_at=_to_iso(record["created_at"]),
         tool_calls=calls,
     )
@@ -64,7 +66,7 @@ class PostgresRunRepository(RunRepository):
         async with self._pool.acquire() as conn, conn.transaction():
             await conn.execute(
                 f"""INSERT INTO runs ({_RUN_COLUMNS})
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)""",
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)""",
                 run.id,
                 run.agent_id,
                 run.agent_name,
@@ -76,6 +78,7 @@ class PostgresRunRepository(RunRepository):
                 run.error,
                 run.latency_ms,
                 run.session_id,
+                run.trigger_id,
                 datetime.fromisoformat(run.created_at),
             )
             for call in run.tool_calls:
@@ -178,6 +181,29 @@ class PostgresRunRepository(RunRepository):
             )
         # asyncpg returns the command tag, e.g. "DELETE 3".
         return int(tag.split()[-1])
+
+    async def list_by_trigger(self, trigger_id: str, limit: int) -> list[Run]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""SELECT {_RUN_COLUMNS} FROM runs WHERE trigger_id = $1
+                    ORDER BY created_at DESC LIMIT $2""",
+                trigger_id,
+                limit,
+            )
+            if not rows:
+                return []
+            # One query for every child rather than one per run, exactly as
+            # list_by_session does.
+            calls = await conn.fetch(
+                f"""SELECT {_CALL_COLUMNS} FROM run_tool_calls
+                    WHERE run_id = ANY($1::text[]) ORDER BY run_id, seq""",
+                [row["id"] for row in rows],
+            )
+
+        by_run: dict[str, list[RunToolCall]] = {}
+        for record in calls:
+            by_run.setdefault(record["run_id"], []).append(_row_to_call(record))
+        return [_row_to_run(row, by_run.get(row["id"], [])) for row in rows]
 
     async def assign_session(self, run_ids: list[str], session_id: str) -> None:
         async with self._pool.acquire() as conn:

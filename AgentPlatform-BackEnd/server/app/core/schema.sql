@@ -81,3 +81,37 @@ BEGIN
       ALTER COLUMN duration_ms TYPE DOUBLE PRECISION;
   END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS triggers (
+  id               TEXT PRIMARY KEY,
+  agent_id         TEXT        NOT NULL,
+  name             TEXT        NOT NULL,
+  message          TEXT        NOT NULL,
+  kind             TEXT        NOT NULL,
+  interval_minutes INTEGER,
+  time_of_day      TEXT,
+  weekdays         JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  timezone         TEXT        NOT NULL,
+  enabled          BOOLEAN     NOT NULL,
+  next_run_at      TIMESTAMPTZ,
+  last_run_at      TIMESTAMPTZ,
+  last_status      TEXT,
+  last_run_id      TEXT,
+  created_at       TIMESTAMPTZ NOT NULL,
+  updated_at       TIMESTAMPTZ NOT NULL
+);
+
+-- Partial: a disabled trigger has next_run_at NULL, so it never enters the index
+-- the scheduler polls on every tick.
+CREATE INDEX IF NOT EXISTS triggers_due_idx
+  ON triggers (next_run_at) WHERE enabled;
+
+CREATE INDEX IF NOT EXISTS triggers_agent_id_idx ON triggers (agent_id);
+
+CREATE INDEX IF NOT EXISTS triggers_updated_at_idx ON triggers (updated_at DESC);
+
+-- A triggered run has no session: it is reachable through the trigger activity
+-- log, never through the chat sidebar.
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS trigger_id TEXT;
+
+CREATE INDEX IF NOT EXISTS runs_trigger_id_idx ON runs (trigger_id, created_at DESC);

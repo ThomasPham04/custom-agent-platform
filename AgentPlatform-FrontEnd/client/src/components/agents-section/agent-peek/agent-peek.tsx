@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { AgentForm } from '../agent-form/agent-form';
+import { AgentTriggers } from '../agent-triggers/agent-triggers';
 import { ConfirmDelete } from '../../ui/confirm-delete';
 import { Popover } from '../../ui/popover';
 import { AGENT_ICONS } from '../../../lib/agent-icons';
@@ -181,6 +182,13 @@ export const AgentPeek = ({
           tools={tools}
           onChange={onChange}
           showTimestamps={!isDraft}
+          triggerField={
+            isDraft ? (
+              <span className="agent-peek__trigger-note">Save this agent to add a trigger.</span>
+            ) : (
+              <AgentTriggers agentId={agent.id} />
+            )
+          }
         />
 
       </div>

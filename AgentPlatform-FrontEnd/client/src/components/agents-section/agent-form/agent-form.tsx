@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Chip } from '../../ui/chip';
 import { Select } from '../../ui/select';
 import { AutoTextarea } from '../../ui/textarea';
@@ -14,6 +14,7 @@ interface AgentFormProps {
   agent: Agent;
   tools: readonly Tool[];
   onChange: (patch: AgentPatch) => void;
+  triggerField?: ReactNode;
   /** False for an unsaved draft, which has no history to date. */
   showTimestamps?: boolean;
 }
@@ -30,6 +31,7 @@ export const AgentForm = ({
   agent,
   tools,
   onChange,
+  triggerField,
   showTimestamps = true,
 }: AgentFormProps) => {
   const toolButtonRef = useRef<HTMLButtonElement>(null);
@@ -99,6 +101,13 @@ export const AgentForm = ({
           />
         </div>
       </div>
+
+      {triggerField && (
+        <div className="agent-form__row agent-form__row--triggers">
+          <span className="agent-form__label">Triggers</span>
+          <div className="agent-form__value">{triggerField}</div>
+        </div>
+      )}
 
       {showTimestamps && (
         <>

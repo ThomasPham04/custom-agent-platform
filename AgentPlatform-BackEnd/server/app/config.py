@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     log_payload_max_bytes: int = 32_768
     max_body_bytes: int = 256 * 1024
 
+    # The scheduler is one asyncio task in the lifespan. Off means the REST
+    # surface still works and only the clock stops.
+    triggers_enabled: bool = True
+    trigger_tick_seconds: int = 30
+    trigger_max_per_tick: int = 20
+
 
 @lru_cache
 def get_settings() -> Settings:

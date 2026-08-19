@@ -32,3 +32,6 @@ class RunService:
 
     async def delete_by_session(self, session_id: str) -> int:
         return await self._repo.delete_by_session(session_id)
+
+    async def list_by_trigger(self, trigger_id: str, limit: int = 50) -> list[Run]:
+        return await self._repo.list_by_trigger(trigger_id=trigger_id, limit=limit)

@@ -14,6 +14,17 @@ Flow (spec §7):
   5. event_translator.translate(...)     -> (MessageResponse, Run)
   6. runs.append(run)
   7. return the message
+
+Steps 2 through 6 above are the shared core, `_execute`: build the spec, run
+the provider, cap the stored payloads, append the run. Everything about
+sessions — steps 1b and 7's session bookkeeping — stays out of `_execute` and
+lives in `send_message`, which owns it deliberately. `run_trigger` is the
+second entry point, used by scheduled triggers rather than chat: it skips
+step 1b and every other session step, calls `_execute` with a trigger_id to
+stamp on the run, and returns the Run itself rather than a message, since
+there is no HTTP response being built. A triggered run therefore has
+session_id None and is reachable through the trigger activity log, not
+through chat.
 """
 
 import json
@@ -23,6 +34,7 @@ from app.core.clock import now
 from app.core.errors import BadRequestError, NotFoundError
 from app.core.ids import create_id
 from app.modules.agents.repository import AgentRepository
+from app.modules.agents.schemas import Agent
 from app.modules.execution.event_translator import translate
 from app.modules.execution.schemas import MessageRequest, MessageResponse
 from app.modules.llm.provider import LLMProvider, RunSpec
@@ -92,27 +104,69 @@ class ExecutionService:
                     f'Session "{session_id}" does not belong to agent "{agent_id}".'
                 )
 
+        message, _run = await self._execute(
+            agent,
+            payload.content,
+            retry=payload.retry,
+            session_id=session_id,
+            trigger_id=None,
+        )
+        await self._sessions.touch(session_id)
+
+        if created is not None:
+            created = await self._retitle(created, payload.content)
+        return message, created
+
+    async def _execute(
+        self,
+        agent: Agent,
+        message: str,
+        *,
+        retry: bool,
+        session_id: str | None,
+        trigger_id: str | None,
+    ) -> tuple[MessageResponse, Run]:
+        """Build the spec, run the provider, store the run.
+
+        Shared by the chat path and the trigger path. Everything about sessions
+        stays in send_message: a triggered run deliberately creates none.
+        """
         spec = RunSpec(
             agent_id=agent.id,
             name=agent.name,
             model=agent.model,
             system_prompt=agent.system_prompt,
             tools=self._tools.resolve(agent.tool_ids),
-            user_message=payload.content,
-            retry=payload.retry,
+            user_message=message,
+            retry=retry,
             session_id=session_id,
+            trigger_id=trigger_id,
         )
-
-        message, run = await translate(self._llm.run(spec), spec)
+        response, run = await translate(self._llm.run(spec), spec)
         # Truncation applies to the stored row only. The response bytes are fixed
         # by the contract, and the frontend renders the payload the trace shows
         # (spec §6, decision 7).
-        await self._runs.append(self._capped(run))
-        await self._sessions.touch(session_id)
+        stored = self._capped(run)
+        await self._runs.append(stored)
+        return response, stored
 
-        if created is not None:
-            created = await self._retitle(created, payload.content)
-        return message, created
+    async def run_trigger(self, agent_id: str, message: str, trigger_id: str) -> Run:
+        """One firing of a trigger.
+
+        No session is created, validated, touched, or titled: a triggered run is
+        reachable through the trigger activity log, and chat stays human-only.
+        """
+        agent = await self._agents.get(agent_id)
+        if agent is None:
+            raise NotFoundError(f'No agent with id "{agent_id}".')
+        _response, run = await self._execute(
+            agent,
+            message,
+            retry=False,
+            session_id=None,
+            trigger_id=trigger_id,
+        )
+        return run
 
     async def _retitle(self, created: Session, first_message: str) -> Session:
         """Upgrade the truncated title with the model's summary.

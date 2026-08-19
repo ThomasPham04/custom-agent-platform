@@ -36,5 +36,8 @@ class Run(WireModel):
     error: str | None = None
     latency_ms: int
     session_id: str | None = None
+    # Set when a trigger produced this run. Mutually exclusive with session_id in
+    # practice: a triggered run creates no session.
+    trigger_id: str | None = None
     created_at: str
     tool_calls: list[RunToolCall]

@@ -32,6 +32,7 @@ class RunSpec:
     user_message: str
     retry: bool  # request metadata, not server state
     session_id: str | None = None
+    trigger_id: str | None = None
 
 
 @dataclass

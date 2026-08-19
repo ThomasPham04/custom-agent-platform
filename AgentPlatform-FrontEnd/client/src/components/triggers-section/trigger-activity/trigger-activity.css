@@ -1,0 +1,38 @@
+.trigger-activity {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.trigger-activity__row {
+  display: grid;
+  grid-template-columns: 180px 70px 1fr;
+  gap: var(--space-5);
+  align-items: baseline;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-ui);
+  color: var(--ink);
+}
+
+.trigger-activity__when {
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+}
+
+.trigger-activity__status-badge {
+  color: var(--ok);
+  font-size: var(--text-label);
+}
+
+.trigger-activity__status-badge--error {
+  color: var(--err);
+}
+
+.trigger-activity__answer {
+  overflow-wrap: anywhere;
+}
+
+.trigger-activity__status {
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}

@@ -2,6 +2,7 @@ import { apiUrl } from './api-host';
 import type { Message } from '../types/message';
 import type { Run } from '../types/run';
 import type { Session } from '../types/session';
+import type { Trigger, TriggerDraft, TriggerPatch } from '../types/trigger';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -98,3 +99,24 @@ export const sendMessage = (
     ...(options.retry ? { retry: true } : {}),
     ...(options.sessionId === undefined ? {} : { sessionId: options.sessionId }),
   });
+
+export const listTriggers = (agentId?: string): Promise<Trigger[]> =>
+  apiGet<Trigger[]>(
+    agentId === undefined
+      ? '/api/triggers'
+      : `/api/triggers?agentId=${encodeURIComponent(agentId)}`,
+  );
+
+export const createTrigger = (draft: TriggerDraft): Promise<Trigger> =>
+  apiPost<Trigger>('/api/triggers', draft);
+
+export const updateTrigger = (id: string, patch: TriggerPatch): Promise<Trigger> =>
+  apiPatch<Trigger>(`/api/triggers/${id}`, patch);
+
+export const deleteTrigger = (id: string): Promise<void> => apiDelete(`/api/triggers/${id}`);
+
+export const runTriggerNow = (id: string): Promise<Run> =>
+  apiPost<Run>(`/api/triggers/${id}/run`);
+
+export const listRunsByTrigger = (triggerId: string): Promise<Run[]> =>
+  apiGet<Run[]>(`/api/runs?triggerId=${encodeURIComponent(triggerId)}`);

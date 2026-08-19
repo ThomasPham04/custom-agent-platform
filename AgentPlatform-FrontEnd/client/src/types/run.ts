@@ -29,6 +29,7 @@ export interface Run {
   error: string | null;
   latencyMs: number;
   sessionId: string | null;
+  triggerId: string | null;
   createdAt: string;
   toolCalls: RunToolCall[];
 }
