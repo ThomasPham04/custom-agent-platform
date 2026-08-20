@@ -2,10 +2,10 @@
 
 Transcribed from docs/superpowers/references/express-contract-reference.md §3,
 including the fixed timestamps that keep seeded relative times stable and
-reviewable. Seeded on first boot only when the store is empty (spec §6).
+reviewable. Seeded on first boot only when the store is empty.
 
 The model ids below are transcribed data, not an import: agents/ must not import
-llm/catalog (spec §4.2, enforced by tests/test_structure.py).
+llm/catalog (enforced by tests/test_structure.py).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -91,8 +91,7 @@ SEED_AGENTS: list[Agent] = [
     ),
 ]
 
-# `model` is deliberately absent. agents/ must not import llm/catalog (spec §4.2,
-# enforced by tests/test_structure.py), so AgentService receives default_model
+# `model` is deliberately absent. agents/ must not import llm/catalog (enforced by tests/test_structure.py), so AgentService receives default_model
 # from container.py and applies it. Do not "fix" this by adding an import.
 AGENT_DEFAULTS = {
     "name": "New agent",

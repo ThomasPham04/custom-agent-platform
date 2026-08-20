@@ -1,7 +1,7 @@
 """Execution history and logs.
 
-This is exactly what the frontend trace rail renders, so the inline trace becomes
-a read of stored history rather than a response the client discards on reload.
+Persisted runs enable the inline trace to be a read of history rather than a
+response discarded on reload.
 """
 
 from typing import Any, Literal

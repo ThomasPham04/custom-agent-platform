@@ -1,8 +1,7 @@
 """The entire error contract.
 
-Every failure leaves the service as {"error": {"code", "message"}}. The frontend's
-lib/api-client.ts parses exactly this envelope into ApiError, so the shape is not
-negotiable.
+Every failure leaves the service as {"error": {"code", "message"}}. This shape is
+not negotiable.
 """
 
 from fastapi import FastAPI, Request
@@ -36,7 +35,7 @@ class PayloadTooLargeError(AppError):
 
 
 class ProviderError(AppError):
-    """The LLM provider failed or timed out. Express never needed this."""
+    """The LLM provider failed or timed out."""
 
     def __init__(self, message: str) -> None:
         super().__init__(502, "provider_error", message)
@@ -51,17 +50,7 @@ def _too_large() -> JSONResponse:
 
 
 class BodySizeLimitMiddleware:
-    """Rejects oversized bodies, matching express.json({limit:'256kb'}).
-
-    Pure ASGI rather than BaseHTTPMiddleware because the body has to be measured,
-    not trusted: a chunked request carries no Content-Length, and express's
-    raw-body reader enforced the cap while consuming the stream. The body is
-    buffered here and replayed to the app, stopping the moment the cap is passed,
-    so an unbounded upload is never fully read into memory.
-
-    Raising from a wrapped receive() would not work: FastAPI catches every
-    exception thrown while reading the body and reports it as a 400.
-    """
+    """Reject oversized request bodies."""
 
     def __init__(self, app, max_bytes: int) -> None:
         self.app = app
@@ -102,7 +91,10 @@ class BodySizeLimitMiddleware:
         async def replay():
             nonlocal replayed
             if replayed:
-                return {"type": "http.disconnect"}
+                # StreamingResponse listens for a real disconnect while its body
+                # iterator is awaiting work. Synthesising one here cancels every
+                # slow stream immediately after request parsing.
+                return await receive()
             replayed = True
             return {"type": "http.request", "body": body, "more_body": False}
 
@@ -125,10 +117,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        # Express registered concrete verbs (app.get('/api/health')) and let
-        # everything else fall through to one 404 handler, so an unsupported
-        # method returned 404, never 405. Starlette raises 405, which is
-        # normalised here to keep the contract identical.
+        # Unsupported methods should return 404, not 405, to match the REST
+        # contract. Starlette raises 405 by default, so it's normalized here.
         if exc.status_code in (404, 405):
             return _envelope(
                 404, "not_found", f"No route for {request.method} {request.url.path}"

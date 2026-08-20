@@ -1,13 +1,4 @@
-"""LLM Provider port.
-
-The abstraction is one agent turn, not one model call. ADK's Runner already owns
-the tool-calling loop, so wrapping a raw completion would fight the framework
-(spec D7, §5.2).
-
-TextDelta exists because ADK yields partial text internally. It does not imply a
-streaming HTTP response — event_translator accumulates deltas and the endpoint
-returns one finished message.
-"""
+"""LLM Provider port."""
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -30,9 +21,10 @@ class RunSpec:
     system_prompt: str
     tools: list[Tool]
     user_message: str
-    retry: bool  # request metadata, not server state
+    retry: bool 
     session_id: str | None = None
     trigger_id: str | None = None
+    timezone: str | None = None
 
 
 @dataclass
@@ -69,5 +61,3 @@ class LLMProvider(Protocol):
     def models(self) -> list[ModelInfo]: ...
 
     def run(self, spec: RunSpec) -> AsyncIterator[RunEvent]: ...
-
-    async def summarize(self, text: str) -> str: ...

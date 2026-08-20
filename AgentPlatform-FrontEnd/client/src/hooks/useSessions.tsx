@@ -19,14 +19,13 @@ const useSessions = () => {
   // value, and restoring to that would show a title the server never set.
   const confirmed = useRef(new Map<string, Session>());
   // Latest request number per session id, shared across rename and remove.
-  // Mirrors useChat's `generation` map, which invalidates a history response
-  // that lands after a clear. A rename is one explicit action but nothing
-  // stops two of them overlapping (retitle, reopen the menu, retitle again
-  // before the first PATCH returns) or a rename overlapping a delete. Only
-  // the response matching the current token for that id is allowed to touch
-  // `confirmed` or the list; a superseded response - success or failure - is
-  // discarded instead of silently overwriting a newer, already-confirmed
-  // value.
+  // A generation token invalidates responses landing out of order. A rename is
+  // one explicit action but nothing stops two of them overlapping (retitle,
+  // reopen the menu, retitle again before the first PATCH returns) or a rename
+  // overlapping a delete. Only the response matching the current token for that
+  // id is allowed to touch `confirmed` or the list; a superseded response -
+  // success or failure - is discarded instead of silently overwriting a newer,
+  // already-confirmed value.
   const generation = useRef(new Map<string, number>());
   const mounted = useRef(true);
 

@@ -52,7 +52,7 @@ export const MessageTurn = ({ message, agent, tools, onRetry }: MessageTurnProps
           running={message.status === 'thinking'}
         />
 
-        {message.status === 'thinking' ? (
+        {message.status === 'thinking' && !message.content ? (
           <p className="turn__working mono">working…</p>
         ) : (
           <div

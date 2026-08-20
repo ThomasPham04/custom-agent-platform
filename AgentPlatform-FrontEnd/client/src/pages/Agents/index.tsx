@@ -12,6 +12,7 @@ import { newAgentDraft } from '../../lib/agent-draft';
 import { agentPatch, hasAgentChanges } from '../../lib/agent-edit';
 import type { Agent, AgentDraft, AgentPatch } from '../../types/agent';
 import type { Tool } from '../../types/tool';
+import type { TriggerDraft } from '../../types/trigger';
 import './agents.css';
 
 interface SavedAgentEditorProps {
@@ -111,6 +112,7 @@ const AgentsPage = () => {
   // this component: /agents/new means "draft open", anything else means closed.
   const [draft, setDraft] = useState<AgentDraft | null>(null);
   const isNewRoute = location.pathname === '/agents/new';
+  const [draftTriggers, setDraftTriggers] = useState<TriggerDraft[]>([]);
 
   // A draft and an open agent are the same slot on screen, so opening one
   // closes the other. Idempotent under StrictMode's double-invoke: the
@@ -120,6 +122,7 @@ const AgentsPage = () => {
       if (!isNewRoute) return null;
       return current ?? newAgentDraft();
     });
+    if (!isNewRoute) setDraftTriggers([]);
   }, [isNewRoute]);
 
   const query = filter.trim().toLowerCase();
@@ -138,9 +141,10 @@ const AgentsPage = () => {
 
   const onSaveDraft = async () => {
     if (!draft) return;
-    const created = await saveDraft(draft);
+    const created = await saveDraft(draft, draftTriggers);
     if (!created) return;
     setDraft(null);
+    setDraftTriggers([]);
     navigate(`/agents/${created.id}`);
   };
 
@@ -195,17 +199,22 @@ const AgentsPage = () => {
           takes only what has nowhere else to go.
         */}
         {operationError &&
-          operationError.kind !== 'create' &&
+          !(operationError.kind === 'create' && draft) &&
           !(operationError.kind === 'delete' && operationError.agentId === selected?.id) && (
           <p className="agents__error" role="alert">
-            {operationError.message}{' '}
-            <button
-              type="button"
-              className="agents__retry"
-              onClick={() => void onRetryOperation()}
-            >
-              Retry
-            </button>
+            {operationError.message}
+            {operationError.kind !== 'create' && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="agents__retry"
+                  onClick={() => void onRetryOperation()}
+                >
+                  Retry
+                </button>
+              </>
+            )}
           </p>
           )}
 
@@ -268,6 +277,8 @@ const AgentsPage = () => {
           // because draft mode hides the fields that would show them.
           agent={{ ...draft, id: '', createdAt: '', updatedAt: '' }}
           tools={tools}
+          draftTriggers={draftTriggers}
+          onDraftTriggersChange={setDraftTriggers}
           focusName
           saving={creating}
           operationError={

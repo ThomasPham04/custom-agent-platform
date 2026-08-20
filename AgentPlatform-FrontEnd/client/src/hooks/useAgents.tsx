@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from 'react';
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client';
 import type { Agent, AgentDraft, AgentPatch } from '../types/agent';
+import type { Trigger, TriggerDraft } from '../types/trigger';
 
 export type SaveAgentResult =
   | { ok: true; agent: Agent }
@@ -88,11 +89,49 @@ export const useAgents = () => {
    * nothing behind on the server.
    */
   const saveDraft = useCallback(
-    async (draft: AgentDraft): Promise<Agent | null> => {
+    async (
+      draft: AgentDraft,
+      triggerDrafts: readonly TriggerDraft[] = [],
+    ): Promise<Agent | null> => {
       setOperationError(null);
       setCreating(true);
       try {
         const created = await apiPost<Agent>('/api/agents', draft);
+
+        try {
+          // Trigger validation requires a real agent id. Keep the schedules
+          // local until this point, then bind each one to the newly-created id.
+          for (const trigger of triggerDrafts) {
+            await apiPost<Trigger>('/api/triggers', { ...trigger, agentId: created.id });
+          }
+        } catch (triggerError) {
+          const triggerMessage = messageOf(triggerError, 'Could not create the trigger.');
+          try {
+            // Make the multi-request create behave atomically from the form's
+            // point of view. Agent deletion also removes its triggers.
+            await apiDelete(`/api/agents/${created.id}`);
+          } catch {
+            // If compensation itself fails, keep the real agent visible and
+            // return it so another Save click cannot create a duplicate.
+            if (mounted.current) {
+              mutateAgents((current) => [created, ...current]);
+              setOperationError({
+                kind: 'create',
+                message: `${triggerMessage} The agent was saved, but its triggers were not.`,
+              });
+            }
+            return created;
+          }
+
+          if (mounted.current) {
+            setOperationError({
+              kind: 'create',
+              message: `${triggerMessage} Nothing was saved; you can retry.`,
+            });
+          }
+          return null;
+        }
+
         if (mounted.current) {
           mutateAgents((current) => [created, ...current]);
         }

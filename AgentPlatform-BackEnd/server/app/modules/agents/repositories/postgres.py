@@ -1,8 +1,6 @@
 """Postgres AgentRepository.
 
-The ordering and clone semantics match repositories/memory.py exactly, and
-tests/repositories/test_repository_contract.py runs the same assertions against
-both to keep them that way (spec §9).
+The ordering and clone semantics match repositories/memory.py
 """
 
 from datetime import UTC, datetime
@@ -20,13 +18,6 @@ def _to_datetime(iso: str) -> datetime:
 
 
 def _to_iso(value: datetime) -> str:
-    """Always +00:00, never a local offset.
-
-    asyncpg returns timestamps in the session's timezone, and the contract's
-    strings — including the seeds' fixed ones — are UTC. The list ordering is a
-    string comparison, so a mixed format would sort wrongly as well as read
-    wrongly.
-    """
     return value.astimezone(UTC).isoformat()
 
 

@@ -61,7 +61,7 @@ def get_agent_repository() -> AgentRepository:
     if settings.store_backend == "memory":
         # Seeded at construction. The cache above means one store per process,
         # so this runs once — the memory equivalent of "seed only when the table
-        # is empty" (spec §6).
+        # is empty".
         return MemoryAgentRepository(seed=SEED_AGENTS)
     # The lifespan opened this before any request could reach here; seeding is
     # its job too, because it must happen once per process rather than per call.
@@ -143,8 +143,6 @@ def reset_container() -> None:
     """Drop every cached singleton.
 
     Tests call this between cases so one test's agents never leak into the next.
-    It is the FastAPI equivalent of the resetStore() Express called in every
-    beforeEach (contract reference §9).
     """
     get_tool_registry.cache_clear()
     get_llm_provider.cache_clear()

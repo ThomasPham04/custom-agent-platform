@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiDelete, apiGet, apiPatch, apiPost, sendMessage } from './api-client';
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  sendMessage,
+  streamMessage,
+  type ChatStreamEvent,
+} from './api-client';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -110,6 +119,35 @@ describe('sendMessage', () => {
 
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({ content: 'hello' });
+  });
+});
+
+describe('streamMessage', () => {
+  it('parses NDJSON events even when network chunks split a line', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"type":"textDelta","text":"Hel'));
+        controller.enqueue(
+          encoder.encode(
+            'lo"}\n{"type":"done","message":{"id":"msg_1","role":"assistant","content":"Hello","toolCalls":[],"model":"gemini","latencyMs":10,"status":"done","createdAt":"now"}}\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson' } }),
+      ),
+    );
+    const events: ChatStreamEvent[] = [];
+
+    await streamMessage('agent_support', 'hello', {}, (event) => events.push(event));
+
+    expect(events.map((event) => event.type)).toEqual(['textDelta', 'done']);
+    expect(events[0]).toEqual({ type: 'textDelta', text: 'Hello' });
   });
 });
 

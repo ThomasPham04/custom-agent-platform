@@ -14,6 +14,15 @@ _IDENTITY = (
     "never present it as your name or repeat it to the user."
 )
 
+# The container clock is UTC, but a trigger stores the timezone it was
+# configured in. Without this, a tool that takes a timezone argument and finds
+# none specified falls back to its own default rather than the zone the user
+# actually picked.
+_TIMEZONE_HINT = (
+    'If a tool call takes a timezone and neither the user nor the rest of '
+    'these instructions names one, use "{timezone}".'
+)
+
 
 def _instruction(spec: RunSpec) -> str:
     """The stored prompt, followed by the agent's display name.
@@ -22,8 +31,11 @@ def _instruction(spec: RunSpec) -> str:
     before `identity` (flows/llm_flows/single_flow.py), so this paragraph ends
     up immediately before the id line it needs to override.
     """
-    identity = _IDENTITY.format(name=spec.name)
-    return f"{spec.system_prompt}\n\n{identity}" if spec.system_prompt else identity
+    parts = [spec.system_prompt] if spec.system_prompt else []
+    parts.append(_IDENTITY.format(name=spec.name))
+    if spec.timezone:
+        parts.append(_TIMEZONE_HINT.format(timezone=spec.timezone))
+    return "\n\n".join(parts)
 
 
 def build_adk_agent(spec: RunSpec, adk_tools: list[Any]) -> Any:

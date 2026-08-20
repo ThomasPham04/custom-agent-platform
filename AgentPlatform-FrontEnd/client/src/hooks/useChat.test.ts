@@ -117,7 +117,7 @@ describe('useChat send', () => {
     expect(result.current.sending).toBe(true);
   });
 
-  it('reveals tool calls one at a time, paced by each duration', async () => {
+  it('uses the completed tool trace from a legacy JSON response without replay delay', async () => {
     stubPost({ message: assistant() });
     const { result } = renderChat({ sessionId: 'sess_1', agentId: 'agent_support' });
 
@@ -125,43 +125,58 @@ describe('useChat send', () => {
       void result.current.send('hi');
     });
 
-    // The first call is revealed as running before its duration elapses.
-    await waitFor(() => expect(result.current.messages[1]!.toolCalls).toHaveLength(1));
-    expect(result.current.messages[1]!.toolCalls![0]).toMatchObject({
-      toolId: 'current_time',
-      status: 'running',
-    });
-    expect(result.current.messages[1]!.content).toBe('');
-
-    await act(async () => {
-      vi.advanceTimersByTime(100);
-    });
-    await waitFor(() => expect(result.current.messages[1]!.toolCalls![0]!.status).toBe('ok'));
-    await waitFor(() => expect(result.current.messages[1]!.toolCalls).toHaveLength(2));
-    expect(result.current.messages[1]!.toolCalls![1]!.status).toBe('running');
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
     await waitFor(() => expect(result.current.messages[1]!.status).toBe('done'));
+    expect(result.current.messages[1]!.toolCalls).toHaveLength(2);
+    expect(result.current.messages[1]!.toolCalls![0]!.status).toBe('ok');
     expect(result.current.messages[1]!.content).toBe("It's 9:03 PM in Tokyo.");
     expect(result.current.messages[1]!.latencyMs).toBe(480);
   });
 
-  it('stays in the sending state for the whole reveal, not just the request', async () => {
-    stubPost({ message: assistant() });
+  it('shows partial streamed text while the request is still running', async () => {
+    const encoder = new TextEncoder();
+    let finish: (() => void) | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(`${JSON.stringify({ type: 'textDelta', text: 'Hello' })}\n`),
+        );
+        finish = () => {
+          controller.enqueue(
+            encoder.encode(
+              `${JSON.stringify({
+                type: 'done',
+                message: assistant({ content: 'Hello there.', toolCalls: [] }),
+              })}\n`,
+            ),
+          );
+          controller.close();
+        };
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        (init?.method ?? 'GET') === 'GET'
+          ? noHistory()
+          : new Response(stream, {
+              headers: { 'Content-Type': 'application/x-ndjson' },
+            }),
+      ),
+    );
     const { result } = renderChat({ sessionId: 'sess_1', agentId: 'agent_support' });
 
     await act(async () => {
       void result.current.send('hi');
     });
-    await waitFor(() => expect(result.current.messages[1]!.toolCalls).toHaveLength(1));
+    await waitFor(() => expect(result.current.messages[1]!.content).toBe('Hello'));
+    expect(result.current.messages[1]!.status).toBe('thinking');
     expect(result.current.sending).toBe(true);
 
     await act(async () => {
-      vi.advanceTimersByTime(300);
+      finish?.();
     });
     await waitFor(() => expect(result.current.sending).toBe(false));
+    expect(result.current.messages[1]!.content).toBe('Hello there.');
   });
 
   it('answers immediately when the agent has no tools', async () => {
@@ -854,13 +869,27 @@ describe('useChat sessions', () => {
 
   it('keeps the chat on screen and sending when the route lands mid-reveal', async () => {
     const created = session();
-    let resolvePost: ((response: Response) => void) | undefined;
+    const encoder = new TextEncoder();
+    let finishStream: (() => void) | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(`${JSON.stringify({ type: 'session', session: created })}\n`),
+        );
+        finishStream = () => {
+          controller.enqueue(
+            encoder.encode(
+              `${JSON.stringify({ type: 'done', message: assistant({ toolCalls: [] }) })}\n`,
+            ),
+          );
+          controller.close();
+        };
+      },
+    });
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
       (init?.method ?? 'GET') === 'GET'
         ? noHistory()
-        : new Promise<Response>((resolve) => {
-            resolvePost = resolve;
-          }),
+        : new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson' } }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -872,11 +901,8 @@ describe('useChat sessions', () => {
     });
     expect(result.current.sending).toBe(true);
 
-    // The response lands, so the session exists; the reveal still has 300ms of
-    // tool calls to walk.
-    await act(async () => {
-      resolvePost?.(jsonResponse({ message: assistant(), session: created }));
-    });
+    // The first stream event creates the session while the answer is still open.
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
 
     // The route catches up in the middle of that walk.
     rerender({ sessionId: 'sess_new', agentId: 'agent_support' });
@@ -884,6 +910,7 @@ describe('useChat sessions', () => {
     expect(result.current.sending).toBe(true);
 
     await act(async () => {
+      finishStream?.();
       await pending;
     });
     expect(result.current.messages[1]!.status).toBe('done');

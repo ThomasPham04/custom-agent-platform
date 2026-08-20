@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, listRunsBySession, sendMessage } from '../lib/api-client';
+import { ApiError, listRunsBySession, streamMessage } from '../lib/api-client';
 import { runsToMessages } from '../lib/run-to-messages';
 import type { Message, ToolCall } from '../types/message';
 import type { Session } from '../types/session';
-
-export const ANSWER_FADE_MS = 180;
 
 type Threads = Record<string, Message[]>;
 type InFlightByChat = Record<string, true>;
@@ -12,8 +10,6 @@ type InFlightByChat = Record<string, true>;
 let messageCounter = 0;
 /** Local ids only: server ids arrive with the response and replace these. */
 const localId = (prefix: string) => `${prefix}_local_${(messageCounter += 1)}`;
-
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
  * A new chat has no session id until the server creates one on the first
@@ -35,8 +31,7 @@ export const useChat = (sessionId: string | null, agentId: string | null) => {
   const [inFlightByChat, setInFlightByChat] = useState<InFlightByChat>({});
   const [hydratingByChat, setHydratingByChat] = useState<InFlightByChat>({});
   const hydrated = useRef(new Set<string>());
-  // Mirrors useAgents' queue.generation: bumping a session's generation
-  // invalidates any response still in flight for it.
+  // Bumping a session's generation invalidates any response still in flight for it.
   const generation = useRef(new Map<string, number>());
   const threadsRef = useRef<Threads>({});
   const inFlight = useRef(new Set<string>());
@@ -245,55 +240,50 @@ export const useChat = (sessionId: string | null, agentId: string | null) => {
       let created: Session | undefined;
 
       try {
-        const response = await sendMessage(agent, content, {
-          retry: isRetry,
-          sessionId: session,
-        });
-        // Only the request that created a session carries one back; a later
-        // message omits the key rather than sending null.
-        if (response.session) {
-          created = response.session;
-          // Adopted here rather than at the end of the run: the redirect has
-          // to be live for the rest of the reveal, so that these patches and
-          // any message sent meanwhile address the session and not a key the
-          // route is about to retire.
-          adopt(id, created);
-        }
-
-        const finished = response.message;
-        const calls = finished.toolCalls ?? [];
-        const revealed: ToolCall[] = [];
-        let failed = finished.status === 'error';
-
-        // The response is complete; the pacing is ours. Each node waits out its
-        // own reported duration, so the felt wait matches the numbers on screen.
-        for (const call of calls) {
-          if (!mounted.current) return undefined;
-
-          revealed.push({ ...call, status: 'running' });
-          patchPlaceholder(id, placeholderId, { toolCalls: [...revealed] });
-
-          await delay(call.durationMs);
-          if (!mounted.current) return undefined;
-
-          revealed[revealed.length - 1] = call;
-          patchPlaceholder(id, placeholderId, { toolCalls: [...revealed] });
-
-          if (call.status === 'error') {
-            failed = true;
-            break;
-          }
-        }
-
-        if (!mounted.current) return undefined;
-        patchPlaceholder(id, placeholderId, {
-          id: finished.id,
-          content: finished.content,
-          model: finished.model,
-          latencyMs: finished.latencyMs,
-          status: failed ? 'error' : 'done',
-          createdAt: finished.createdAt,
-        });
+        let partial = '';
+        let calls: ToolCall[] = [];
+        await streamMessage(
+          agent,
+          content,
+          { retry: isRetry, sessionId: session },
+          (event) => {
+            if (!mounted.current) return;
+            if (event.type === 'session') {
+              created = event.session;
+              adopt(id, event.session);
+            } else if (event.type === 'textDelta') {
+              partial += event.text;
+              patchPlaceholder(id, placeholderId, { content: partial });
+            } else if (event.type === 'toolStarted') {
+              calls = [...calls, event.call];
+              patchPlaceholder(id, placeholderId, { toolCalls: calls });
+            } else if (event.type === 'toolFinished') {
+              calls = calls.map((call) =>
+                call.id === event.callId
+                  ? {
+                      ...call,
+                      result: event.result,
+                      error: event.error,
+                      durationMs: event.durationMs,
+                      status: event.status,
+                    }
+                  : call,
+              );
+              patchPlaceholder(id, placeholderId, { toolCalls: calls });
+            } else if (event.type === 'done') {
+              const finished = event.message;
+              patchPlaceholder(id, placeholderId, {
+                id: finished.id,
+                content: finished.content,
+                toolCalls: finished.toolCalls,
+                model: finished.model,
+                latencyMs: finished.latencyMs,
+                status: finished.status,
+                createdAt: finished.createdAt,
+              });
+            }
+          },
+        );
       } catch (thrown) {
         if (mounted.current) {
           patchPlaceholder(id, placeholderId, {

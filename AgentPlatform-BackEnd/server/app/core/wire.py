@@ -1,7 +1,6 @@
 """Base for every schema that crosses the HTTP boundary.
 
-Internal code stays snake_case; JSON stays camelCase, matching the contract the
-finished React client already consumes.
+Internal code stays snake_case; JSON stays camelCase for wire compatibility.
 """
 
 from pydantic import BaseModel, ConfigDict

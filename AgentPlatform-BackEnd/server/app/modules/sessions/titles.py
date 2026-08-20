@@ -1,8 +1,7 @@
 """Deterministic titles.
 
-Used for the title a session is born with, for the fallback when the model's
-summary fails, and for the backfill — which runs at startup and must never
-depend on a network call or an API key.
+Used for the title a session is born with and for the startup backfill. Neither
+path depends on a network call or an API key.
 """
 
 from app.core.text import js_length

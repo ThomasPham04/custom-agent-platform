@@ -2,7 +2,7 @@
 
 ADK-specific knowledge stops inside this file. Everything above LLMProvider sees
 only RunEvents, which is why the mock and this provider are interchangeable and
-why the whole contract suite runs without an API key (spec §5.2).
+why the whole contract suite runs without an API key.
 
 google.adk is imported inside the methods, not at module scope: it is an optional
 extra and tests/test_structure.py imports every module in the tree.
@@ -15,7 +15,7 @@ from typing import Any
 from app.core.errors import ProviderError
 from app.core.ids import create_id
 from app.modules.execution.agent_factory import build_adk_agent
-from app.modules.llm.catalog import DEFAULT_MODEL, MODELS
+from app.modules.llm.catalog import MODELS
 from app.modules.llm.failures import provider_message
 from app.modules.llm.provider import (
     LLMProvider,
@@ -27,26 +27,16 @@ from app.modules.llm.provider import (
     ToolCallStarted,
     TurnFinished,
 )
-from app.modules.sessions.titles import truncate_title
 from app.modules.tools.adk_adapter import ToolRecorder, to_adk_tools
 
 _APP_NAME = "agent-platform"
 # No auth, so every turn is the same principal. Sessions are not conversation
-# memory here: runs/ is our audit record, independent of ADK's session state
-# (spec §5.2, "Sessions").
+# memory here: runs/ is our audit record, independent of ADK's session state.
 _USER_ID = "local"
-
-_TITLE_INSTRUCTION = (
-    "Write a title of at most six words for a conversation that starts with the "
-    "message below. Reply with the title only — no quotes, no punctuation at the "
-    "end, no explanation."
-)
-
 
 class AdkGeminiProvider(LLMProvider):
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
-        self._model_for_titles = DEFAULT_MODEL
 
     def models(self) -> list[ModelInfo]:
         return MODELS
@@ -54,44 +44,21 @@ class AdkGeminiProvider(LLMProvider):
     def run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         return self._run(spec)
 
-    async def summarize(self, text: str) -> str:
-        """One short, tool-free call.
-
-        A failure here must never cost the user their answer, so the caller
-        catches; this only has to be honest about failing.
-        """
-        spec = RunSpec(
-            agent_id="internal_titler",
-            name="Titler",
-            model=self._model_for_titles,
-            system_prompt=_TITLE_INSTRUCTION,
-            tools=[],
-            user_message=text,
-            retry=False,
-        )
-        parts: list[str] = []
-        recorder = ToolRecorder()
-        async for event in self._stream(spec, recorder):
-            chunk = _text_of(event)
-            if chunk:
-                parts.append(chunk)
-        title = " ".join("".join(parts).split())
-        if not title:
-            raise ProviderError("The model returned no title.")
-        # The model's own output must satisfy the same js_length(<=120) invariant
-        # as any user-supplied title: truncate_title is the one place that
-        # guarantee is enforced, so route through it rather than slicing here.
-        return truncate_title(title)
-
     async def _run(self, spec: RunSpec) -> AsyncIterator[RunEvent]:
         recorder = ToolRecorder()
         started = time.perf_counter()
         parts: list[str] = []
+        saw_partial = False
 
         try:
             async for event in self._stream(spec, recorder):
                 text = _text_of(event)
-                if text:
+                partial = getattr(event, "partial", False) is True
+                if partial:
+                    saw_partial = True
+                # SSE ends with a non-partial event containing the full answer.
+                # Once chunks started, appending that event would duplicate it.
+                if text and (partial or not saw_partial):
                     parts.append(text)
                     yield TextDelta(text=text)
         except Exception as exc:  # noqa: BLE001 - every upstream failure is a 502
@@ -103,7 +70,7 @@ class AdkGeminiProvider(LLMProvider):
 
         # Tool events are replayed from the recorder rather than correlated with
         # ADK's own call ids: ADK does not report durations, and durationMs is
-        # contract. The response is not streamed, so ordering is all that matters.
+        # contract. Recorder calls are available after the runner completes.
         for record in recorder.calls:
             call_id = create_id("call")
             yield ToolCallStarted(
@@ -126,6 +93,7 @@ class AdkGeminiProvider(LLMProvider):
         self, spec: RunSpec, recorder: ToolRecorder
     ) -> AsyncIterator[Any]:
         """Drive ADK's Runner for one turn. Separated so tests can replace it."""
+        from google.adk.agents.run_config import RunConfig, StreamingMode
         from google.adk.runners import Runner
         from google.adk.sessions import InMemorySessionService
         from google.genai import types
@@ -145,7 +113,10 @@ class AdkGeminiProvider(LLMProvider):
             role="user", parts=[types.Part.from_text(text=spec.user_message)]
         )
         async for event in runner.run_async(
-            user_id=_USER_ID, session_id=session.id, new_message=message
+            user_id=_USER_ID,
+            session_id=session.id,
+            new_message=message,
+            run_config=RunConfig(streaming_mode=StreamingMode.SSE),
         ):
             yield event
 

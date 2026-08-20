@@ -1,7 +1,7 @@
 """Application factory.
 
 Kept as a factory (rather than a module-level app) so tests can build an
-isolated instance per test, the same way server.js exported createApp().
+isolated instance per test.
 """
 
 import asyncio
@@ -80,9 +80,9 @@ def create_app() -> FastAPI:
         title="AI Agent Platform API", version="0.1.0", lifespan=_lifespan
     )
 
-    # add_middleware prepends, so the LAST registered runs outermost. Express ran
-    # cors() before express.json({limit}), which meant a 413 still carried
-    # Access-Control-Allow-Origin; CORS therefore has to wrap the body limiter.
+    # add_middleware prepends, so the LAST registered runs outermost. CORS must
+    # wrap the body limiter so a 413 payload-too-large still carries
+    # Access-Control-Allow-Origin headers.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
     app.add_middleware(
         CORSMiddleware,

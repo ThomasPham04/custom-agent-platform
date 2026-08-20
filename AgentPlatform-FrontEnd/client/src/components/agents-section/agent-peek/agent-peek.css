@@ -153,11 +153,6 @@
   color: var(--err);
 }
 
-.agent-peek__trigger-note {
-  font-size: var(--text-meta);
-  color: var(--ink-muted);
-}
-
 .agent-peek__retry {
   font-family: var(--font-ui);
   font-size: var(--text-meta);

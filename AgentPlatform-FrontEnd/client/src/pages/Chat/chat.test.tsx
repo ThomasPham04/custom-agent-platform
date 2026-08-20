@@ -143,7 +143,11 @@ beforeEach(() => {
     refresh: vi.fn(),
   };
   vi.spyOn(api, 'listRunsBySession').mockResolvedValue([]);
-  vi.spyOn(api, 'sendMessage').mockResolvedValue({ message: assistant() });
+  vi.spyOn(api, 'streamMessage').mockImplementation(
+    async (_agentId, _content, _options, onEvent) => {
+      onEvent({ type: 'done', message: assistant() });
+    },
+  );
 });
 
 describe('Chat routing', () => {
@@ -179,7 +183,12 @@ describe('Chat routing', () => {
 
   it('adopts the created session and routes to it on the first message', async () => {
     const created = session('sess_new', 'agent_support', '2026-08-16T10:00:00.000Z', 'Refunds');
-    vi.mocked(api.sendMessage).mockResolvedValue({ message: assistant(), session: created });
+    vi.mocked(api.streamMessage).mockImplementationOnce(
+      async (_agentId, _content, _options, onEvent) => {
+        onEvent({ type: 'session', session: created });
+        onEvent({ type: 'done', message: assistant() });
+      },
+    );
     renderChat('/chat');
 
     expect(at()).toBe('/chat');
@@ -194,22 +203,27 @@ describe('Chat routing', () => {
   it('leaves the user where they moved to when a send lands late', async () => {
     const created = session('sess_new', 'agent_support', '2026-08-16T10:00:00.000Z', 'Refunds');
     // The send hangs until released, standing in for a slow run.
-    let release = (_value: { message: Message; session?: Session }) => {};
-    vi.mocked(api.sendMessage).mockReturnValue(
-      new Promise((resolve) => {
-        release = resolve;
-      }),
+    let release = () => {};
+    vi.mocked(api.streamMessage).mockImplementationOnce(
+      (_agentId, _content, _options, onEvent) =>
+        new Promise<void>((resolve) => {
+          release = () => {
+            onEvent({ type: 'session', session: created });
+            onEvent({ type: 'done', message: assistant() });
+            resolve();
+          };
+        }),
     );
     renderChat('/chat/agent_support');
     await compose('Refund window?');
-    await waitFor(() => expect(api.sendMessage).toHaveBeenCalled());
+    await waitFor(() => expect(api.streamMessage).toHaveBeenCalled());
 
     // The user switches agents while that first message is still running.
     await userEvent.click(screen.getByRole('button', { name: /Support Bot/ }));
     await userEvent.click(screen.getByRole('button', { name: /Researcher/ }));
     await waitFor(() => expect(at()).toBe('/chat/agent_research'));
 
-    release({ message: assistant(), session: created });
+    release();
 
     // The new chat still reaches the sidebar, but the route stays where the
     // user put it: following it here would replace the screen they chose, and
@@ -252,7 +266,12 @@ describe('Chat header menu', () => {
 
   it('starts a fresh session after the chat on screen is deleted', async () => {
     const created = session('sess_new', 'agent_support', '2026-08-16T10:00:00.000Z', 'Refunds');
-    vi.mocked(api.sendMessage).mockResolvedValueOnce({ message: assistant(), session: created });
+    vi.mocked(api.streamMessage).mockImplementationOnce(
+      async (_agentId, _content, _options, onEvent) => {
+        onEvent({ type: 'session', session: created });
+        onEvent({ type: 'done', message: assistant() });
+      },
+    );
     renderChat('/chat');
 
     await compose('Refund window?');
@@ -264,11 +283,11 @@ describe('Chat header menu', () => {
     await waitFor(() => expect(at()).toBe('/chat'));
 
     await compose('And exchanges?');
-    await waitFor(() => expect(api.sendMessage).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.streamMessage).toHaveBeenCalledTimes(2));
 
     // The deleted chat left no redirect behind: this is a new conversation, not
     // an append to the one that was just removed.
-    expect(vi.mocked(api.sendMessage).mock.calls[1]![2]?.sessionId).toBeUndefined();
+    expect(vi.mocked(api.streamMessage).mock.calls[1]![2]?.sessionId).toBeUndefined();
     expect(screen.queryByText('Refund window?')).not.toBeInTheDocument();
   });
 });

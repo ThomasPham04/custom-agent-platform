@@ -1,7 +1,7 @@
 """In-memory AgentRepository.
 
 Not a mock: it stores and returns real data, so tests exercise real CRUD without
-a database. Backs STORE_BACKEND=memory and the fast test path (spec §5.3).
+a database. Backs STORE_BACKEND=memory and the fast test path.
 """
 
 from collections.abc import Sequence

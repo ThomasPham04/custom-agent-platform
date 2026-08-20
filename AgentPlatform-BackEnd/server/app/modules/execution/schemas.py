@@ -18,7 +18,7 @@ class MessageRequest(WireModel):
     # its whitespace and bool rules are unreachable through Field().
     content: str
     # Request metadata, not server state: identical messages from different
-    # clients stay independent (spec §5.2).
+    # clients stay independent.
     retry: bool = False
     # Absent on the first message of a chat: the session is created by the send.
     session_id: str | None = None

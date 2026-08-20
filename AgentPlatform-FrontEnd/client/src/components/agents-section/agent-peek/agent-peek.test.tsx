@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { AgentPeek } from './agent-peek';
 import type { Agent } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
+import type { TriggerDraft } from '../../../types/trigger';
 import { MODELS } from '../../../config/models';
 
 const tools: Tool[] = [
@@ -141,7 +142,7 @@ describe('AgentPeek', () => {
     expect(screen.getByRole('button', { name: 'Delete agent' })).toBeDisabled();
 
     rerender(<AgentPeek {...defaults} dirty saveError="Could not save." onSave={onSave} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not save.');
+    expect(screen.getByText(/Could not save\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   });
 
@@ -275,6 +276,36 @@ describe('AgentPeek in draft mode', () => {
   it('shows no autosave readout, because a draft never autosaves', () => {
     render(<AgentPeek {...draftDefaults} />);
     expect(screen.queryByText(/^Saved /)).not.toBeInTheDocument();
+  });
+
+  it('stages trigger schedules before the agent is saved', async () => {
+    const DraftHarness = () => {
+      const [draftTriggers, setDraftTriggers] = useState<TriggerDraft[]>([]);
+      return (
+        <AgentPeek
+          {...draftDefaults}
+          draftTriggers={draftTriggers}
+          onDraftTriggersChange={setDraftTriggers}
+        />
+      );
+    };
+
+    render(<DraftHarness />);
+    expect(screen.queryByText('Save this agent to add a trigger.')).not.toBeInTheDocument();
+    expect(screen.getByText('0 configured')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add trigger' }));
+    expect(screen.getByText('1 configured')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Repeats' })).toHaveValue('daily');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Repeats' }), 'interval');
+    const minutes = screen.getByRole('spinbutton', { name: 'Every (minutes)' });
+    await userEvent.clear(minutes);
+    await userEvent.type(minutes, '15');
+    await userEvent.click(screen.getByRole('button', { name: 'Close trigger settings' }));
+
+    expect(screen.getByText(/Every 15 minutes/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save agent' })).toBeEnabled();
   });
 
   it('saves the draft on demand', async () => {

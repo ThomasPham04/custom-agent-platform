@@ -1,8 +1,6 @@
 """The model catalog — one source of truth for the whole platform.
 
-Mirrored by hand in client/src/config/models.ts and
-docs/superpowers/references/express-contract-reference.md chapter 1; change all
-three together.
+Defines which LLM models are available for agent selection.
 
 The catalog held gemini-2.5-flash, gemini-2.5-pro, and gemini-2.0-flash until
 Google retired them for new API keys — generateContent answers 404 NOT_FOUND on

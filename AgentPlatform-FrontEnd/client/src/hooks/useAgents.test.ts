@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAgents } from './useAgents';
 import type { Agent } from '../types/agent';
+import type { TriggerDraft } from '../types/trigger';
 
 const agent: Agent = {
   id: 'agent_support',
@@ -124,6 +125,85 @@ describe('useAgents create, duplicate, delete', () => {
     });
     expect(result.current.agents[0]!.id).toBe('agent_new');
     expect(result.current.agents).toHaveLength(2);
+  });
+
+  it('binds staged triggers to the new agent before exposing the saved agent', async () => {
+    const fetchMock = stubApi({});
+    const { result } = await loaded();
+    const trigger: TriggerDraft = {
+      agentId: '',
+      kind: 'interval',
+      intervalMinutes: 15,
+      message: 'Run the timer task.',
+      timezone: 'Asia/Ho_Chi_Minh',
+      enabled: true,
+    };
+
+    await act(async () => {
+      await result.current.saveDraft(
+        {
+          name: 'Timer',
+          icon: agent.icon,
+          description: '',
+          model: 'gemini-3.1-flash-lite',
+          systemPrompt: 'Respond after an interval.',
+          toolIds: ['current_time'],
+          status: 'draft',
+        },
+        [trigger],
+      );
+    });
+
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(posts).toHaveLength(2);
+    expect(String(posts[0]![0])).toContain('/api/agents');
+    expect(String(posts[1]![0])).toContain('/api/triggers');
+    expect(JSON.parse(String(posts[1]![1]!.body))).toMatchObject({
+      agentId: 'agent_new',
+      kind: 'interval',
+      intervalMinutes: 15,
+    });
+    expect(result.current.agents[0]?.id).toBe('agent_new');
+  });
+
+  it('rolls the new agent back when a staged trigger cannot be created', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'GET') return json([agent]);
+      if (method === 'DELETE') return new Response(null, { status: 204 });
+      if (String(url).includes('/api/triggers')) {
+        return json({ error: { code: 'bad_request', message: 'Invalid schedule.' } }, 400);
+      }
+      return json({ ...agent, id: 'agent_new', name: 'Timer' }, 201);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = await loaded();
+    let saved: Agent | null = agent;
+
+    await act(async () => {
+      saved = await result.current.saveDraft(
+        {
+          name: 'Timer',
+          icon: agent.icon,
+          description: '',
+          model: 'gemini-3.1-flash-lite',
+          systemPrompt: 'Respond after an interval.',
+          toolIds: ['current_time'],
+          status: 'draft',
+        },
+        [{ agentId: '', kind: 'interval', intervalMinutes: 0, message: 'Run.' }],
+      );
+    });
+
+    expect(saved).toBeNull();
+    const deletes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE');
+    expect(deletes).toHaveLength(1);
+    expect(String(deletes[0]![0])).toContain('/api/agents/agent_new');
+    expect(result.current.agents).toEqual([agent]);
+    expect(result.current).toHaveProperty(
+      'operationError.message',
+      'Invalid schedule. Nothing was saved; you can retry.',
+    );
   });
 
   it('duplicates an agent with a "Copy of" name and draft status', async () => {

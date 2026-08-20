@@ -2,8 +2,7 @@
 
 Deliberately carries no agent name, icon, or model. runs/ snapshots those so
 editing an agent cannot rewrite history — an audit concern. A session is
-navigation: after a rename the sidebar must show the new name at once, and the
-frontend already resolves it from agent_id through AgentsProvider.
+navigation: after a rename the sidebar must show the new name immediately.
 """
 
 from datetime import datetime

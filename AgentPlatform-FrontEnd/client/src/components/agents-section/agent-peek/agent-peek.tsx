@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { AgentForm } from '../agent-form/agent-form';
 import { AgentTriggers } from '../agent-triggers/agent-triggers';
+import { DraftAgentTriggers } from '../agent-triggers/draft-agent-triggers';
 import { ConfirmDelete } from '../../ui/confirm-delete';
 import { Popover } from '../../ui/popover';
 import { AGENT_ICONS } from '../../../lib/agent-icons';
@@ -8,6 +9,7 @@ import { BREAKPOINT_SHEET, useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useModalFocus } from '../../../hooks/useModalFocus';
 import type { Agent, AgentPatch } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
+import type { TriggerDraft } from '../../../types/trigger';
 import './agent-peek.css';
 
 interface AgentPeekProps {
@@ -30,6 +32,8 @@ interface AgentPeekProps {
    */
   mode?: 'saved' | 'draft';
   onSaveDraft?: () => void;
+  draftTriggers?: readonly TriggerDraft[];
+  onDraftTriggersChange?: (drafts: TriggerDraft[]) => void;
   saving?: boolean;
 }
 
@@ -69,6 +73,8 @@ export const AgentPeek = ({
   onRetryOperation,
   mode = 'saved',
   onSaveDraft,
+  draftTriggers = [],
+  onDraftTriggersChange = () => {},
   saving = false,
 }: AgentPeekProps) => {
   const isDraft = mode === 'draft';
@@ -186,7 +192,11 @@ export const AgentPeek = ({
           showTimestamps={!isDraft}
           triggerField={
             isDraft ? (
-              <span className="agent-peek__trigger-note">Save this agent to add a trigger.</span>
+              <DraftAgentTriggers
+                drafts={draftTriggers}
+                disabled={saving}
+                onChange={onDraftTriggersChange}
+              />
             ) : (
               <AgentTriggers agentId={agent.id} />
             )

@@ -1,7 +1,7 @@
 """Agent Management persistence port.
 
-Async throughout because asyncpg is (spec D8). Implementations live in
-repositories/ and are selected in container.py by STORE_BACKEND.
+Implementations live in repositories/ and are selected in container.py
+by STORE_BACKEND.
 """
 
 from typing import Protocol

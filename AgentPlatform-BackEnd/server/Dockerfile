@@ -11,6 +11,5 @@ RUN pip install --no-cache-dir ".[adk]"
 
 EXPOSE 4000
 
-# Port 4000, not uvicorn's default 8000: client/nginx.conf proxies to api:4000
-# and must not change (spec D9).
+# Port 4000, not uvicorn's default 8000: client/nginx.conf proxies to api:4000.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4000"]
