@@ -160,6 +160,24 @@
   background: var(--paper);
 }
 
+/*
+  The log grows one row per firing and each row carries a whole answer, so a
+  trigger that has run all afternoon is taller than the screen. Uncapped it
+  stretches the panel and pushes the schedule fields and Save trigger up out of
+  reach — the controls someone opened this editor to use. Scrolling it inside
+  itself keeps the editor a fixed height however long the history gets.
+
+  `contain` stops a flick that reaches the end of the log from carrying on and
+  scrolling the whole panel underneath it.
+*/
+.agent-triggers .trigger-activity {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Clear of the scrollbar, which overlays the content on Windows. */
+  padding-right: var(--space-3);
+}
+
 .agent-triggers .trigger-activity__row {
   grid-template-columns: 1fr auto;
   gap: var(--space-3);

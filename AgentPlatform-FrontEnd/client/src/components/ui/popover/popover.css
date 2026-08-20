@@ -18,6 +18,18 @@
   }
 }
 
+/* A panel beside its trigger arrives from that side, not from above it. */
+.popover--right {
+  animation-name: popover-in-right;
+}
+
+@keyframes popover-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-2px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .popover {
     animation: none;

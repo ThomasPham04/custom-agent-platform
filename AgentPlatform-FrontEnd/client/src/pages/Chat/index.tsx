@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { AgentSwitcher } from '../../components/chat-section/agent-switcher/agent-switcher';
 import { Composer } from '../../components/chat-section/composer';
 import { MessageList } from '../../components/chat-section/message-list';
@@ -24,6 +24,12 @@ const ChatPage = () => {
     alongside a link straight to one conversation.
   */
   const { id } = useParams();
+  /*
+    The sidebar's new-chat button sends `/chat?agent=…`: an empty chat that
+    names who it is with. A route id always wins, so opening a conversation
+    later never has to strip the query it arrived with.
+  */
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { agents } = useAgentsContext();
   const { tools } = useTools();
@@ -59,12 +65,15 @@ const ChatPage = () => {
   const sessionId = routedSessionId ?? newestForAgent?.id ?? null;
   const session = sessionId ? (sessions.find((item) => item.id === sessionId) ?? null) : null;
 
-  // The session names the agent; a route without one falls back to the last
-  // agent this browser used, then to whatever exists.
+  // The session names the agent, then the route, then a new chat's `?agent=`;
+  // a request that named none falls back to the last agent this browser used,
+  // then to whatever exists.
   const remembered = localStorage.getItem(LAST_AGENT_KEY);
+  const queriedAgentId = searchParams.get('agent');
   const selected =
     agents.find((agent) => agent.id === session?.agentId) ??
     agents.find((agent) => agent.id === routedAgentId) ??
+    agents.find((agent) => agent.id === queriedAgentId) ??
     agents.find((agent) => agent.id === remembered) ??
     agents[0] ??
     null;

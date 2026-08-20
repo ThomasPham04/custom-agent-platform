@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import type { Agent } from './types/agent';
@@ -76,11 +76,12 @@ describe('mobile application drawer', () => {
     expect(drawer).not.toHaveAttribute('aria-hidden');
     expect(workspace).toHaveAttribute('aria-hidden', 'true');
     expect(workspace).toHaveAttribute('inert');
-    expect(screen.getByRole('button', { name: 'Agent Platform' })).toHaveFocus();
+    const firstControl = within(drawer!).getByRole('link', { name: 'Agents' });
+    expect(firstControl).toHaveFocus();
 
     workspace?.focus();
     await userEvent.keyboard('{Tab}');
-    expect(screen.getByRole('button', { name: 'Agent Platform' })).toHaveFocus();
+    expect(firstControl).toHaveFocus();
 
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(drawer).toHaveAttribute('aria-hidden', 'true'));

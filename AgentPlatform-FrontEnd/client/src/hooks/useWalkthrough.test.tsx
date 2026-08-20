@@ -92,6 +92,23 @@ const at = () => screen.getByTestId('location').textContent;
 const state = () => screen.getByTestId('state').textContent;
 
 /*
+  Read from the catalog rather than written down here. These tests are about
+  reaching the end of a walkthrough, not about how many steps it takes to get
+  there, and a hardcoded count turns every added step into three unrelated
+  failures.
+*/
+const createAgent = WALKTHROUGHS.find((walkthrough) => walkthrough.id === 'create-agent');
+if (!createAgent) throw new Error('test setup: the "create-agent" walkthrough is missing.');
+const lastCreateStep = `create-agent:${createAgent.steps.length - 1}:${createAgent.steps.at(-1)?.id}`;
+
+/** Advances to the walkthrough's last step, leaving Done unpressed. */
+const advanceToLastCreateStep = async () => {
+  for (let i = 0; i < createAgent.steps.length - 1; i += 1) {
+    await userEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
+  }
+};
+
+/*
   jsdom does no layout: every element reports a 0×0 rect at (0, 0) by default.
   useTargetRect now treats a zero-size rect as unreachable (I4), so without
   this stub every marker in the file above would look exactly like the
@@ -221,9 +238,7 @@ describe('WalkthroughProvider', () => {
     await userEvent.click(starter);
     await waitFor(() => expect(state()).toBe('create-agent:0:create:nav'));
 
-    for (let i = 0; i < 9; i += 1) {
-      await userEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
-    }
+    await advanceToLastCreateStep();
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
 
     await waitFor(() => expect(state()).toBe('idle'));
@@ -272,11 +287,8 @@ describe('WalkthroughProvider', () => {
     renderApp();
     await userEvent.click(screen.getByRole('button', { name: 'start create' }));
 
-    // create-agent has ten steps; nine advances land on the last one.
-    for (let i = 0; i < 9; i += 1) {
-      await userEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
-    }
-    await waitFor(() => expect(state()).toBe('create-agent:9:create:done'));
+    await advanceToLastCreateStep();
+    await waitFor(() => expect(state()).toBe(lastCreateStep));
 
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(state()).toBe('idle'));
@@ -333,9 +345,7 @@ describe('WalkthroughProvider isolation contract', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
     expect(container).toHaveAttribute('inert', '');
 
-    for (let i = 0; i < 9; i += 1) {
-      await userEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
-    }
+    await advanceToLastCreateStep();
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
 
     await waitFor(() => expect(state()).toBe('idle'));

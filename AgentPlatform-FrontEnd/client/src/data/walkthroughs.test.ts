@@ -58,6 +58,20 @@ describe('WALKTHROUGHS', () => {
     }
   });
 
+  /*
+    Triggers are the one way an agent runs with nobody watching, so the flow
+    that explains how an agent is configured has to reach them. Order matters
+    as much as presence: the steps walk down the panel, and a trigger step
+    after Save would point back up at a field the tour had already left.
+  */
+  it('covers triggers while walking down the agent panel', () => {
+    const steps = WALKTHROUGHS.find((walkthrough) => walkthrough.id === 'create-agent')?.steps ?? [];
+    const at = (target: string) => steps.findIndex((step) => step.target === target);
+
+    expect(at('agent-triggers')).toBeGreaterThan(at('agent-tools'));
+    expect(at('agent-triggers')).toBeLessThan(at('agent-save'));
+  });
+
   it('opens with a step about the whole screen', () => {
     const overview = WALKTHROUGHS[0];
     expect(overview?.id).toBe('overview');

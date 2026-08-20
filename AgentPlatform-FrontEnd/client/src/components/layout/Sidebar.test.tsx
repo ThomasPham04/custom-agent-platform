@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { Sidebar } from './Sidebar';
@@ -74,7 +74,10 @@ const session = (id: string, title: string, agentId = 'agent_support'): Session 
 
 type SessionsApi = typeof sessionsApi.current;
 
-const LocationProbe = () => <span data-testid="location">{useLocation().pathname}</span>;
+const LocationProbe = () => {
+  const { pathname, search } = useLocation();
+  return <span data-testid="location">{`${pathname}${search}`}</span>;
+};
 
 const renderSidebar = (
   props: Partial<Parameters<typeof Sidebar>[0]> = {},
@@ -120,6 +123,15 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
+  it('renders the workspace brand without a dropdown or chevron', () => {
+    const { container } = renderSidebar();
+
+    const brand = screen.getByText('Agent Platform');
+    expect(brand.closest('button')).toBeNull();
+    expect(container.querySelector('.sidebar__chevron')).toBeNull();
+    expect(screen.queryByText(/Mock workspace/)).not.toBeInTheDocument();
+  });
+
   it('offers both surfaces as navigation', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /Agents/ })).toBeInTheDocument();
@@ -278,6 +290,41 @@ describe('Sidebar', () => {
   it('leaves searching to the Agents page', () => {
     renderSidebar();
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+  });
+
+  /*
+    New chat asks who it is with rather than guessing. The route carries the
+    answer as `?agent=`, because /chat/agent_x opens that agent's most recent
+    conversation and this button promises a fresh one.
+  */
+  it('asks which agent a new chat is with, and opens an empty one with it', async () => {
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: 'New chat' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Start a chat' });
+    await userEvent.click(within(dialog).getByRole('button', { name: /Research Assistant/ }));
+
+    expect(at()).toBe('/chat?agent=agent_research');
+    expect(screen.queryByRole('dialog', { name: 'Start a chat' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New chat' })).toHaveFocus();
+  });
+
+  it('filters the agent list as the search is typed', async () => {
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: 'New chat' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Start a chat' });
+    await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search agents' }), 'res');
+
+    expect(within(dialog).getByRole('button', { name: /Research Assistant/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Support Bot/ })).not.toBeInTheDocument();
+  });
+
+  // An empty workspace and an unmatched search are different problems.
+  it('says the workspace has no agents rather than blaming the search', async () => {
+    renderSidebar({ agents: [] });
+    await userEvent.click(screen.getByRole('button', { name: 'New chat' }));
+    expect(screen.getByText('No agents yet.')).toBeInTheDocument();
   });
 
   it('reads the API status as text, not colour alone', () => {

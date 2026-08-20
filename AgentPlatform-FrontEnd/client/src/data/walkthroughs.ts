@@ -107,6 +107,13 @@ export const WALKTHROUGHS: readonly Walkthrough[] = [
         placement: 'left',
       },
       {
+        id: 'create:triggers',
+        title: 'Or let it run without you',
+        body: 'A trigger fires this agent on a schedule, with nobody in the chat. Each firing lands in the activity log for that trigger rather than in a conversation. Schedules added here are written when the agent is.',
+        target: 'agent-triggers',
+        placement: 'left',
+      },
+      {
         id: 'create:save',
         title: 'Save writes it to the server',
         body: 'Until you press Save agent, the draft exists only in this panel. This walkthrough will not press it.',

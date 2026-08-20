@@ -103,7 +103,7 @@ export const AgentForm = ({
       </div>
 
       {triggerField && (
-        <div className="agent-form__row agent-form__row--triggers">
+        <div className="agent-form__row agent-form__row--triggers" data-walkthrough="agent-triggers">
           <span className="agent-form__label">Triggers</span>
           <div className="agent-form__value">{triggerField}</div>
         </div>

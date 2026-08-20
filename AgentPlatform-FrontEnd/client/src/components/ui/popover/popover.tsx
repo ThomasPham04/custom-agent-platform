@@ -9,9 +9,20 @@ interface PopoverProps {
   label: string;
   children: ReactNode;
   align?: 'start' | 'end';
+  /**
+   * Which side of the trigger the panel takes. 'bottom' drops it under the
+   * trigger and `align` decides the edge they share; 'right' sets it beside the
+   * trigger with their tops level, which is what a narrow control in a rail
+   * wants — there is no room under it, but the whole page is to its right.
+   */
+  placement?: 'bottom' | 'right';
   width?: number;
   initialFocus?: RefObject<HTMLElement | null>;
 }
+
+/** Kept off both the trigger and the viewport edge. */
+const GAP = 4;
+const MARGIN = 8;
 
 export const Popover = ({
   open,
@@ -20,6 +31,7 @@ export const Popover = ({
   label,
   children,
   align = 'start',
+  placement = 'bottom',
   width,
   initialFocus,
 }: PopoverProps) => {
@@ -35,17 +47,33 @@ export const Popover = ({
 
     const rect = trigger.getBoundingClientRect();
     const panelWidth = width ?? panel.offsetWidth;
-    const gap = 4;
+    const panelHeight = panel.offsetHeight;
+    // Keep a margin from either edge on narrow viewports.
+    const clamp = (value: number, extent: number, limit: number) =>
+      Math.max(MARGIN, Math.min(value, limit - extent - MARGIN));
+
+    if (placement === 'right') {
+      // Flip to the other side rather than run off the edge — the same reflex
+      // the bottom placement has when there is no room below.
+      const wouldOverflowRight = rect.right + GAP + panelWidth + MARGIN > window.innerWidth;
+      setPosition({
+        top: clamp(rect.top, panelHeight, window.innerHeight),
+        left: Math.max(
+          MARGIN,
+          wouldOverflowRight ? rect.left - panelWidth - GAP : rect.right + GAP,
+        ),
+      });
+      return;
+    }
 
     const left = align === 'end' ? rect.right - panelWidth : rect.left;
-    const wouldOverflowBottom = rect.bottom + panel.offsetHeight + gap > window.innerHeight;
+    const wouldOverflowBottom = rect.bottom + panelHeight + GAP > window.innerHeight;
 
     setPosition({
-      top: wouldOverflowBottom ? rect.top - panel.offsetHeight - gap : rect.bottom + gap,
-      // Keep an 8px margin from either edge on narrow viewports.
-      left: Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8)),
+      top: wouldOverflowBottom ? rect.top - panelHeight - GAP : rect.bottom + GAP,
+      left: clamp(left, panelWidth, window.innerWidth),
     });
-  }, [open, anchor, align, width]);
+  }, [open, anchor, align, placement, width]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -93,7 +121,7 @@ export const Popover = ({
   return (
     <div
       ref={panelRef}
-      className="popover"
+      className={placement === 'right' ? 'popover popover--right' : 'popover'}
       role="dialog"
       aria-label={label}
       style={{ top: position.top, left: position.left, width: width ? `${width}px` : undefined }}

@@ -61,7 +61,13 @@ export const TriggerActivity = ({ triggerId, refreshToken }: TriggerActivityProp
   }
 
   return (
-    <ul className="trigger-activity">
+    /*
+      Focusable because it scrolls. Nothing inside a row is interactive, so
+      without a tab stop of its own a keyboard-only user could reach the log
+      but never scroll past its first screenful. The global :focus-visible
+      ring makes the stop visible; the label says what stopping there gets you.
+    */
+    <ul className="trigger-activity" tabIndex={0} aria-label="Trigger activity">
       {runs.map((run) => (
         <li key={run.id} className="trigger-activity__row">
           <span className="trigger-activity__when">{whenLabel(run.createdAt)}</span>

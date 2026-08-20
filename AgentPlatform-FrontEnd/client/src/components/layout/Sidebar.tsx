@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type RefObject } from 'react';
 import { NavLink, useNavigate } from 'react-router';
+import { AgentPicker } from '../ui/agent-picker';
 import { Popover } from '../ui/popover';
-import { Chevron } from '../ui/chevron';
 import { SessionRow } from './session-row';
 import { useApiHealth, type ApiHealth } from '../../hooks/useApiHealth';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -47,8 +47,8 @@ export const Sidebar = ({
     hide the list behind a control most people never click.
   */
   const [chatsExpanded, setChatsExpanded] = useState(true);
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const workspaceRef = useRef<HTMLButtonElement>(null);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
   const walkthroughRef = useRef<HTMLButtonElement>(null);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const { catalog, start } = useWalkthroughContext();
@@ -73,32 +73,12 @@ export const Sidebar = ({
       aria-hidden={isDrawer && !open ? 'true' : undefined}
       inert={isDrawer && !open ? true : undefined}
     >
-      <button
-        ref={workspaceRef}
-        type="button"
-        className="sidebar__workspace"
-        onClick={() => setWorkspaceOpen(true)}
-      >
+      <div className="sidebar__workspace">
         <span className="sidebar__workspace-mark" aria-hidden="true">
           ▦
         </span>
         <span className="sidebar__workspace-name">Agent Platform</span>
-        <span className="sidebar__chevron">
-          <Chevron />
-        </span>
-      </button>
-
-      <Popover
-        open={workspaceOpen}
-        onClose={() => setWorkspaceOpen(false)}
-        anchor={workspaceRef}
-        label="Workspace"
-        width={216}
-      >
-        <p className="popover__note">
-          Mock workspace. Agents and runs reset when the API restarts.
-        </p>
-      </Popover>
+      </div>
 
       <p className="sidebar__label">Workspace</p>
 
@@ -140,16 +120,48 @@ export const Sidebar = ({
           Chat
         </NavLink>
         <button
+          ref={addRef}
           type="button"
           className="sidebar__add"
           aria-label="New chat"
-          onClick={() => {
-            onClose();
-            navigate('/chat');
-          }}
+          aria-expanded={newChatOpen}
+          onClick={() => setNewChatOpen(true)}
         >
           +
         </button>
+
+        {/*
+          Inside the group, not beside it: the panel is fixed-positioned so it
+          costs the row no layout, and keeping it here means :focus-within holds
+          the + visible for as long as the list it opened is on screen.
+
+          Beside the + rather than under it, so the list never covers the chat
+          history the + sits above.
+        */}
+        <Popover
+          open={newChatOpen}
+          onClose={() => setNewChatOpen(false)}
+          anchor={addRef}
+          label="Start a chat"
+          placement="right"
+          width={248}
+        >
+          <AgentPicker
+            agents={agents}
+            onSelect={(agentId) => {
+              setNewChatOpen(false);
+              addRef.current?.focus();
+              onClose();
+              /*
+                `?agent=`, not `/chat/agent_x` — that route opens the agent's most
+                recent conversation, and this button promises a new one. A chat
+                route with no id is the empty chat; the query only says who it is
+                with, so the URL stays shareable and survives a reload.
+              */
+              navigate(`/chat?agent=${encodeURIComponent(agentId)}`);
+            }}
+          />
+        </Popover>
       </div>
 
       {chatsExpanded && (

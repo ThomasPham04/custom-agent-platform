@@ -22,10 +22,6 @@
   font-weight: 500;
 }
 
-.sidebar__workspace:hover {
-  background: var(--active);
-}
-
 .sidebar__workspace-mark {
   display: grid;
   place-items: center;
@@ -43,13 +39,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-}
-
-.sidebar__chevron {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  color: var(--ink-faint);
 }
 
 .sidebar__label {
@@ -86,12 +75,15 @@
 /*
   Starting a chat is one click from anywhere, but it stays quiet until the group
   is hovered or something inside it holds focus, so the rail keeps its calm.
+
+  Same 28px box and radius as .sidebar__item, so its hover wash reads as the
+  right-hand end of the Chat row rather than a smaller chip floating inside it.
 */
 .sidebar__add {
   display: grid;
   place-items: center;
-  flex: 0 0 20px;
-  height: 20px;
+  flex: 0 0 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   color: var(--ink-faint);
   font-size: var(--text-ui);
