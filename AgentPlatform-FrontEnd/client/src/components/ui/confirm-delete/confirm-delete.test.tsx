@@ -33,6 +33,16 @@ describe('ConfirmDelete', () => {
     expect(screen.getByText(/can’t be undone/)).toBeInTheDocument();
   });
 
+  it('uses a centered modal rather than an anchored popover', async () => {
+    render(<Harness onConfirm={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Delete agent' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Support Bot' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveClass('confirm-delete-modal');
+    expect(dialog).not.toHaveClass('popover');
+  });
+
   it('confirms and closes', async () => {
     const onConfirm = vi.fn();
     render(<Harness onConfirm={onConfirm} />);

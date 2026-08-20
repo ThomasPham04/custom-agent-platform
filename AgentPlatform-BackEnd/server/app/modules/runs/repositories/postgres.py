@@ -10,6 +10,7 @@ before they reach here.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -140,6 +141,22 @@ class PostgresRunRepository(RunRepository):
         for record in calls:
             by_run.setdefault(record["run_id"], []).append(_row_to_call(record))
         return [_row_to_run(row, by_run.get(row["id"], [])) for row in rows]
+
+    async def iter_all_by_agent(self, agent_id: str) -> AsyncGenerator[Run, None]:
+        async with self._pool.acquire() as conn, conn.transaction():
+            cursor = conn.cursor(
+                f"""SELECT {_RUN_COLUMNS} FROM runs WHERE agent_id = $1
+                    ORDER BY created_at DESC""",
+                agent_id,
+                prefetch=50,
+            )
+            async for row in cursor:
+                calls = await conn.fetch(
+                    f"""SELECT {_CALL_COLUMNS} FROM run_tool_calls
+                        WHERE run_id = $1 ORDER BY seq""",
+                    row["id"],
+                )
+                yield _row_to_run(row, [_row_to_call(call) for call in calls])
 
     async def delete_by_agent(self, agent_id: str) -> int:
         async with self._pool.acquire() as conn:

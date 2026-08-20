@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import Protocol
 
 from app.modules.runs.schemas import Run
@@ -13,6 +14,8 @@ class RunRepository(Protocol):
     async def get(self, run_id: str) -> Run | None: ...
 
     async def list(self, agent_id: str | None, limit: int) -> list[Run]: ...
+
+    def iter_all_by_agent(self, agent_id: str) -> AsyncGenerator[Run, None]: ...
 
     async def delete_by_agent(self, agent_id: str) -> int: ...
 

@@ -114,6 +114,34 @@ describe('agent page actions', () => {
     expect(name).toHaveProperty('selectionStart', 0);
     expect(name).toHaveProperty('selectionEnd', 'New agent'.length);
   });
+
+  it('starts a streamed agent run-log download without buffering it in the app', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
+        if (url.includes('/api/tools')) return json([]);
+        if (url.includes('/api/sessions')) return json([]);
+        if (url.includes('/api/triggers')) return json([]);
+        return json([agent]);
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    let downloadedFilename = '';
+    let downloadedHref = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloadedFilename = this.download;
+      downloadedHref = this.href;
+    });
+
+    render(<App />);
+    await screen.findByRole('table', { name: 'Agents' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Support Bot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Download run logs (JSON)' }));
+
+    expect(downloadedHref).toMatch(/\/api\/runs\/export\?agentId=agent_support$/);
+    expect(downloadedFilename).toMatch(/^support-bot-run-logs-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/runs/export'))).toBe(false);
+  });
 });
 
 describe('new agent draft', () => {

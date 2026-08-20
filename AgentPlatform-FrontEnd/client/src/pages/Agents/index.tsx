@@ -11,6 +11,7 @@ import type { SaveAgentResult } from '../../hooks/useAgents';
 import { useTools } from '../../hooks/useTools';
 import { newAgentDraft } from '../../lib/agent-draft';
 import { agentPatch, hasAgentChanges } from '../../lib/agent-edit';
+import { apiUrl } from '../../lib/api-host';
 import type { Agent, AgentDraft, AgentPatch } from '../../types/agent';
 import type { Tool } from '../../types/tool';
 import type { TriggerDraft } from '../../types/trigger';
@@ -27,6 +28,16 @@ interface SavedAgentEditorProps {
   onDelete: () => void;
   onClose: () => void;
 }
+
+const runLogFilename = (agent: Agent): string => {
+  const name = agent.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const date = new Date().toISOString().slice(0, 10);
+  return `${name || 'agent'}-run-logs-${date}.json`;
+};
 
 const SavedAgentEditor = ({
   agent,
@@ -168,6 +179,17 @@ const AgentsPage = () => {
     }
   };
 
+  const onDownloadRunLogs = (id: string) => {
+    const agent = agents.find((candidate) => candidate.id === id);
+    if (!agent) return;
+
+    const link = document.createElement('a');
+    link.href = apiUrl(`/api/runs/export?agentId=${encodeURIComponent(id)}`);
+    link.download = runLogFilename(agent);
+    link.click();
+    show('Run-log download started.');
+  };
+
   const selected = agents.find((agent) => agent.id === agentId) ?? null;
 
   const closePeek = () => {
@@ -264,6 +286,7 @@ const AgentsPage = () => {
             selectedId={agentId ?? null}
             onSelect={(id) => navigate(`/agents/${id}`)}
             onTestInChat={(id) => navigate(`/chat/${id}`)}
+            onDownloadRunLogs={onDownloadRunLogs}
             onDuplicate={(id) => {
               void duplicateAgent(id).then((copy) => {
                 if (copy) navigate(`/agents/${copy.id}`);

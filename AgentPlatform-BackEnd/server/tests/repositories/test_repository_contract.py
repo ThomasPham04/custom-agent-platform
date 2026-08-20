@@ -191,6 +191,33 @@ async def test_runs_can_be_filtered_by_agent(run_repo):
     assert [r.id for r in listed] == ["run_b"]
 
 
+async def test_all_runs_for_an_agent_are_streamed_without_the_list_cap(run_repo):
+    await run_repo.append(make_run("run_with_calls", agent_id="agent_a"))
+    for index in range(201):
+        await run_repo.append(
+            make_run(
+                f"run_{index}",
+                agent_id="agent_a",
+                created_at=f"2026-08-{(index % 28) + 1:02d}T12:00:00+00:00",
+                with_calls=False,
+            )
+        )
+    await run_repo.append(make_run("run_other", agent_id="agent_b"))
+
+    exported = [run async for run in run_repo.iter_all_by_agent("agent_a")]
+
+    assert len(exported) == 202
+    assert {run.agent_id for run in exported} == {"agent_a"}
+    assert [run.created_at for run in exported] == sorted(
+        (run.created_at for run in exported), reverse=True
+    )
+    exported_with_calls = next(run for run in exported if run.id == "run_with_calls")
+    assert [call.id for call in exported_with_calls.tool_calls] == [
+        "call_run_with_calls_0",
+        "call_run_with_calls_1",
+    ]
+
+
 async def test_the_limit_takes_the_newest_not_the_first_inserted(run_repo):
     await run_repo.append(make_run("run_old", created_at="2026-08-01T12:00:00+00:00"))
     await run_repo.append(make_run("run_new", created_at="2026-08-09T12:00:00+00:00"))
