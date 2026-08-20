@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="robots" content="noindex" />
+    <!-- The app's mark, inlined exactly as in index.html so the page makes no
+         network request for it. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2337352F'/%3E%3Crect x='8' y='9' width='16' height='2.5' rx='1.25' fill='%23FFFFFF'/%3E%3Crect x='8' y='15' width='16' height='2.5' rx='1.25' fill='%23FFFFFF'/%3E%3Crect x='8' y='21' width='9' height='2.5' rx='1.25' fill='%239065B0'/%3E%3C/svg%3E"
+    />
+    <title>Agent Platform</title>
+    <!--
+      Every value on this page comes from a token, the same rule the React app
+      follows. tokens.css is served from the html root by the Dockerfile and is
+      one of the two paths nginx leaves outside the gate.
+
+      The Inter webfont is not: it ships inside the hashed bundle under /assets,
+      which is gated. --font-ui falls through to the system stack here, which is
+      what it is there for.
+    -->
+    <link rel="stylesheet" href="/tokens.css" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: var(--space-7);
+        background: var(--shell);
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: var(--text-ui);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 340px;
+        padding: var(--space-8);
+        background: var(--paper);
+        /* A rule beats a shadow wherever a rule will do. */
+        border: 1px solid var(--rule);
+        border-radius: var(--radius-lg);
+      }
+
+      .mark {
+        display: block;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+      }
+
+      h1 {
+        margin: var(--space-6) 0 var(--space-2);
+        font-size: var(--text-heading);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      p {
+        margin: 0 0 var(--space-7);
+        color: var(--ink-muted);
+        line-height: 1.5;
+      }
+
+      label {
+        display: block;
+        margin-bottom: var(--space-3);
+        font-size: var(--text-label);
+        font-weight: 500;
+        color: var(--ink-muted);
+      }
+
+      input {
+        width: 100%;
+        height: var(--row-height);
+        padding: 0 var(--space-5);
+        border: 1px solid var(--rule);
+        border-radius: var(--radius-sm);
+        background: var(--paper);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: var(--text-ui);
+        transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--signal);
+        box-shadow: 0 0 0 3px var(--signal-ring);
+      }
+
+      button {
+        width: 100%;
+        height: var(--row-height);
+        margin-top: var(--space-5);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background: var(--signal);
+        color: var(--paper);
+        font-family: inherit;
+        font-size: var(--text-ui);
+        font-weight: 500;
+        cursor: pointer;
+        transition: background var(--dur-fast) var(--ease);
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--signal-hover);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--signal-ring);
+      }
+
+      /* Reserves its own line so the card does not jump when a message
+         appears. */
+      .status {
+        min-height: var(--space-6);
+        margin-top: var(--space-5);
+        font-size: var(--text-label);
+        line-height: var(--space-6);
+      }
+
+      .status[data-tone='error'] {
+        color: var(--err);
+      }
+
+      .status[data-tone='pending'] {
+        color: var(--ink-faint);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="6" fill="#37352F" />
+        <rect x="8" y="9" width="16" height="2.5" rx="1.25" fill="#FFFFFF" />
+        <rect x="8" y="15" width="16" height="2.5" rx="1.25" fill="#FFFFFF" />
+        <rect x="8" y="21" width="9" height="2.5" rx="1.25" fill="#9065B0" />
+      </svg>
+
+      <h1>Agent Platform</h1>
+      <p>This instance is password protected. Enter it once and this browser will remember.</p>
+
+      <form id="form" novalidate>
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          autofocus
+          required
+        />
+        <button id="submit" type="submit">Continue</button>
+      </form>
+
+      <!-- polite, not assertive: the message is a result, not an interruption. -->
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </main>
+
+    <script>
+      (function () {
+        var COOKIE = 'gate';
+        var YEAR = 60 * 60 * 24 * 365;
+
+        var form = document.getElementById('form');
+        var input = document.getElementById('password');
+        var button = document.getElementById('submit');
+        var status = document.getElementById('status');
+
+        // Secure only where it can be honoured. Setting it unconditionally
+        // would make the cookie vanish on the plain-http host port, and the
+        // gate would reject a correct password with no way to tell why.
+        var secure = location.protocol === 'https:' ? '; Secure' : '';
+
+        function setCookie(value) {
+          document.cookie =
+            COOKIE + '=' + value + '; Path=/; Max-Age=' + YEAR + '; SameSite=Lax' + secure;
+        }
+
+        function clearCookie() {
+          document.cookie = COOKIE + '=; Path=/; Max-Age=0; SameSite=Lax' + secure;
+        }
+
+        function say(message, tone) {
+          status.textContent = message;
+          if (tone) {
+            status.setAttribute('data-tone', tone);
+          } else {
+            status.removeAttribute('data-tone');
+          }
+        }
+
+        // Where nginx wanted to send them before the gate intervened. Only a
+        // same-origin absolute path is honoured — a value starting with `//`
+        // or a scheme is someone else's origin, which is the open-redirect
+        // this check exists to refuse.
+        function destination() {
+          // Read by hand rather than through URLSearchParams: nginx appends
+          // $request_uri unescaped, so a path carrying its own query string
+          // (?a=1&b=2) parses as several parameters and the tail is lost.
+          // next is the whole remainder of the search string by construction.
+          var marker = '?next=';
+          var raw = location.search;
+          var next = raw.indexOf(marker) === 0 ? raw.slice(marker.length) : '';
+          // Same-origin absolute paths only. A value starting with `//` or a
+          // scheme is someone else's origin — the open redirect this refuses.
+          if (next.charAt(0) === '/' && next.charAt(1) !== '/') return next;
+          return '/';
+        }
+
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+
+          var value = input.value;
+          if (!value) return;
+
+          button.disabled = true;
+          say('Checking…', 'pending');
+
+          // The password is never checked here — it is written to the cookie
+          // and the server's verdict on the next request is the answer. A
+          // cheap gated endpoint stands in for "may I use the app".
+          setCookie(value);
+
+          fetch('/api/health', { cache: 'no-store' })
+            .then(function (response) {
+              if (response.ok) {
+                location.replace(destination());
+                return;
+              }
+              clearCookie();
+              button.disabled = false;
+              say('That password is not right.', 'error');
+              input.select();
+            })
+            .catch(function () {
+              clearCookie();
+              button.disabled = false;
+              say('Could not reach the server. Try again.', 'error');
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

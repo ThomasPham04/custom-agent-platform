@@ -1,0 +1,23 @@
+# The password gate's one moving part.
+#
+# Rendered into /etc/nginx/conf.d/gate.conf at container start by the nginx
+# image's own envsubst entrypoint, which is the whole reason this file exists
+# separately from nginx.conf: WEB_PASSWORD arrives as an environment variable
+# and therefore never enters the image, the repository, or a bind mount.
+#
+# NGINX_ENVSUBST_FILTER (set in docker-compose.yml) restricts substitution to
+# WEB_PASSWORD alone, so $cookie_gate and $gate_ok below survive rendering.
+#
+# An unset WEB_PASSWORD renders the key as "" — which is exactly what
+# $cookie_gate holds when the browser sends no cookie at all. The map then
+# returns 1 for everyone and the gate does nothing. That is deliberate: it is
+# what keeps `docker compose up --build` a zero-config command for anyone who
+# clones the repo, in the same spirit as LLM_PROVIDER defaulting to mock.
+#
+# The comparison happens here, in nginx, against a value the browser sends but
+# never learns. A check in React would be decorative — curl reaches /api
+# without loading a line of JavaScript.
+map $cookie_gate $gate_ok {
+  default 0;
+  "${WEB_PASSWORD}" 1;
+}
