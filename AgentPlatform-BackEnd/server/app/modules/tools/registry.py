@@ -1,7 +1,7 @@
 """Tool Provider — the catalog and the invoker.
 
 This is the only module that knows which tools exist. `known_ids()` exists so
-agents/ can validate tool ids without importing the catalog (spec §4.2).
+agents/ can validate tool ids without importing the catalog.
 """
 
 # ToolRegistry defines a method named `list`, which shadows the builtin inside

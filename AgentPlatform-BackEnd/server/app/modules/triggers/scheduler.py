@@ -55,12 +55,9 @@ class TriggerScheduler:
     async def _fire(self, trigger: Trigger) -> None:
         try:
             run = await self._execution.run_trigger(
-                trigger.agent_id, trigger.message, trigger.id
+                trigger.agent_id, trigger.message, trigger.id, trigger.timezone
             )
         except Exception:
-            # One failing trigger must not stop the ones behind it, and the
-            # failure has to be visible somewhere: the activity log is the only
-            # place this version reports it.
             logger.exception("trigger %s failed to run", trigger.id)
             await self._triggers.record_run(
                 trigger.id, last_run_at=now(), last_status="error", last_run_id=None

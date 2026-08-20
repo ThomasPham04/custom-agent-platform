@@ -2,8 +2,7 @@
 
 Note what this constructor takes: a ToolRegistry and a set of model ids, injected
 from container.py. This module must never import the tool catalog or the model
-catalog directly — that coupling is exactly what today's agentStore.js has and
-what the modular design removes (spec §4.2).
+catalog directly — tight coupling to those would defeat the modular design.
 
 `create` and `update` take the raw parsed JSON body rather than a pydantic model.
 The contract's validation messages and their evaluation order cannot be produced
@@ -53,7 +52,7 @@ class AgentService:
     async def create(self, body: Any) -> Agent:
         patch = self._validate(body)
         # Both timestamps come from one call, so a created agent's createdAt and
-        # updatedAt are identical rather than microseconds apart (contract §2).
+        # updatedAt are identical rather than microseconds apart.
         timestamp = now_iso()
         # AGENT_DEFAULTS deliberately omits `model`; the default arrives from
         # container.py so agents/ never imports the model catalog.
@@ -68,11 +67,10 @@ class AgentService:
 
     async def update(self, agent_id: str, body: Any) -> Agent:
         # Existence is checked before the body, so a patch to a deleted agent
-        # reports 404 rather than a validation error. The contract reference is
-        # silent here; this is the recorded choice (spec §9).
+        # reports 404 rather than a validation error. This is the recorded choice.
         current = await self.get(agent_id)
         patch = self._validate(body)
-        # updatedAt moves even when the patch is empty (contract §4).
+        # updatedAt moves even when the patch is empty.
         updated = current.model_copy(update={**patch, "updated_at": now_iso()})
         return await self._repo.update(updated)
 

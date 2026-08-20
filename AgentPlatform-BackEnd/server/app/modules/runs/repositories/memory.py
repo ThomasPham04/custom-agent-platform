@@ -1,7 +1,7 @@
 """In-memory RunRepository.
 
 A Run carries its tool calls as a list, so there is no second dict — the Postgres
-implementation normalizes them into a child table instead (spec §5.3, §6).
+implementation normalizes them into a child table instead.
 Ordering and cloning match the agent store; Task 11 mirrors both in SQL.
 """
 

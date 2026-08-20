@@ -1,7 +1,7 @@
 """Trigger business rules.
 
-Like AgentService, this takes the raw parsed body rather than a pydantic model:
-the validation messages and their order live in validation.py.
+Takes the raw parsed body rather than a pydantic model: the validation messages
+and their order live in validation.py.
 
 next_run_at is recomputed here rather than in the repository, because it is a
 consequence of the rules — a schedule change, a timezone change, or being
@@ -65,8 +65,8 @@ class TriggerService:
         return await self._repo.create(self._scheduled(trigger, timestamp))
 
     async def update(self, trigger_id: str, body: Any) -> Trigger:
-        # Existence before the body, matching PATCH /api/agents/{id}: a patch to
-        # a deleted trigger reports 404 rather than a validation error.
+        # Check existence before validating the body: a patch to a deleted
+        # trigger reports 404 rather than a validation error.
         current = await self.get(trigger_id)
         fields = validate_trigger_write(body, current=current)
         if "agent_id" in fields:
@@ -100,7 +100,7 @@ class TriggerService:
         """
         trigger = await self.get(trigger_id)
         run = await self._execution.run_trigger(
-            trigger.agent_id, trigger.message, trigger.id
+            trigger.agent_id, trigger.message, trigger.id, trigger.timezone
         )
         await self._repo.record_run(
             trigger.id,

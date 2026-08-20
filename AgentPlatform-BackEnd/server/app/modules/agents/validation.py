@@ -9,7 +9,7 @@ below, then model, then status, then the toolIds checks. A body that breaks two
 rules must report the earlier one.
 
 This module deliberately takes the valid model ids and tool ids as arguments.
-agents/ must not import llm/catalog or the tool catalog (spec §4.2).
+agents/ must not import llm/catalog or the tool catalog.
 """
 
 from typing import Any

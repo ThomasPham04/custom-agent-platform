@@ -1,7 +1,7 @@
 """Read path for execution history.
 
 execution/ writes runs; this module reads them. Separate lifecycles, separate
-modules (spec D4).
+modules.
 """
 
 from __future__ import annotations

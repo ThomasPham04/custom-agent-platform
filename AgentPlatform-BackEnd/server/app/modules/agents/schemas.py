@@ -1,7 +1,6 @@
 """Agent Management wire schemas.
 
-STRING_LIMITS and the writable field set mirror agentStore.js exactly: id,
-createdAt, and updatedAt are server-owned and are silently dropped from a patch.
+id, createdAt, and updatedAt are server-owned and are silently dropped from a patch.
 """
 
 from typing import Literal
@@ -37,4 +36,4 @@ class AgentCreate(WireModel):
 
 
 class AgentPatch(AgentCreate):
-    """Same writable surface as create. Every field optional."""
+    pass

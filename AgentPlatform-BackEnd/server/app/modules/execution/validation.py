@@ -22,7 +22,7 @@ def validate_message_request(body: Any) -> MessageRequest:
     """Validate a chat body and return it as a MessageRequest.
 
     Order is contract: the content checks run first, then retry. A body that
-    breaks both reports content (recorded choice — the reference is silent).
+    breaks both reports the content violation.
     """
     if not isinstance(body, dict):
         raise BadRequestError("Request body must be a JSON object.")

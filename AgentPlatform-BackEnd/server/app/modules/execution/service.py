@@ -1,31 +1,4 @@
-"""Agent Execution — the orchestrator.
-
-This is the composition point for the other three components, and the only module
-that depends on all of them. It is deliberately NOT behind an interface: making
-the orchestrator swappable would be abstraction with nothing on the other side.
-
-Flow (spec §7):
-  1. agent_repo.get(agent_id)            -> NotFoundError if missing
-  1b. sessions.get(payload.session_id)   -> NotFoundError if missing,
-                                            BadRequestError if another agent's
-  2. tools.resolve(agent.tool_ids)
-  3. build RunSpec
-  4. llm.run(spec)                       -> AsyncIterator[RunEvent]
-  5. event_translator.translate(...)     -> (MessageResponse, Run)
-  6. runs.append(run)
-  7. return the message
-
-Steps 2 through 6 above are the shared core, `_execute`: build the spec, run
-the provider, cap the stored payloads, append the run. Everything about
-sessions — steps 1b and 7's session bookkeeping — stays out of `_execute` and
-lives in `send_message`, which owns it deliberately. `run_trigger` is the
-second entry point, used by scheduled triggers rather than chat: it skips
-step 1b and every other session step, calls `_execute` with a trigger_id to
-stamp on the run, and returns the Run itself rather than a message, since
-there is no HTTP response being built. A triggered run therefore has
-session_id None and is reachable through the trigger activity log, not
-through chat.
-"""
+"""Agent Execution — the orchestrator."""
 
 import json
 from collections.abc import AsyncIterator
@@ -155,6 +128,7 @@ class ExecutionService:
         retry: bool,
         session_id: str | None,
         trigger_id: str | None,
+        timezone: str | None = None,
     ) -> tuple[MessageResponse, Run]:
         """Build the spec, run the provider, store the run.
 
@@ -167,11 +141,11 @@ class ExecutionService:
             retry=retry,
             session_id=session_id,
             trigger_id=trigger_id,
+            timezone=timezone,
         )
         response, run = await translate(self._llm.run(spec), spec)
         # Truncation applies to the stored row only. The response bytes are fixed
-        # by the contract, and the frontend renders the payload the trace shows
-        # (spec §6, decision 7).
+        # by the contract, and the frontend renders the payload the trace shows.
         stored = self._capped(run)
         await self._runs.append(stored)
         return response, stored
@@ -184,6 +158,7 @@ class ExecutionService:
         retry: bool,
         session_id: str | None,
         trigger_id: str | None,
+        timezone: str | None = None,
     ) -> RunSpec:
         return RunSpec(
             agent_id=agent.id,
@@ -195,13 +170,18 @@ class ExecutionService:
             retry=retry,
             session_id=session_id,
             trigger_id=trigger_id,
+            timezone=timezone,
         )
 
-    async def run_trigger(self, agent_id: str, message: str, trigger_id: str) -> Run:
+    async def run_trigger(
+        self, agent_id: str, message: str, trigger_id: str, timezone: str
+    ) -> Run:
         """One firing of a trigger.
 
         No session is created, validated, touched, or titled: a triggered run is
         reachable through the trigger activity log, and chat stays human-only.
+        `timezone` is the trigger's own configured zone, so a time-aware tool call
+        defaults to it instead of the container's UTC.
         """
         agent = await self._agents.get(agent_id)
         if agent is None:
@@ -212,6 +192,7 @@ class ExecutionService:
             retry=False,
             session_id=None,
             trigger_id=trigger_id,
+            timezone=timezone,
         )
         return run
 
@@ -234,7 +215,7 @@ class ExecutionService:
         """Replace an oversized payload with an explicit marker.
 
         http_request can return a large body, and an unbounded log row is a
-        liability regardless of store (spec §6).
+        liability regardless of store.
         """
         if value is None:
             return None

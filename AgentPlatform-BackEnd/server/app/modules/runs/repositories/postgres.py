@@ -5,7 +5,7 @@ delete. A run whose calls half-inserted would render a trace that never
 happened, so the transaction is correctness, not tidiness.
 
 args and result are already capped at LOG_PAYLOAD_MAX_BYTES by execution/service
-before they reach here (spec §6).
+before they reach here.
 """
 
 from __future__ import annotations

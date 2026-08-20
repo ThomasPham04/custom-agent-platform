@@ -66,7 +66,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 
 
 async def seed_agents(pool: asyncpg.Pool, agents: Sequence[Agent]) -> int:
-    """Insert the sample agents, but only into an empty table (spec §6).
+    """Insert the sample agents, but only into an empty table.
 
     Guarded so a restart never resurrects an agent the user deleted. Returns the
     number of rows inserted so a caller can log it.

@@ -63,8 +63,7 @@ describe('Popover', () => {
   });
 
   it('claims Escape from an enclosing panel that also listens for it', async () => {
-    // Mirrors the tool picker inside the agent peek: Escape must close only the
-    // popover, leaving the panel around it open.
+    // Escape must close only the popover, leaving the enclosing panel open.
     const Nested = () => {
       const anchor = useRef<HTMLButtonElement>(null);
       const [open, setOpen] = useState(false);

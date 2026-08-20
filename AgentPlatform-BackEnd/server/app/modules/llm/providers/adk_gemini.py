@@ -2,7 +2,7 @@
 
 ADK-specific knowledge stops inside this file. Everything above LLMProvider sees
 only RunEvents, which is why the mock and this provider are interchangeable and
-why the whole contract suite runs without an API key (spec §5.2).
+why the whole contract suite runs without an API key.
 
 google.adk is imported inside the methods, not at module scope: it is an optional
 extra and tests/test_structure.py imports every module in the tree.
@@ -31,8 +31,7 @@ from app.modules.tools.adk_adapter import ToolRecorder, to_adk_tools
 
 _APP_NAME = "agent-platform"
 # No auth, so every turn is the same principal. Sessions are not conversation
-# memory here: runs/ is our audit record, independent of ADK's session state
-# (spec §5.2, "Sessions").
+# memory here: runs/ is our audit record, independent of ADK's session state.
 _USER_ID = "local"
 
 class AdkGeminiProvider(LLMProvider):

@@ -31,8 +31,7 @@ export const useChat = (sessionId: string | null, agentId: string | null) => {
   const [inFlightByChat, setInFlightByChat] = useState<InFlightByChat>({});
   const [hydratingByChat, setHydratingByChat] = useState<InFlightByChat>({});
   const hydrated = useRef(new Set<string>());
-  // Mirrors useAgents' queue.generation: bumping a session's generation
-  // invalidates any response still in flight for it.
+  // Bumping a session's generation invalidates any response still in flight for it.
   const generation = useRef(new Map<string, number>());
   const threadsRef = useRef<Threads>({});
   const inFlight = useRef(new Set<string>());

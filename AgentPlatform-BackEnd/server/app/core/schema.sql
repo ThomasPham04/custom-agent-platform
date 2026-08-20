@@ -1,5 +1,4 @@
--- Applied at startup, every statement idempotent. Spec §14 rules out Alembic
--- until the schema changes under real data.
+-- Applied at startup, every statement is idempotent.
 
 CREATE TABLE IF NOT EXISTS agents (
   id            TEXT PRIMARY KEY,
@@ -21,9 +20,9 @@ CREATE TABLE IF NOT EXISTS runs (
   id            TEXT PRIMARY KEY,
   agent_id      TEXT        NOT NULL,
   -- Snapshot columns. Agents are mutable; without these, editing a prompt would
-  -- retroactively rewrite the history of every past run (spec §6). Deliberately
-  -- NOT a foreign key to agents(id): deleting an agent must not erase the audit
-  -- trail of what it did.
+  -- retroactively rewrite the history of every past run. Deliberately NOT a
+  -- foreign key to agents(id): deleting an agent must not erase the audit trail
+  -- of what it did.
   agent_name    TEXT        NOT NULL,
   model         TEXT        NOT NULL,
   system_prompt TEXT        NOT NULL,

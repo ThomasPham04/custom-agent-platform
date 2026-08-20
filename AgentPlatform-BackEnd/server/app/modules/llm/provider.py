@@ -1,13 +1,4 @@
-"""LLM Provider port.
-
-The abstraction is one agent turn, not one model call. ADK's Runner already owns
-the tool-calling loop, so wrapping a raw completion would fight the framework
-(spec D7, §5.2).
-
-TextDelta carries partial output through the provider boundary. The JSON endpoint
-accumulates it; the streaming endpoint forwards it while preserving the same
-finished message and persisted run.
-"""
+"""LLM Provider port."""
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -30,9 +21,10 @@ class RunSpec:
     system_prompt: str
     tools: list[Tool]
     user_message: str
-    retry: bool  # request metadata, not server state
+    retry: bool 
     session_id: str | None = None
     trigger_id: str | None = None
+    timezone: str | None = None
 
 
 @dataclass

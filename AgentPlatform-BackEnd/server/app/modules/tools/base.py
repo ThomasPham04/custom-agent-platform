@@ -2,7 +2,7 @@
 
 A tool is one file: its identity, its schema, and its behavior colocated. Adding
 a tool means adding a file here and one line in container.py. Nothing else in the
-codebase changes — that is the whole point of the registry (spec §5.1).
+codebase changes — that is the whole point of the registry.
 """
 
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
