@@ -47,6 +47,25 @@ describe('apiGet', () => {
     expect(error.message).toBe('No agent with id "x".');
   });
 
+  it('sends an unauthorized visitor to password entry and preserves their route', async () => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', {
+      pathname: '/knowledge',
+      search: '?document=doc_1',
+      replace,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ error: { code: 'unauthorized', message: 'Password required.' } }, 401),
+      ),
+    );
+
+    await expect(apiGet('/api/knowledge/documents')).rejects.toBeInstanceOf(ApiError);
+
+    expect(replace).toHaveBeenCalledWith('/login.html?next=/knowledge?document=doc_1');
+  });
+
   it('falls back to a readable message when the body is not the error envelope', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('gateway exploded', { status: 502 })));
     const error = (await apiGet('/api/agents').catch((thrown: unknown) => thrown)) as ApiError;

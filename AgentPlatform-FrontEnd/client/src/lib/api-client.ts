@@ -45,6 +45,11 @@ const toApiError = async (response: Response): Promise<ApiError> => {
   );
 };
 
+const redirectToLogin = () => {
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.replace(`/login.html?next=${next}`);
+};
+
 const request = async (path: string, init?: RequestInit): Promise<Response> => {
   let response: Response;
   try {
@@ -52,7 +57,10 @@ const request = async (path: string, init?: RequestInit): Promise<Response> => {
   } catch {
     throw new ApiError(0, 'network_error', "Can't reach the server. Check that the API is running.");
   }
-  if (!response.ok) throw await toApiError(response);
+  if (!response.ok) {
+    if (response.status === 401) redirectToLogin();
+    throw await toApiError(response);
+  }
   return response;
 };
 
