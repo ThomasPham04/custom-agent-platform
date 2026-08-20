@@ -6,27 +6,75 @@ proxying `/api` to it on the same origin.
 
 ## What it delivers
 
-A single `docker compose up` that starts all three services in dependency
-order, applies the database schema, and seeds four sample agents and four
-sample knowledge documents on first boot. The stack defaults to the offline
-mock LLM provider, so it comes up and serves a working UI with no API key;
-flipping two environment variables switches it to live Gemini.
+The explicit development command below starts all three services in dependency
+order, applies the database schema, and seeds four sample agents and four sample
+knowledge documents on first boot. The stack defaults to the offline mock LLM
+provider, so it comes up and serves a working UI with no API key; flipping two
+environment variables switches it to live Gemini.
 
-## Run
+## LAN development
+
+Run these commands from this directory as the dedicated Docker operator. That
+operator must be allowed to run Docker and owns the environment file, while the
+file remains unreadable to other users. First create the development-only
+Compose environment file outside the repository:
 
 ```bash
-docker compose up --build
+DEV_OPERATOR=$USER
+DEV_GROUP=$(id -gn "$DEV_OPERATOR")
+sudo install -d -o "$DEV_OPERATOR" -g "$DEV_GROUP" -m 750 /etc/agent-platform-development
+sudo install -o "$DEV_OPERATOR" -g "$DEV_GROUP" -m 640 /dev/null \
+  /etc/agent-platform-development/development.env
+printf '%s\n' \
+  'WEB_BIND=0.0.0.0' \
+  'WEB_PORT=8081' \
+  'POSTGRES_VOLUME_NAME=agent-platform-development-pgdata' \
+  > /etc/agent-platform-development/development.env
 ```
 
-That is the whole setup. Open `http://localhost:8080`.
+Add `WEB_PASSWORD` to that file before allowing anyone other than trusted LAN
+users to use the stack. The API has no authentication of its own, so the nginx
+password gate must protect both the UI and `/api` whenever access extends past
+that trusted group. Do not run the commands below with `sudo`: run them as the
+same dedicated operator that owns
+`/etc/agent-platform-development/development.env`. Development setup and
+lifecycle commands never create, change ownership or permissions on, or
+otherwise modify the production-only `/etc/agent-platform` directory.
 
-No file to copy first. Every value has a default in `docker-compose.yml`, so a
-fresh clone boots against Postgres with the deterministic mock provider and no
-credentials.
+Start the base development Compose file with its explicit project name and
+environment file:
 
-`.env` in this directory is the single place to change any of them — see
-[Configuration](#configuration). It holds credentials, is not tracked, and must
-never be committed.
+```bash
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml up -d --build --wait
+```
+
+The stack is reachable at `http://<host-lan-ip>:8081`. It starts only `db`,
+`api`, and `web`; it does not start a Cloudflare Tunnel. Inspect or follow the
+stack with:
+
+```bash
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml ps
+
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml logs -f
+```
+
+Stop it without deleting the named Postgres volume:
+
+```bash
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml down
+```
+
+The development environment file is not tracked and can hold credentials; do
+not copy it into a Git working tree. For the Cloudflare Tunnel and public domain
+workflow, use [Publishing it on a domain](#publishing-it-on-a-domain) instead.
 
 ## The three services
 
@@ -57,18 +105,22 @@ seeded 4 knowledge documents
 
 On later boots both seed counts are zero.
 
-Data lives in the `pgdata` volume, so `docker compose down` keeps agents and run
-history. To start from an empty database, remove the volume as well:
+Data lives in the `pgdata` volume, so the development `down` command above keeps
+agents and run history. To start development from an empty database, remove its
+volume as well:
 
 ```bash
-docker compose down -v
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml down -v
 ```
 
 ## Running against real Gemini
 
 The stack defaults to the deterministic mock provider, so it runs offline with no
-credentials and the tool trace still renders. To demo against live Gemini, set
-both values in `.env`:
+credentials and the tool trace still renders. To demo against live Gemini in
+development, add both values to
+`/etc/agent-platform-development/development.env`:
 
 ```bash
 LLM_PROVIDER=adk_gemini
@@ -78,7 +130,9 @@ GEMINI_API_KEY=your-key
 Then rebuild the API image so the `adk` extra is installed, and restart:
 
 ```bash
-docker compose up -d --build api
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml up -d --build api
 ```
 
 `GET /api/health` reports `"mode": "live"` instead of `"mock"`, and the header in
@@ -86,15 +140,18 @@ the UI shows it.
 
 ## Configuration
 
-One file: **`.env` in this directory**, which Compose reads automatically because
-this is the directory holding `docker-compose.yml`. Copy `.env.example` to start.
-Nothing in it is required — every value has a default in the compose file.
+Each environment has one external Compose environment file, always passed with
+`--env-file`: development uses
+`/etc/agent-platform-development/development.env`, while production uses the
+root-owned `/etc/agent-platform/production.env`. `.env.example` is a tracked
+value reference only; do not copy it to a repository `.env`.
 
 | Variable | Scope | Purpose |
 | --- | --- | --- |
 | `WEB_PORT` | compose | Host port the UI is published on (default 8080) |
 | `WEB_BIND` | compose | Host interface for `WEB_PORT` (default `0.0.0.0`; use `127.0.0.1` behind the tunnel) |
 | `WEB_PASSWORD` | web | Optional shared password enforced by nginx before the UI and `/api` |
+| `POSTGRES_VOLUME_NAME` | compose | Docker volume name; defaults only in the base file and is required by the production overlay |
 | `POSTGRES_PASSWORD` | compose | Applied at initdb only; `DATABASE_URL` is built from it |
 | `LLM_PROVIDER` | app | `mock` (default) or `adk_gemini` |
 | `GEMINI_API_KEY` | app | Required only when the provider is `adk_gemini` |
@@ -118,25 +175,28 @@ there too.
 
 `STORE_BACKEND`, `DATABASE_URL`, and `CORS_ORIGIN` are set in that block but are
 not in the table, because they describe the compose network rather than a
-preference. `STORE_BACKEND=memory` in `.env` does nothing, deliberately: it
+preference. `STORE_BACKEND=memory` in either Compose environment file does
+nothing, deliberately: it
 would detach the API from the database it just waited for.
 
 ## Publishing it on a domain
 
-`docker-compose.prod.yml` overlays a Cloudflare Tunnel onto the same stack:
+`docker-compose.prod.yml` overlays a Cloudflare Tunnel onto the same stack.
+Production uses its explicit project and root-owned external environment file:
 
 ```bash
-cp .env.example .env      # set PUBLIC_ORIGIN and CLOUDFLARE_TUNNEL_TOKEN
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -p agent-platform-production \
+  --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 Create the tunnel in Cloudflare Zero Trust > Networks > Tunnels and point its
 public hostname at `http://web:80`. No ports need forwarding and your IP stays
 private; TLS is Cloudflare's.
 
-It is a separate file on purpose. `docker-compose.yml` has to stay zero-config so
-that a fresh clone runs with one command — a base file provisioning certificates
-for a domain it does not own would fail everywhere else.
+It is a separate file on purpose. `docker-compose.yml` stays domain-neutral; a
+base file provisioning certificates for a domain it does not own would fail
+everywhere else.
 
 ## Automatic production deploys
 
@@ -145,7 +205,7 @@ for a domain it does not own would fail everywhere else.
 GitHub-hosted runner. Only then does it run the production Compose command on a
 repository-scoped self-hosted runner installed on the Docker host. Deployments
 are serialized, so a new push waits for any active deploy rather than cancelling
-an in-progress Compose operation.
+an in-progress Compose operation. Actions is the normal production deployment path; no host-checkout Compose command may run while it deploys.
 
 ### One-time runner setup
 
@@ -159,14 +219,37 @@ an in-progress Compose operation.
    `actions/checkout` removes ignored files by default:
 
    ```bash
-   sudo install -d -m 750 /etc/agent-platform
-   sudo cp .env.example /etc/agent-platform/production.env
-   sudo chmod 640 /etc/agent-platform/production.env
+   RUNNER_USER=terry
+   RUNNER_GROUP=$(id -gn "$RUNNER_USER")
+   PRODUCTION_ENV=/etc/agent-platform/production.env
+   sudo install -d -o root -g "$RUNNER_GROUP" -m 750 /etc/agent-platform
+   if ! sudo test -e "$PRODUCTION_ENV"; then
+     sudo install -o root -g "$RUNNER_GROUP" -m 640 /dev/null "$PRODUCTION_ENV"
+   fi
+   sudo chown root:"$RUNNER_GROUP" "$PRODUCTION_ENV"
+   sudo chmod 640 "$PRODUCTION_ENV"
    ```
 
+   Replace `terry` with the runner service account. Root owns the directory and
+   file; mode `750` lets the runner group traverse the directory, and mode `640`
+   lets that group read `production.env` without granting access to other users.
+   The conditional creates `production.env` only when it is absent. On an
+   existing host, `chown` and `chmod` update its metadata in place without
+   truncating or replacing any production setting, including the existing
+   Cloudflare tunnel token. Populate or amend the file with a root-authorized
+   editor and preserve those ownership and mode settings.
+
    Set the production values in `/etc/agent-platform/production.env`, including
-   `PUBLIC_ORIGIN` and `CLOUDFLARE_TUNNEL_TOKEN`. Make the file readable by the
-   runner service account and keep it off all Git working trees.
+   `PUBLIC_ORIGIN`, `CLOUDFLARE_TUNNEL_TOKEN`, and this required external volume
+   name:
+
+   ```dotenv
+   POSTGRES_VOLUME_NAME=agent-platform-production-pgdata
+   ```
+
+   Keep the file off all Git working trees. Prepare it before the first new
+   production deployment; the production overlay fails closed when
+   `POSTGRES_VOLUME_NAME` is missing.
 4. Protect `main`: require pull-request review and required checks before merge.
    The production runner can run Docker commands on the host, so it must never
    execute untrusted pull-request workflows. This workflow triggers only on
@@ -176,7 +259,7 @@ The deployment job passes `/etc/agent-platform/production.env` explicitly with
 `--env-file`, validates the merged Compose configuration, and runs:
 
 ```bash
-docker compose --env-file /etc/agent-platform/production.env \
+docker compose -p agent-platform-production --env-file /etc/agent-platform/production.env \
   -f docker-compose.yml -f docker-compose.prod.yml \
   up -d --build --wait --wait-timeout 120
 ```
@@ -185,23 +268,76 @@ It then confirms the services are listed by Compose and that nginx responds at
 the published `web:80` port. A redirect to the configured password gate is a
 valid response.
 
-### Manual rollback
+### Mandatory post-cutover acceptance
 
-This deployment builds from the checked-out source, so retain known-good commit
-SHAs. To roll back after a failed or unsuitable release, check out one on the
-production host and apply the same production command:
+After the deployment job's `up --wait` succeeds, first confirm that the new
+`agent-platform-production` `cloudflared` service is Compose-ready. It currently
+declares no container healthcheck, so `up --wait` gates it on the `running`
+state; if a healthcheck is added later, that check must pass too. Only then
+verify the public route at the required production domain:
 
 ```bash
-git checkout <known-good-commit>
-cd AgentPlatform-BackEnd/deployment
-docker compose --env-file /etc/agent-platform/production.env \
+if systemctl is-active --quiet cloudflared; then
+  echo 'host cloudflared.service is active; refusing cutover acceptance' >&2
+  exit 1
+fi
+compose=(docker compose -p agent-platform-production \
+  --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml)
+cloudflared_id="$("${compose[@]}" ps --status running --no-trunc -q cloudflared)"
+test -n "$cloudflared_id"
+mapfile -t connector_container_ids < <(
+  docker ps --no-trunc --filter status=running \
+    --filter ancestor=cloudflare/cloudflared:latest --format '{{.ID}}'
+)
+test "${#connector_container_ids[@]}" -eq 1
+test "${connector_container_ids[0]}" = "$cloudflared_id"
+test "$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' \
+  "$cloudflared_id")" = agent-platform-production
+test "$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.service" }}' \
+  "$cloudflared_id")" = cloudflared
+mapfile -t connector_processes < <(ps -eo pid=,args= | grep '[c]loudflared')
+test "${#connector_processes[@]}" -eq 1
+curl --fail --silent --show-error --head https://thomas-pham.id.vn/
+```
+
+The cutover is not accepted unless the host service is inactive, exactly one
+cloudflared process and exactly one running cloudflared-image container exist,
+that container has the production project/service labels, and only then that
+URL responds successfully. These fail-closed checks turn the troubleshooting
+guidance below into a mandatory assertion and prevent split traffic through a
+second connector. Reuse the existing production-only
+`CLOUDFLARE_TUNNEL_TOKEN` in `/etc/agent-platform/production.env`; do not create
+a second tunnel, copy the token into development, or replace the existing token
+as part of this cutover.
+
+### Cutover rollback
+
+This rollback is specifically for the one-time volume cutover. Stop the new
+production project using the cutover source, then start the retained legacy
+project from a checkout pinned to the pre-cutover source revision:
+
+```bash
+docker compose -p agent-platform-production --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  down
+
+cd /opt/agent-platform-pre-cutover/AgentPlatform-BackEnd/deployment
+docker compose -p deployment --env-file /etc/agent-platform/production.env \
   -f docker-compose.yml -f docker-compose.prod.yml \
   up -d --build --wait --wait-timeout 120
 ```
 
+The pre-cutover Compose files and project name `deployment` attach PostgreSQL to
+the retained `deployment_pgdata` volume. This restores the pre-cutover data
+snapshot and loses every write made after cutover. Retain `deployment_pgdata`
+until a separate cleanup is explicitly approved; do not remove it as part of
+the migration or routine deployment.
+
 **Gate a public instance, or keep it on `mock`.** The API has no authentication
 of its own, so an ungated instance running `adk_gemini` lets anyone spend your
-Gemini credit. Either set `WEB_PASSWORD` in `.env` — nginx then demands a cookie
+Gemini credit. Either set `WEB_PASSWORD` in
+`/etc/agent-platform/production.env` — nginx then demands a cookie
 before serving the UI or proxying `/api`, and visitors enter it once — or leave
 the provider on `mock`, which runs the complete flow (tool calls, trace,
 execution logs) with no API calls at all, making a public demo both fully
@@ -220,11 +356,13 @@ proxy on your key as well as a delete button on your seeded agents.
 
 Three steps, in this order:
 
-1. **Close the published port.** Set `WEB_BIND=127.0.0.1` in `.env`. The tunnel
+1. **Close the published port.** Set `WEB_BIND=127.0.0.1` in
+   `/etc/agent-platform/production.env`. The tunnel
    is unaffected — `cloudflared` reaches `web:80` over the compose network — but
    the host's public IP stops answering on `WEB_PORT`. Skip this and step 2 is
    trivially bypassed.
-2. **Put a gate in front of it.** Either set `WEB_PASSWORD` in `.env` — one
+2. **Put a gate in front of it.** Either set `WEB_PASSWORD` in
+   `/etc/agent-platform/production.env` — one
    shared passphrase, a login page in front of both the UI and `/api`, and the
    visitor's browser remembers it for a year — or add a **Cloudflare Access
    policy** on the tunnel hostname (Zero Trust > Access > Applications) allowing
@@ -235,14 +373,16 @@ Three steps, in this order:
    image:
 
    ```bash
-   # .env
+   # /etc/agent-platform/production.env
    LLM_PROVIDER=adk_gemini
    GEMINI_API_KEY=your-key
    WEB_BIND=127.0.0.1
    ```
 
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   docker compose -p agent-platform-production \
+     --env-file /etc/agent-platform/production.env \
+     -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ```
 
 Confirm before presenting: `GET /api/health` reports `"mode": "live"`, the UI
@@ -250,7 +390,8 @@ header shows it, and the hostname prompts for Access in a private window. Use a
 key scoped to the Gemini API with a spending cap on the Google Cloud project,
 so a mistake in any of the above costs a capped amount rather than an open one.
 
-Reverting to `mock` afterwards is two lines in `.env` and one `up -d --build`.
+Reverting to `mock` afterwards means changing the two provider values in
+`/etc/agent-platform/production.env` and repeating that production `up` command.
 
 ### Surviving a reboot
 
@@ -261,12 +402,14 @@ themselves. The `pgdata` volume is named, so agents and run history survive.
 Two things to know about what that looks like:
 
 **The restart policy lives in the overlay, not the base file.** Bring the stack
-up with `docker compose up -d` alone and the containers are recreated with *no*
+up with only the base file and the containers are recreated with *no*
 restart policy, and nothing returns after the next reboot. Nothing looks wrong
 until weeks later, so on a published host always pass both files:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -p agent-platform-production \
+  --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 **Expect a short 502 window after boot.** `depends_on` applies to `compose up`
@@ -275,9 +418,10 @@ before Postgres accepts connections, fail to apply `schema.sql`, and exit.
 `unless-stopped` restarts it and it settles within seconds, but the site is
 briefly up while the API is not.
 
-Related: **editing `.env` and running `docker compose restart` does nothing.**
-`restart` reuses the container's stored environment. Recreate with `up -d`
-instead — that applies to rotating `WEB_PASSWORD` as much as to anything else.
+Related: **editing `/etc/agent-platform/production.env` and restarting existing
+containers does nothing.** A restart reuses the container's stored environment.
+Repeat the full production `up -d` command above instead — that applies to
+rotating `WEB_PASSWORD` as much as to anything else.
 
 ### Debugging a tunnel that 502s for some clients but not others
 
@@ -318,7 +462,8 @@ first if this were pointed at real users; each item says what to do instead.
 `${WEB_PORT}` on `${WEB_BIND}`, which defaults to `0.0.0.0` so the local run
 works. Left at that default on a public host, the host's own IP answers on 8080
 and skips Cloudflare entirely — and with it any Access policy on the tunnel
-hostname. **Set `WEB_BIND=127.0.0.1` in `.env` before publishing.**
+hostname. **Set `WEB_BIND=127.0.0.1` in
+`/etc/agent-platform/production.env` before publishing.**
 
 It is a variable in the base file rather than an override in
 `docker-compose.prod.yml` because Compose *appends* port mappings across files
@@ -337,7 +482,8 @@ on the same terms — and one interval trigger is an unattended agent run every
 minute, which is the expensive one.
 
 What the gate is not: it is a single shared secret with no identity, no audit
-trail, no logout, and no rate limiting. Rotating it means editing `.env` and
+trail, no logout, and no rate limiting. Rotating it means editing the selected
+external environment file and
 recreating `web`, which revokes access for everyone at once. Anything that
 reaches `api:4000` without passing through nginx — another container on the
 compose network, or a second tunnel hostname pointed straight at the API — skips
@@ -357,8 +503,8 @@ because the ADK import is deferred — the failure only appears as a
 
 **No backups.** Agents and the entire run history live in the `pgdata` volume
 with no dump, no restore path, and no retention policy on the `runs` and
-`run_tool_calls` tables, which grow without bound. `docker compose down -v`
-destroys all of it.
+`run_tool_calls` tables, which grow without bound. Running an environment's
+explicit Compose command with `down -v` destroys all of it.
 
 **The database password is fixed at first boot.** Postgres applies
 `POSTGRES_PASSWORD` at initdb only. Miss it before the first `up` and the

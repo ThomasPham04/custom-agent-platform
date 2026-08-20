@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           test -r "$DEPLOY_ENV_FILE"
-          compose=(docker compose --env-file "$DEPLOY_ENV_FILE" -f docker-compose.yml -f docker-compose.prod.yml)
+          compose=(docker compose -p agent-platform-production --env-file "$DEPLOY_ENV_FILE" -f docker-compose.yml -f docker-compose.prod.yml)
           "${compose[@]}" config -q
           "${compose[@]}" up -d --build --wait --wait-timeout 120
           "${compose[@]}" ps

@@ -1,7 +1,11 @@
+name: agent-platform-production
+
 # Public deployment overlay: serves the stack on your own domain through a
 # Cloudflare Tunnel.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   docker compose -p agent-platform-production \
+#     --env-file /etc/agent-platform/production.env \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
 # This is deliberately a separate file. docker-compose.yml on its own has to
 # stay zero-config so that anyone can clone the repo and run one command; a base
@@ -24,8 +28,8 @@
 #   2. If you do want live Gemini reachable from the internet, put Cloudflare
 #      Access in front of the tunnel hostname first. Do not run it open.
 #
-# Worst case someone deletes the seeded agents; `docker compose down -v` and a
-# restart puts all four back.
+# Worst case someone deletes the seeded agents; deleting the production volume
+# and restarting puts all four back, but also destroys all retained data.
 # ---------------------------------------------------------------------------
 
 services:
@@ -37,9 +41,9 @@ services:
       # https://agents.example.com
       CORS_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN to your https:// domain}
       # LLM_PROVIDER is not repeated here. The base file already reads it from
-      # .env and defaults to mock, so a public instance is safe by default and
-      # there is exactly one place to change it. Set adk_gemini only behind
-      # Cloudflare Access.
+      # selected external environment file and defaults to mock, so a public
+      # instance is safe by default and there is exactly one place to change
+      # it. Set adk_gemini only behind Cloudflare Access.
 
   db:
     restart: unless-stopped
@@ -57,8 +61,12 @@ services:
     environment:
       # Create the tunnel in the Cloudflare dashboard (Zero Trust > Networks >
       # Tunnels), point its public hostname at http://web:80, and paste the
-      # token here via the shell or deployment/.env.
+      # token here through /etc/agent-platform/production.env.
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       web:
         condition: service_started
+
+volumes:
+  pgdata:
+    name: ${POSTGRES_VOLUME_NAME:?set POSTGRES_VOLUME_NAME}

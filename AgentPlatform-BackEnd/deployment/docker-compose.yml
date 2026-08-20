@@ -1,16 +1,20 @@
+name: agent-platform-development
+
 # Runs the proof of concept end to end: Postgres, the Python API, and nginx
 # serving the built client and proxying /api to api:4000.
 #
-# `docker compose up --build` is the whole setup. Every setting comes from one
-# optional file, deployment/.env, read by Compose itself — see .env.example.
+# Use the explicit development project and external environment command in the
+# deployment README. Production adds docker-compose.prod.yml and its own
+# root-owned external environment file.
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: app
       # Postgres sets this at initdb, so changing it against an existing pgdata
-      # volume has no effect. `docker compose down -v` first, or change it here
-      # and in nothing else — DATABASE_URL below reads the same variable.
+      # volume has no effect. Remove the selected environment's volume first,
+      # or change it here and in nothing else — DATABASE_URL below reads the
+      # same variable.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: agents
     volumes:
@@ -25,9 +29,9 @@ services:
     build:
       context: ../server
     # No env_file. Everything the container needs is listed here and filled from
-    # deployment/.env, so there is one file to edit and this block is the
-    # complete, readable list of what the API actually receives. Adding a
-    # setting to app/config.py means adding a line here too — deliberate: an
+    # the selected external --env-file, so there is one file to edit and this
+    # block is the complete, readable list of what the API actually receives.
+    # Adding a setting to app/config.py means adding a line here too — deliberate: an
     # env_file passes through anything, including variables meant for Compose
     # alone (the Cloudflare tunnel token among them).
     environment:
@@ -40,14 +44,14 @@ services:
       # direct cross-origin access to the API.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       # Application settings. Each default repeats the one in app/config.py, so
-      # an empty .env runs the mock provider offline with no credentials.
+      # an otherwise minimal environment file runs the mock provider offline.
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       TOOL_HTTP_TIMEOUT_MS: ${TOOL_HTTP_TIMEOUT_MS:-5000}
       LOG_PAYLOAD_MAX_BYTES: ${LOG_PAYLOAD_MAX_BYTES:-32768}
       # The trigger scheduler — one asyncio task in the lifespan. Off leaves the
       # /api/triggers routes working and only stops the clock. Each default
-      # repeats app/config.py, so omitting all three from .env changes nothing.
+      # repeats app/config.py, so omitting all three changes nothing.
       TRIGGERS_ENABLED: ${TRIGGERS_ENABLED:-true}
       TRIGGER_TICK_SECONDS: ${TRIGGER_TICK_SECONDS:-30}
       TRIGGER_MAX_PER_TICK: ${TRIGGER_MAX_PER_TICK:-20}
@@ -69,8 +73,8 @@ services:
       context: ../../AgentPlatform-FrontEnd/client
     environment:
       # The password gate. Empty — the default — leaves the site open, which is
-      # what keeps this file a zero-config `docker compose up`. Set it in .env
-      # to put the login page in front of both the UI and /api.
+      # what keeps development open by default. Set it in the selected external
+      # environment file to put the login page in front of both the UI and /api.
       WEB_PASSWORD: ${WEB_PASSWORD:-}
       # nginx renders /etc/nginx/templates/*.template through envsubst at
       # startup. Without this filter it would substitute every environment
@@ -80,9 +84,9 @@ services:
       NGINX_ENVSUBST_FILTER: '^WEB_PASSWORD$$'
     # WEB_BIND defaults to all interfaces, which is what makes the local run
     # reachable at localhost:8080. On a public host set WEB_BIND=127.0.0.1 in
-    # .env: cloudflared reaches web:80 over the compose network, so the tunnel
-    # keeps working while the published port stops being an open door that
-    # bypasses Cloudflare Access. It has to be here rather than in the prod
+    # production environment file: cloudflared reaches web:80 over the compose
+    # network, so the tunnel keeps working while the published port stops being
+    # an open door that bypasses Cloudflare Access. It has to be here rather than in the prod
     # overlay because Compose appends port mappings across files instead of
     # replacing them — an override would bind 8080 twice and conflict.
     ports:
@@ -93,3 +97,4 @@ services:
 
 volumes:
   pgdata:
+    name: ${POSTGRES_VOLUME_NAME:-agent-platform-development-pgdata}

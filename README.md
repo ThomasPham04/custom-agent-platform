@@ -167,28 +167,25 @@ Set it to an absolute origin only when the API is hosted somewhere else.
 
 ## Run it in containers
 
-The whole stack — Postgres, the API, and nginx serving the built client — comes
-up with one command. From `AgentPlatform-BackEnd/deployment`:
+For LAN development, run the isolated development stack from
+`AgentPlatform-BackEnd/deployment`:
 
 ```bash
-docker compose up --build
+docker compose -p agent-platform-development \
+  --env-file /etc/agent-platform-development/development.env \
+  -f docker-compose.yml up -d --build --wait
 ```
 
-Nothing to copy first — every value has a default in the compose file. Open
-`http://localhost:8080`. Startup is ordered by healthchecks, and the API applies
-its schema and seeds the sample agents on first boot.
+It publishes the development UI at `http://<host-lan-ip>:8081`. Create the
+environment file and use the `ps`, log, and shutdown commands in the
+[deployment README](AgentPlatform-BackEnd/deployment/README.md#lan-development)
+before starting it. That guide also contains the separate production workflow;
+development never starts the Cloudflare Tunnel.
 
-To change anything — the host port, the database password, or the LLM provider
-and its key — copy `.env.example` to `.env` in that directory. It holds
-credentials and is not tracked; never commit it.
-
-For a public demo, set `WEB_PASSWORD` in that same file to place the nginx
-password gate in front of both the UI and `/api`. Set `WEB_BIND=127.0.0.1` when
-the site is published through the included Cloudflare Tunnel, so the host port
-does not bypass the tunnel's access controls.
-
-See `AgentPlatform-BackEnd/deployment/README.md` for the service breakdown and
-every configuration value.
+Set `WEB_PASSWORD` in
+`/etc/agent-platform-development/development.env` before allowing any users
+beyond your trusted LAN users. The password gate protects both the UI and
+`/api`.
 
 ## Optional configuration
 
