@@ -18,6 +18,7 @@ interface AgentRowProps {
   selected: boolean;
   onSelect: (id: string) => void;
   onTestInChat: (id: string) => void;
+  onDownloadRunLogs: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -34,6 +35,7 @@ const AgentRow = ({
   selected,
   onSelect,
   onTestInChat,
+  onDownloadRunLogs,
   onDuplicate,
   onDelete,
 }: AgentRowProps) => {
@@ -133,6 +135,17 @@ const AgentRow = ({
             onClick={(event) => {
               event.stopPropagation();
               setMenuOpen(false);
+              onDownloadRunLogs(agent.id);
+            }}
+          >
+            Download run logs (JSON)
+          </button>
+          <button
+            type="button"
+            className="popover__item"
+            onClick={(event) => {
+              event.stopPropagation();
+              setMenuOpen(false);
               onDuplicate(agent.id);
             }}
           >
@@ -173,6 +186,7 @@ export const AgentTable = ({
   selectedId,
   onSelect,
   onTestInChat,
+  onDownloadRunLogs,
   onDuplicate,
   onDelete,
 }: AgentTableProps) => (
@@ -227,6 +241,7 @@ export const AgentTable = ({
               selected={agent.id === selectedId}
               onSelect={onSelect}
               onTestInChat={onTestInChat}
+              onDownloadRunLogs={onDownloadRunLogs}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
             />

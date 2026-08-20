@@ -5,6 +5,7 @@ here the store is driven directly through the container."""
 import pytest
 
 from app.container import get_run_repository
+from app.modules.runs.router import export_json
 from app.modules.runs.schemas import Run
 
 pytestmark = pytest.mark.usefixtures("client")
@@ -69,6 +70,46 @@ async def test_list_filters_by_the_agent_id_query(client):
     )
     body = client.get("/api/runs?agentId=agent_metrics").json()
     assert [r["id"] for r in body] == ["run_b"]
+
+
+async def test_export_returns_every_run_for_the_agent(client):
+    await seed(
+        *[
+            make_run(
+                f"run_{index}",
+                created_at=f"2026-08-{(index % 28) + 1:02d}T12:00:00+00:00",
+            )
+            for index in range(201)
+        ],
+        make_run("run_other", agent_id="agent_metrics"),
+    )
+
+    res = client.get("/api/runs/export?agentId=agent_support")
+
+    assert res.status_code == 200
+    assert res.headers["content-disposition"] == 'attachment; filename="run-logs.json"'
+    assert len(res.json()) == 201
+    assert {run["agentId"] for run in res.json()} == {"agent_support"}
+    assert len(client.get("/api/runs?agentId=agent_support&limit=200").json()) == 200
+
+
+async def test_export_closes_its_run_iterator_when_the_download_is_cancelled():
+    closed = False
+
+    async def runs():
+        nonlocal closed
+        try:
+            yield make_run("run_a")
+            yield make_run("run_b")
+        finally:
+            closed = True
+
+    response = export_json(runs())
+    assert await anext(response) == b"["
+    await anext(response)
+    await response.aclose()
+
+    assert closed is True
 
 
 async def test_list_honours_the_limit_query(client):

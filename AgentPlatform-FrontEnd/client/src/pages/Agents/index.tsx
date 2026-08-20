@@ -4,12 +4,14 @@ import { AgentPeek } from '../../components/agents-section/agent-peek';
 import { AgentTable } from '../../components/agents-section/agent-table';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/empty-state';
+import { Magnifier } from '../../components/ui/magnifier';
 import { useToast } from '../../components/ui/toast';
 import { useAgentsContext } from '../../hooks/useAgents';
 import type { SaveAgentResult } from '../../hooks/useAgents';
 import { useTools } from '../../hooks/useTools';
 import { newAgentDraft } from '../../lib/agent-draft';
 import { agentPatch, hasAgentChanges } from '../../lib/agent-edit';
+import { apiUrl } from '../../lib/api-host';
 import type { Agent, AgentDraft, AgentPatch } from '../../types/agent';
 import type { Tool } from '../../types/tool';
 import type { TriggerDraft } from '../../types/trigger';
@@ -26,6 +28,16 @@ interface SavedAgentEditorProps {
   onDelete: () => void;
   onClose: () => void;
 }
+
+const runLogFilename = (agent: Agent): string => {
+  const name = agent.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const date = new Date().toISOString().slice(0, 10);
+  return `${name || 'agent'}-run-logs-${date}.json`;
+};
 
 const SavedAgentEditor = ({
   agent,
@@ -167,6 +179,17 @@ const AgentsPage = () => {
     }
   };
 
+  const onDownloadRunLogs = (id: string) => {
+    const agent = agents.find((candidate) => candidate.id === id);
+    if (!agent) return;
+
+    const link = document.createElement('a');
+    link.href = apiUrl(`/api/runs/export?agentId=${encodeURIComponent(id)}`);
+    link.download = runLogFilename(agent);
+    link.click();
+    show('Run-log download started.');
+  };
+
   const selected = agents.find((agent) => agent.id === agentId) ?? null;
 
   const closePeek = () => {
@@ -222,14 +245,17 @@ const AgentsPage = () => {
           <span className="agents__count mono">
             {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
           </span>
-          <input
-            type="search"
-            className="agents__filter"
-            aria-label="Filter agents"
-            placeholder="Filter…"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          />
+          <div className="agents__filter">
+            <input
+              type="search"
+              className="agents__filter-input"
+              aria-label="Filter agents"
+              placeholder="Filter…"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+            <Magnifier className="agents__filter-icon" />
+          </div>
           <Button variant="primary" data-walkthrough="agents-new" onClick={onCreate}>
             New agent
           </Button>
@@ -260,6 +286,7 @@ const AgentsPage = () => {
             selectedId={agentId ?? null}
             onSelect={(id) => navigate(`/agents/${id}`)}
             onTestInChat={(id) => navigate(`/chat/${id}`)}
+            onDownloadRunLogs={onDownloadRunLogs}
             onDuplicate={(id) => {
               void duplicateAgent(id).then((copy) => {
                 if (copy) navigate(`/agents/${copy.id}`);

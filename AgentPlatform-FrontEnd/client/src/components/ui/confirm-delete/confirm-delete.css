@@ -1,3 +1,21 @@
+.confirm-delete-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--scrim);
+}
+
+.confirm-delete-modal__card {
+  width: min(360px, 100%);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+}
+
 .confirm-delete {
   padding: var(--space-4);
 }

@@ -7,6 +7,8 @@ Ordering and cloning match the agent store; Task 11 mirrors both in SQL.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
 
@@ -31,6 +33,12 @@ class MemoryRunRepository(RunRepository):
         ]
         ordered = sorted(matching, key=lambda r: r.created_at, reverse=True)
         return [r.model_copy(deep=True) for r in ordered[:limit]]
+
+    async def iter_all_by_agent(self, agent_id: str) -> AsyncGenerator[Run, None]:
+        matching = [r for r in self._runs.values() if r.agent_id == agent_id]
+        ordered = sorted(matching, key=lambda r: r.created_at, reverse=True)
+        for run in ordered:
+            yield run.model_copy(deep=True)
 
     async def delete_by_agent(self, agent_id: str) -> int:
         # Collected first: deleting from the dict while iterating it raises.

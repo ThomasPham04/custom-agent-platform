@@ -1,0 +1,52 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AgentPlatform-FrontEnd/client
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: AgentPlatform-FrontEnd/client/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    name: Deploy production stack
+    needs: verify
+    runs-on: [self-hosted, linux, production]
+    defaults:
+      run:
+        working-directory: AgentPlatform-BackEnd/deployment
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate and deploy
+        env:
+          DEPLOY_ENV_FILE: /etc/agent-platform/production.env
+        run: |
+          set -euo pipefail
+          test -r "$DEPLOY_ENV_FILE"
+          compose=(docker compose --env-file "$DEPLOY_ENV_FILE" -f docker-compose.yml -f docker-compose.prod.yml)
+          "${compose[@]}" config -q
+          "${compose[@]}" up -d --build --wait --wait-timeout 120
+          "${compose[@]}" ps
+          web_endpoint="$("${compose[@]}" port web 80 | sed 's/^0\.0\.0\.0:/127.0.0.1:/; s/^\[::\]:/127.0.0.1:/')"
+          curl --fail --silent --show-error --head --retry 6 --retry-delay 2 "http://${web_endpoint}/"

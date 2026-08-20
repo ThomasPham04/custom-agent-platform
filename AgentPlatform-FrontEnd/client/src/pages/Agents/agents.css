@@ -45,19 +45,36 @@
 }
 
 .agents__filter {
+  position: relative;
+  display: flex;
   flex: 1;
   min-width: 0;
   max-width: 240px;
+}
+
+.agents__filter-input {
+  width: 100%;
+  min-width: 0;
   height: 28px;
-  padding: 0 var(--space-4);
+  /* Right padding clears the icon: its width plus a gutter either side. */
+  padding: 0 calc(var(--space-4) * 2 + 14px) 0 var(--space-4);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--paper);
   font-size: var(--text-ui);
 }
 
-.agents__filter::-webkit-search-cancel-button {
+.agents__filter-input::-webkit-search-cancel-button {
   appearance: none;
+}
+
+.agents__filter-icon {
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  transform: translateY(-50%);
+  color: var(--ink-muted);
+  pointer-events: none;
 }
 
 .agents__viewbar > .button {

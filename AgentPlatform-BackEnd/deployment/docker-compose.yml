@@ -45,6 +45,12 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       TOOL_HTTP_TIMEOUT_MS: ${TOOL_HTTP_TIMEOUT_MS:-5000}
       LOG_PAYLOAD_MAX_BYTES: ${LOG_PAYLOAD_MAX_BYTES:-32768}
+      # The trigger scheduler — one asyncio task in the lifespan. Off leaves the
+      # /api/triggers routes working and only stops the clock. Each default
+      # repeats app/config.py, so omitting all three from .env changes nothing.
+      TRIGGERS_ENABLED: ${TRIGGERS_ENABLED:-true}
+      TRIGGER_TICK_SECONDS: ${TRIGGER_TICK_SECONDS:-30}
+      TRIGGER_MAX_PER_TICK: ${TRIGGER_MAX_PER_TICK:-20}
       KNOWLEDGE_MAX_BODY_BYTES: ${KNOWLEDGE_MAX_BODY_BYTES:-100000}
     # The API applies schema.sql on startup, so it must not race the database.
     depends_on:
@@ -61,6 +67,17 @@ services:
   web:
     build:
       context: ../../AgentPlatform-FrontEnd/client
+    environment:
+      # The password gate. Empty — the default — leaves the site open, which is
+      # what keeps this file a zero-config `docker compose up`. Set it in .env
+      # to put the login page in front of both the UI and /api.
+      WEB_PASSWORD: ${WEB_PASSWORD:-}
+      # nginx renders /etc/nginx/templates/*.template through envsubst at
+      # startup. Without this filter it would substitute every environment
+      # variable it recognises, and the template's own $cookie_gate and
+      # $gate_ok would be replaced with empty strings. `$$` is Compose's escape
+      # for a literal dollar sign.
+      NGINX_ENVSUBST_FILTER: '^WEB_PASSWORD$$'
     # WEB_BIND defaults to all interfaces, which is what makes the local run
     # reachable at localhost:8080. On a public host set WEB_BIND=127.0.0.1 in
     # .env: cloudflared reaches web:80 over the compose network, so the tunnel

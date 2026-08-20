@@ -348,6 +348,15 @@ describe('Sidebar', () => {
     health.current = { status: 'online', mode: 'mock' };
   });
 
+  it('links to the project repository from the sidebar footer', () => {
+    renderSidebar();
+
+    expect(screen.getByRole('link', { name: 'View Agent Platform on GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/ThomasPham04/custom-agent-platform',
+    );
+  });
+
   it('offers a walkthrough from the bottom of the sidebar', () => {
     renderSidebar();
     expect(screen.getByRole('button', { name: 'Walkthrough' })).toBeInTheDocument();

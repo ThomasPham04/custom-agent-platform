@@ -207,6 +207,29 @@
   color: var(--ink-muted);
 }
 
+.sidebar__github {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+}
+
+.sidebar__github:hover,
+.sidebar__github:focus-visible {
+  background: var(--active);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sidebar__github svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
 /*
   Carries the margin-top: auto that used to sit on .sidebar__footer. It is what
   pins this pair to the bottom of the rail.

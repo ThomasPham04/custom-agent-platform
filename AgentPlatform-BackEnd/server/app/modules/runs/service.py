@@ -6,6 +6,8 @@ modules.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 from app.core.errors import NotFoundError
 from app.modules.runs.repository import RunRepository
 from app.modules.runs.schemas import Run
@@ -17,6 +19,9 @@ class RunService:
 
     async def list(self, agent_id: str | None = None, limit: int = 50) -> list[Run]:
         return await self._repo.list(agent_id=agent_id, limit=limit)
+
+    def export_by_agent(self, agent_id: str) -> AsyncGenerator[Run, None]:
+        return self._repo.iter_all_by_agent(agent_id)
 
     async def get(self, run_id: str) -> Run:
         run = await self._repo.get(run_id)

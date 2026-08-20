@@ -1,4 +1,8 @@
+from collections.abc import AsyncGenerator
+from contextlib import aclosing
+
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import StreamingResponse
 
 from app.container import get_run_service
 from app.core.errors import BadRequestError
@@ -6,6 +10,30 @@ from app.modules.runs.schemas import Run
 from app.modules.runs.service import RunService
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
+
+
+async def export_json(runs: AsyncGenerator[Run, None]) -> AsyncGenerator[bytes, None]:
+    async with aclosing(runs):
+        yield b"["
+        first = True
+        async for run in runs:
+            if not first:
+                yield b","
+            yield run.model_dump_json(by_alias=True).encode()
+            first = False
+        yield b"]"
+
+
+@router.get("/export")
+async def export_runs(
+    agent_id: str = Query(alias="agentId"),
+    svc: RunService = Depends(get_run_service),
+) -> StreamingResponse:
+    return StreamingResponse(
+        export_json(svc.export_by_agent(agent_id)),
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="run-logs.json"'},
+    )
 
 
 @router.get("", response_model=list[Run])

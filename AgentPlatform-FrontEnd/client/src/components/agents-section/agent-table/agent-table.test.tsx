@@ -31,6 +31,7 @@ const defaults = {
   selectedId: null,
   onSelect: () => {},
   onTestInChat: () => {},
+  onDownloadRunLogs: () => {},
   onDuplicate: () => {},
   onDelete: () => {},
 };
