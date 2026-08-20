@@ -14,7 +14,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Sync the report into Vite's public directory
         run: |
@@ -24,12 +24,15 @@ jobs:
 
       - name: Commit the generated public copy
         run: |
-          if git diff --quiet -- AgentPlatform-FrontEnd/client/public/documents/ai-agent-platform-report.pdf; then
+          # `git diff` ignores a new, untracked PDF. Stage first so this catches
+          # both the initial copy and later source-document updates.
+          git add AgentPlatform-FrontEnd/client/public/documents/ai-agent-platform-report.pdf
+
+          if git diff --cached --quiet -- AgentPlatform-FrontEnd/client/public/documents/ai-agent-platform-report.pdf; then
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add AgentPlatform-FrontEnd/client/public/documents/ai-agent-platform-report.pdf
           git commit -m "chore: sync platform report PDF"
           git push
