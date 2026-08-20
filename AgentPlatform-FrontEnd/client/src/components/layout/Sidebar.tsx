@@ -241,7 +241,13 @@ export const Sidebar = ({
         <span className="sidebar__health mono">{healthText(health)}</span>
         <a
           className="sidebar__footer-link sidebar__footer-link--report"
-          href="/documents/ai-agent-platform-report.pdf"
+          /*
+            /report, not the .pdf path it aliases. Cloudflare caches by URL
+            extension and ignores the origin's no-store for the ones on its
+            default list, which put the gated report on the public internet.
+            An extensionless URL is treated as dynamic and stays gated.
+          */
+          href="/report"
           target="_blank"
           rel="noreferrer"
           aria-label="Open AI Agent Platform report"

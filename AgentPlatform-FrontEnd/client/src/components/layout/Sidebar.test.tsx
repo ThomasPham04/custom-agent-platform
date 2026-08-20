@@ -151,7 +151,7 @@ describe('Sidebar', () => {
 
     expect(screen.getByRole('link', { name: 'Open AI Agent Platform report' })).toHaveAttribute(
       'href',
-      '/documents/ai-agent-platform-report.pdf',
+      '/report',
     );
     expect(screen.getByRole('link', { name: 'Open AI Agent Platform report' })).toHaveAttribute(
       'target',
