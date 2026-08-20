@@ -211,7 +211,7 @@ describe('WalkthroughProvider', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toHaveClass('spotlight--centered'), {
       timeout: 3000,
     });
-    expect(screen.getByText('Two surfaces')).toBeInTheDocument();
+    expect(screen.getByText('Three surfaces')).toBeInTheDocument();
   });
 
   it('puts the user back where they were when it ends', async () => {

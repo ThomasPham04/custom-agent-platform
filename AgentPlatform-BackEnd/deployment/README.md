@@ -7,11 +7,10 @@ proxying `/api` to it on the same origin.
 ## What it delivers
 
 A single `docker compose up` that starts all three services in dependency
-order, applies the database schema, and seeds four sample agents on first
-boot — nothing to configure by hand beyond copying the env file. The stack
-defaults to the offline mock LLM provider, so it comes up and serves a working
-UI with no API key; flipping two environment variables switches it to live
-Gemini.
+order, applies the database schema, and seeds four sample agents and four
+sample knowledge documents on first boot. The stack defaults to the offline
+mock LLM provider, so it comes up and serves a working UI with no API key;
+flipping two environment variables switches it to live Gemini.
 
 ## Run
 
@@ -45,15 +44,18 @@ fail rather than retry.
 ## First boot
 
 On startup the API opens a connection pool, applies `app/core/schema.sql`, and
-inserts the four sample agents **only when the `agents` table is empty**. Every
-schema statement is `IF NOT EXISTS`, so a restart against a populated database
-is a no-op and an agent you deleted stays deleted. The log line to look for is:
+inserts the four sample agents **only when the `agents` table is empty**. It
+also inserts four sample knowledge documents only when that library is empty.
+Every schema statement is `IF NOT EXISTS`, so a restart against populated data
+is a no-op and an agent or document you deleted stays deleted. The log lines to
+look for are:
 
 ```
 postgres ready; seeded 4 agents
+seeded 4 knowledge documents
 ```
 
-On later boots it reads `seeded 0 agents`.
+On later boots both seed counts are zero.
 
 Data lives in the `pgdata` volume, so `docker compose down` keeps agents and run
 history. To start from an empty database, remove the volume as well:
@@ -91,12 +93,17 @@ Nothing in it is required — every value has a default in the compose file.
 | Variable | Scope | Purpose |
 | --- | --- | --- |
 | `WEB_PORT` | compose | Host port the UI is published on (default 8080) |
+| `WEB_BIND` | compose | Host interface for `WEB_PORT` (default `0.0.0.0`; use `127.0.0.1` behind the tunnel) |
+| `WEB_PASSWORD` | web | Optional shared password enforced by nginx before the UI and `/api` |
 | `POSTGRES_PASSWORD` | compose | Applied at initdb only; `DATABASE_URL` is built from it |
 | `LLM_PROVIDER` | app | `mock` (default) or `adk_gemini` |
 | `GEMINI_API_KEY` | app | Required only when the provider is `adk_gemini` |
 | `TOOL_HTTP_TIMEOUT_MS` | app | Timeout for the `http_request` tool |
 | `LOG_PAYLOAD_MAX_BYTES` | app | Cap on tool payloads stored in run history |
 | `KNOWLEDGE_MAX_BODY_BYTES` | app | Largest knowledge document accepted, in UTF-8 bytes |
+| `TRIGGERS_ENABLED` | app | Enables the in-process trigger scheduler (default `true`) |
+| `TRIGGER_TICK_SECONDS` | app | How often the scheduler checks due triggers (default 30) |
+| `TRIGGER_MAX_PER_TICK` | app | Maximum due triggers started per scheduler tick (default 20) |
 | `PUBLIC_ORIGIN` | compose | Prod overlay only; the API's CORS fallback |
 | `CLOUDFLARE_TUNNEL_TOKEN` | compose | Prod overlay only |
 
@@ -104,9 +111,10 @@ The scope column is the thing to understand. **Compose-scoped** variables are
 substituted into `docker-compose.yml` and never enter a container — which is how
 the Cloudflare tunnel token stays out of the API's environment. **App-scoped**
 variables reach the API only because the `environment:` block in
-`docker-compose.yml` lists them by name. That block is the complete inventory of
-what the container receives, so adding a setting to `app/config.py` means adding
-a line there too.
+`docker-compose.yml` lists them by name. **Web-scoped** variables reach nginx
+only. Those environment blocks are the complete inventory of what each
+container receives, so adding a setting to `app/config.py` means adding a line
+there too.
 
 `STORE_BACKEND`, `DATABASE_URL`, and `CORS_ORIGIN` are set in that block but are
 not in the table, because they describe the compose network rather than a

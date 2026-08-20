@@ -101,7 +101,12 @@ export const Sidebar = ({
           is global, so there is no per-agent tree to disclose. */}
       <div className="sidebar__group">
         <span className="sidebar__disclosure sidebar__disclosure--spacer" aria-hidden="true" />
-        <NavLink to="/knowledge" className="sidebar__item" onClick={onClose}>
+        <NavLink
+          to="/knowledge"
+          className="sidebar__item"
+          data-walkthrough="sidebar-knowledge"
+          onClick={onClose}
+        >
           <span className="sidebar__item-icon" aria-hidden="true">
             ▦
           </span>

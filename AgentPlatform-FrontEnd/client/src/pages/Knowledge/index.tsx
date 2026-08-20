@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { DocumentDetail } from '../../components/knowledge-section/document-detail/document-detail';
 import { DocumentForm } from '../../components/knowledge-section/document-form/document-form';
 import { DocumentList } from '../../components/knowledge-section/document-list/document-list';
@@ -9,7 +10,13 @@ import './knowledge.css';
 
 const KnowledgePage = () => {
   const { documents, loading, error, create, update, remove } = useKnowledge();
-  const [adding, setAdding] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Route-driven, the same arrangement /agents/new uses and for the same
+  // reason: the walkthrough can only navigate, never press a control, so the
+  // form has to be reachable by URL for a tour to show what is inside it.
+  // /knowledge/new means "form open", anything else means closed.
+  const adding = location.pathname === '/knowledge/new';
   const [open, setOpen] = useState<KnowledgeDocument>();
   const [notice, setNotice] = useState<string>();
 
@@ -30,7 +37,7 @@ const KnowledgePage = () => {
 
   const addDocument = async (draft: DocumentDraft) => {
     const result = await create(draft);
-    if (result.ok) setAdding(false);
+    if (result.ok) navigate('/knowledge');
     return result;
   };
 
@@ -56,7 +63,8 @@ const KnowledgePage = () => {
         <button
           type="button"
           className="knowledge__add"
-          onClick={() => setAdding((current) => !current)}
+          data-walkthrough="knowledge-add"
+          onClick={() => navigate(adding ? '/knowledge' : '/knowledge/new')}
         >
           {adding ? 'Cancel' : 'Add document'}
         </button>
@@ -74,11 +82,11 @@ const KnowledgePage = () => {
       )}
 
       {adding && (
-        <div className="knowledge__form">
+        <div className="knowledge__form" data-walkthrough="knowledge-form">
           <DocumentForm
             submitLabel="Add document"
             onSubmit={addDocument}
-            onCancel={() => setAdding(false)}
+            onCancel={() => navigate('/knowledge')}
           />
         </div>
       )}

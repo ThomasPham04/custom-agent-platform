@@ -27,6 +27,11 @@ run is recorded to history, snapshotting the agent's name, model, and system
 prompt at execution time, so editing an agent later never rewrites its past
 runs.
 
+**Learn the platform from the workspace.** The sidebar offers guided,
+read-only walkthroughs for the workspace, agent configuration, the knowledge
+library, and testing an agent. It also links to the [platform
+report](documents/ai-agent-platform-report.pdf), which opens in a separate tab.
+
 **Switch providers without touching code.** The default LLM provider is a
 deterministic mock, so the whole platform runs offline with no credentials and
 the trace still renders end to end. Point it at live Gemini instead by setting
@@ -176,6 +181,11 @@ its schema and seeds the sample agents on first boot.
 To change anything — the host port, the database password, or the LLM provider
 and its key — copy `.env.example` to `.env` in that directory. It holds
 credentials and is not tracked; never commit it.
+
+For a public demo, set `WEB_PASSWORD` in that same file to place the nginx
+password gate in front of both the UI and `/api`. Set `WEB_BIND=127.0.0.1` when
+the site is published through the included Cloudflare Tunnel, so the host port
+does not bypass the tunnel's access controls.
 
 See `AgentPlatform-BackEnd/deployment/README.md` for the service breakdown and
 every configuration value.

@@ -40,6 +40,11 @@ agent and it can search all of them. What it retrieves shows up in the chat
 trace like any other tool call, with the matching document's title and an
 excerpt.
 
+**Guidance and reference material.** The bottom of the sidebar offers guided,
+read-only walkthroughs of the workspace, agent configuration, the knowledge
+library, and testing an agent. A separate sidebar link opens the AI Agent
+Platform report PDF in a new browser tab.
+
 **Workspace status.** The sidebar reports whether the API is reachable and
 whether it is answering with the mock provider or a live model, read live
 from the backend rather than hardcoded.
@@ -74,3 +79,7 @@ blank, which is what enables the proxy — set it to an absolute origin only
 when the API is hosted elsewhere. Without a backend running, the UI loads but
 every request fails.
 
+The development server has no password gate. The production nginx container can
+protect both the UI and `/api` with `WEB_PASSWORD`; see
+`AgentPlatform-BackEnd/deployment/README.md` before publishing a live-provider
+instance.

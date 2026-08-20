@@ -72,6 +72,35 @@ describe('WALKTHROUGHS', () => {
     expect(at('agent-triggers')).toBeLessThan(at('agent-save'));
   });
 
+  /*
+    A document is worth nothing until something can read it, and the thing that
+    reads it lives on another surface. A tour that stayed on /knowledge would
+    teach the CRUD and leave out the reason the CRUD exists, so the crossing is
+    the requirement: library, then the tool that reaches it, then the trace that
+    proves it ran.
+  */
+  it('carries the knowledge tour from the library to a tool to a trace', () => {
+    const steps = WALKTHROUGHS.find((walkthrough) => walkthrough.id === 'knowledge')?.steps ?? [];
+    const at = (target: string) => steps.findIndex((step) => step.target === target);
+
+    expect(at('knowledge-list')).toBeGreaterThanOrEqual(0);
+    expect(at('agent-tools')).toBeGreaterThan(at('knowledge-form'));
+    expect(at('chat-messages')).toBeGreaterThan(at('agent-tools'));
+  });
+
+  /*
+    The overview is the one that runs itself on a first visit, so a surface
+    missing from it is a surface most people never hear about.
+  */
+  it('shows every surface in the tour that runs itself', () => {
+    const steps = WALKTHROUGHS.find((walkthrough) => walkthrough.id === 'overview')?.steps ?? [];
+    const targets = steps.map((step) => step.target);
+
+    expect(targets).toContain('agents-table');
+    expect(targets).toContain('knowledge-list');
+    expect(targets).toContain('chat-messages');
+  });
+
   it('opens with a step about the whole screen', () => {
     const overview = WALKTHROUGHS[0];
     expect(overview?.id).toBe('overview');

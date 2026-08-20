@@ -3,9 +3,15 @@ import type { Walkthrough } from '../types/walkthrough';
 /**
  * Content, not logic. Adding a walkthrough is one entry here and nothing else.
  *
- * Two rules govern every step. No step may depend on a record existing, because
+ * Two rules govern every step. No step may REQUIRE a record to exist, because
  * the service boots cold with no agents. And no step may operate a control —
  * this feature points at things, it does not press them.
+ *
+ * knowledge:document is the one step aimed at a row rather than a container,
+ * and it is allowed because the library seeds four documents into an empty
+ * store. A user who deletes all four gets the centered card the engine falls
+ * back to, which reads as a plain remark about documents — not as a tour that
+ * broke.
  */
 export const WALKTHROUGHS: readonly Walkthrough[] = [
   {
@@ -20,8 +26,8 @@ export const WALKTHROUGHS: readonly Walkthrough[] = [
       },
       {
         id: 'overview:sidebar',
-        title: 'Two surfaces',
-        body: 'Agents is where configuration lives. Chat is where you test one. Saved conversations collect underneath, and the dot at the bottom reports whether the API is answering.',
+        title: 'Three surfaces',
+        body: 'Agents is where configuration lives. Knowledge is the document library they can search. Chat is where you test one. Saved conversations collect underneath, and the dot at the bottom reports whether the API is answering.',
         target: 'sidebar',
         placement: 'right',
       },
@@ -31,6 +37,14 @@ export const WALKTHROUGHS: readonly Walkthrough[] = [
         body: 'A model, a system prompt, and the set of tools it is allowed to reach. Nothing here runs until you send it a message.',
         target: 'agents-table',
         route: '/agents',
+        placement: 'top',
+      },
+      {
+        id: 'overview:knowledge',
+        title: 'Your text, not the model’s memory',
+        body: 'The library is shared: one set of documents, readable by any agent you hand the Knowledge search tool. It is how an agent answers from what you wrote instead of from what the model happens to know.',
+        target: 'knowledge-list',
+        route: '/knowledge',
         placement: 'top',
       },
       {
@@ -124,6 +138,78 @@ export const WALKTHROUGHS: readonly Walkthrough[] = [
         id: 'create:done',
         title: 'Nothing was created',
         body: 'This walkthrough only points at things. The draft closes when it ends. Press New agent when you want the real one.',
+      },
+    ],
+  },
+  {
+    id: 'knowledge',
+    name: 'Use your own documents',
+    summary: 'Add text to the library, then let an agent search it.',
+    steps: [
+      {
+        id: 'knowledge:nav',
+        title: 'One library, not one per agent',
+        body: 'Documents live here rather than on an agent. Every agent you give the Knowledge search tool reads this same shelf.',
+        target: 'sidebar-knowledge',
+        placement: 'right',
+      },
+      {
+        id: 'knowledge:list',
+        title: 'What is on it now',
+        body: 'Four sample documents ship with the platform so a cold start still has something to find. Delete them whenever you like — seeding only fills an empty library, so they do not come back.',
+        target: 'knowledge-list',
+        route: '/knowledge',
+        placement: 'top',
+      },
+      {
+        id: 'knowledge:document',
+        title: 'A document is a title and its text',
+        body: 'The row shows the opening 200 characters and how large the whole thing is. Open one to read or edit it.',
+        target: 'knowledge-document',
+        placement: 'bottom',
+      },
+      {
+        id: 'knowledge:add',
+        title: 'Add document opens a blank one',
+        body: 'Nothing reaches the library until you submit the form.',
+        target: 'knowledge-add',
+        placement: 'bottom',
+      },
+      {
+        id: 'knowledge:form',
+        title: 'Type it, or hand it a file',
+        body: 'Paste text under a title, or pick a .txt or .md file and it reads the text in and names the document after the file. One document holds up to 100,000 bytes.',
+        target: 'knowledge-form',
+        route: '/knowledge/new',
+        placement: 'bottom',
+      },
+      {
+        id: 'knowledge:inert',
+        title: 'A document does nothing on its own',
+        body: 'Adding text changes no agent. An agent reaches the library only through a tool, and only if you have given it that tool.',
+      },
+      {
+        id: 'knowledge:attach',
+        title: 'Knowledge search is what connects them',
+        body: 'Attach a tool opens the full list, and Knowledge search is the one that reaches the library. Give it to an agent and it can search every document while it is answering. This is a draft panel, so nothing here is saved.',
+        target: 'agent-tools',
+        route: '/agents/new',
+        placement: 'left',
+      },
+      {
+        id: 'knowledge:ask',
+        title: 'Then just ask',
+        body: 'You never call the tool yourself. The agent decides a question needs the library, searches it, and answers from what came back.',
+        target: 'chat-composer',
+        route: '/chat',
+        placement: 'top',
+      },
+      {
+        id: 'knowledge:trace',
+        title: 'The search is on the record',
+        body: 'The reply carries the call that produced it: what the agent searched for, which documents matched, and how long it took. That is how you check an answer came from your text.',
+        target: 'chat-messages',
+        placement: 'top',
       },
     ],
   },
