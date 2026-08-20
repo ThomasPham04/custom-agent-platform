@@ -14,6 +14,7 @@ from typing import Any
 import asyncpg
 
 from app.modules.agents.schemas import Agent
+from app.modules.knowledge.schemas import KnowledgeDocument
 
 _pool: asyncpg.Pool | None = None
 
@@ -86,3 +87,34 @@ def _agent_row(agent: Agent) -> tuple[Any, ...]:
     from app.modules.agents.repositories.postgres import agent_to_row
 
     return agent_to_row(agent)
+
+
+_INSERT_DOCUMENT = """
+INSERT INTO knowledge_documents (id, title, body, source, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+"""
+
+
+async def seed_knowledge_documents(
+    pool: asyncpg.Pool, documents: Sequence[KnowledgeDocument]
+) -> int:
+    """Insert the sample documents, but only into an empty table.
+
+    Guarded the same way seed_agents is, so a restart never resurrects a
+    document the user deleted.
+    """
+    async with pool.acquire() as conn, conn.transaction():
+        existing = await conn.fetchval("SELECT count(*) FROM knowledge_documents")
+        if existing:
+            return 0
+        for document in documents:
+            await conn.execute(
+                _INSERT_DOCUMENT,
+                document.id,
+                document.title,
+                document.body,
+                document.source,
+                document.created_at,
+                document.updated_at,
+            )
+        return len(documents)

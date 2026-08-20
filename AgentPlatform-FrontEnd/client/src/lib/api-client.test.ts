@@ -5,8 +5,13 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  createDocument,
+  deleteDocument,
+  getDocument,
+  listDocuments,
   sendMessage,
   streamMessage,
+  updateDocument,
   type ChatStreamEvent,
 } from './api-client';
 
@@ -163,5 +168,65 @@ describe('apiDelete', () => {
       vi.fn(async () => jsonResponse({ error: { code: 'not_found', message: 'gone' } }, 404)),
     );
     await expect(apiDelete('/api/agents/x')).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('knowledge documents', () => {
+  it('lists documents', async () => {
+    const fetch = fetchSpy(async () => jsonResponse([]));
+    vi.stubGlobal('fetch', fetch);
+    await listDocuments();
+    expect(String(fetch.mock.calls[0]![0])).toContain('/api/knowledge/documents');
+    expect(fetch.mock.calls[0]![1]).toBeUndefined();
+  });
+
+  it('encodes the id when fetching one document', async () => {
+    const fetch = fetchSpy(async () => jsonResponse({ id: 'doc_a' }));
+    vi.stubGlobal('fetch', fetch);
+    await getDocument('doc a/b');
+    expect(String(fetch.mock.calls[0]![0])).toContain('/api/knowledge/documents/doc%20a%2Fb');
+  });
+
+  it('posts the draft as JSON', async () => {
+    const fetch = fetchSpy(async () => jsonResponse({ id: 'doc_a' }));
+    vi.stubGlobal('fetch', fetch);
+    await createDocument({ title: 'A title', body: 'text', source: 'upload' });
+    const init = fetch.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      title: 'A title',
+      body: 'text',
+      source: 'upload',
+    });
+  });
+
+  it('patches only the fields it is given', async () => {
+    const fetch = fetchSpy(async () => jsonResponse({ id: 'doc_a' }));
+    vi.stubGlobal('fetch', fetch);
+    await updateDocument('doc_a', { title: 'Renamed' });
+    const init = fetch.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body as string)).toEqual({ title: 'Renamed' });
+  });
+
+  it('deletes a document', async () => {
+    const fetch = fetchSpy(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    await deleteDocument('doc_a');
+    expect((fetch.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('surfaces the server message when a create is rejected', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ error: { code: 'bad_request', message: 'title is required.' } }, 400),
+      ),
+    );
+    const error = (await createDocument({ title: '', body: 'x', source: 'typed' }).catch(
+      (thrown: unknown) => thrown,
+    )) as ApiError;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.message).toBe('title is required.');
   });
 });

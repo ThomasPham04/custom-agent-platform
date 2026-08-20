@@ -18,6 +18,8 @@ from app.core.errors import BodySizeLimitMiddleware, register_error_handlers
 from app.modules.agents.router import router as agents_router
 from app.modules.agents.seeds import SEED_AGENTS
 from app.modules.execution.router import router as execution_router
+from app.modules.knowledge.router import router as knowledge_router
+from app.modules.knowledge.seeds import SEED_DOCUMENTS
 from app.modules.llm.router import router as llm_router
 from app.modules.runs.router import router as runs_router
 from app.modules.sessions.backfill import backfill_sessions
@@ -45,6 +47,8 @@ async def _lifespan(app: FastAPI):
         await db.apply_schema(pool)
         inserted = await db.seed_agents(pool, SEED_AGENTS)
         print(f"postgres ready; seeded {inserted} agents")
+        seeded_documents = await db.seed_knowledge_documents(pool, SEED_DOCUMENTS)
+        print(f"seeded {seeded_documents} knowledge documents")
     try:
         created = await backfill_sessions(get_run_repository(), get_session_repository())
     except Exception:
@@ -98,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(agents_router)
     app.include_router(runs_router)
     app.include_router(sessions_router)
+    app.include_router(knowledge_router)
     app.include_router(triggers_router)
     app.include_router(execution_router)
 

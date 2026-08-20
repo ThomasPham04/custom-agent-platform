@@ -15,6 +15,11 @@ from app.modules.agents.repository import AgentRepository
 from app.modules.agents.seeds import SEED_AGENTS
 from app.modules.agents.service import AgentService
 from app.modules.execution.service import ExecutionService
+from app.modules.knowledge.repositories.memory import MemoryKnowledgeRepository
+from app.modules.knowledge.repositories.postgres import PostgresKnowledgeRepository
+from app.modules.knowledge.repository import KnowledgeRepository
+from app.modules.knowledge.seeds import SEED_DOCUMENTS
+from app.modules.knowledge.service import KnowledgeService
 from app.modules.llm.catalog import DEFAULT_MODEL, MODEL_IDS
 from app.modules.llm.provider import LLMProvider
 from app.modules.llm.providers.adk_gemini import AdkGeminiProvider
@@ -36,9 +41,31 @@ from app.modules.triggers.service import TriggerService
 
 
 @lru_cache
+def get_knowledge_repository() -> KnowledgeRepository:
+    settings = get_settings()
+    if settings.store_backend == "memory":
+        # Seeded at construction, like the agent store. The cache means one
+        # store per process, so this runs once.
+        return MemoryKnowledgeRepository(seed=SEED_DOCUMENTS)
+    # The lifespan opened the pool and seeded the table before any request
+    # could reach here.
+    return PostgresKnowledgeRepository(pool=get_pool())
+
+
+def get_knowledge_service() -> KnowledgeService:
+    return KnowledgeService(
+        repo=get_knowledge_repository(),
+        max_body_bytes=get_settings().knowledge_max_body_bytes,
+    )
+
+
+@lru_cache
 def get_tool_registry() -> ToolRegistry:
     return ToolRegistry(
-        default_tools(http_timeout_ms=get_settings().tool_http_timeout_ms)
+        default_tools(
+            http_timeout_ms=get_settings().tool_http_timeout_ms,
+            knowledge=get_knowledge_repository(),
+        )
     )
 
 
@@ -150,3 +177,4 @@ def reset_container() -> None:
     get_run_repository.cache_clear()
     get_session_repository.cache_clear()
     get_trigger_repository.cache_clear()
+    get_knowledge_repository.cache_clear()

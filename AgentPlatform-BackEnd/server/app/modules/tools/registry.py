@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.core.errors import BadRequestError
+from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.tools.base import Tool, ToolResult, ToolSchema
 from app.modules.tools.impls.calculator import CalculatorTool
 from app.modules.tools.impls.current_time import CurrentTimeTool
@@ -20,14 +21,19 @@ from app.modules.tools.impls.http_request import HttpRequestTool
 from app.modules.tools.impls.knowledge_search import KnowledgeSearchTool
 
 
-def default_tools(http_timeout_ms: int) -> list[Tool]:
+def default_tools(http_timeout_ms: int, knowledge: KnowledgeRepository) -> list[Tool]:
     """Registration order is the order GET /api/tools returns, and the frontend
-    tool picker renders them in that order."""
+    tool picker renders them in that order.
+
+    knowledge_search is the one tool with storage behind it, so it receives a
+    repository. It arrives from container.py like every other implementation
+    choice; this module never selects one.
+    """
     return [
         CurrentTimeTool(),
         HttpRequestTool(timeout_ms=http_timeout_ms),
         CalculatorTool(),
-        KnowledgeSearchTool(),
+        KnowledgeSearchTool(knowledge=knowledge),
     ]
 
 

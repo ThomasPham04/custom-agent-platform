@@ -14,6 +14,12 @@ edited, duplicated, and deleted through the REST API or the included UI.
 calculator, a clock, an HTTP request tool, and a knowledge search — and an
 agent only reaches the ones attached to it.
 
+**Give them something to read.** The knowledge library is a set of documents
+any agent with knowledge search attached can search. Add one by typing it in or
+by uploading a `.txt` or `.md` file, then edit or delete it later. Four sample
+documents ship with a fresh install so the search has something to find on the
+first run.
+
 **Run a conversation and see what happened.** Sending a message returns the
 agent's complete reply in one response, plus the trace of every tool call it
 made along the way: arguments, result, timing, and whether it succeeded. Every

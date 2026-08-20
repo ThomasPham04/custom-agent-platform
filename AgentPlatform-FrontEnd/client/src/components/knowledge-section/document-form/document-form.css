@@ -1,0 +1,101 @@
+.document-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.document-form__label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.document-form__input,
+.document-form__textarea {
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+}
+
+.document-form__textarea {
+  font-family: var(--font-mono);
+  font-size: var(--text-ui);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.document-form__input:focus-visible,
+.document-form__textarea:focus-visible,
+.document-form__file:focus-visible,
+.document-form__submit:focus-visible,
+.document-form__cancel:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.document-form__file {
+  font-size: var(--text-ui);
+  color: var(--ink-muted);
+}
+
+.document-form__message {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--err-wash);
+  color: var(--err);
+  font-size: var(--text-ui);
+}
+
+.document-form__actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.document-form__submit {
+  padding: var(--space-4) var(--space-6);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--signal);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.document-form__submit:hover:not(:disabled) {
+  background: var(--signal-hover);
+}
+
+.document-form__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.document-form__cancel {
+  padding: var(--space-4) var(--space-6);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.document-form__cancel:hover {
+  background: var(--hover);
+}

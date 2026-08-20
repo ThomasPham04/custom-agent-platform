@@ -45,6 +45,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       TOOL_HTTP_TIMEOUT_MS: ${TOOL_HTTP_TIMEOUT_MS:-5000}
       LOG_PAYLOAD_MAX_BYTES: ${LOG_PAYLOAD_MAX_BYTES:-32768}
+      KNOWLEDGE_MAX_BODY_BYTES: ${KNOWLEDGE_MAX_BODY_BYTES:-100000}
     # The API applies schema.sql on startup, so it must not race the database.
     depends_on:
       db:

@@ -138,6 +138,14 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /Chat/ })).toBeInTheDocument();
   });
 
+  it('links to the knowledge library', () => {
+    renderSidebar();
+    expect(screen.getByRole('link', { name: /Knowledge/ })).toHaveAttribute(
+      'href',
+      '/knowledge',
+    );
+  });
+
   it('marks the current surface for assistive tech', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /^Agents/ })).toHaveAttribute('aria-current', 'page');

@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     log_payload_max_bytes: int = 32_768
     max_body_bytes: int = 256 * 1024
 
+    # Comfortably inside max_body_bytes above, so the body limiter never fires
+    # first and a client always gets the specific message rather than a 413.
+    knowledge_max_body_bytes: int = 100_000
+
     # The scheduler is one asyncio task in the lifespan. Off means the REST
     # surface still works and only the clock stops.
     triggers_enabled: bool = True

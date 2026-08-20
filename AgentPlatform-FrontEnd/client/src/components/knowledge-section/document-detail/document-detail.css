@@ -1,0 +1,66 @@
+.document-detail {
+  position: fixed;
+  top: var(--topbar-height);
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: min(var(--peek-width), 100vw);
+  padding: var(--space-7);
+  overflow-y: auto;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  box-shadow: var(--shadow-peek);
+}
+
+.document-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.document-detail__title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-peek-title);
+  font-weight: 600;
+}
+
+.document-detail__close {
+  flex: none;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.document-detail__close:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.document-detail__close:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* The peek slides in, except for readers who asked it not to. */
+@media (prefers-reduced-motion: no-preference) {
+  .document-detail {
+    animation: document-detail-in 160ms ease-out;
+  }
+}
+
+@keyframes document-detail-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+}

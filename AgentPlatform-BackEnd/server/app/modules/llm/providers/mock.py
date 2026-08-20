@@ -26,6 +26,13 @@ from app.modules.llm.provider import (
 MAX_CALLS = 2
 MODEL_TIME_MS = 180
 
+# The one tool the mock does not fake. Everything else here is canned so runs
+# stay deterministic; this one reads real storage, because mock is the default
+# for local development, Docker and Playwright, and a canned result would make
+# the document library invisible in all three. Its fixture arguments are still
+# used, so against the seeded library the demo output does not move.
+LIVE_TOOL_ID = "knowledge_search"
+
 FAILURE_ERROR = "connection refused after 800ms"
 FAILURE_DURATION_MS = 812
 
@@ -128,10 +135,11 @@ class MockLLMProvider(LLMProvider):
                 )
             else:
                 total_ms += fixture["duration_ms"]
+                result, error = await self._result_for(tool_id, fixture, spec)
                 yield ToolCallFinished(
                     call_id=call_id,
-                    result=deepcopy(fixture["result"]),
-                    error=None,
+                    result=result,
+                    error=error,
                     duration_ms=fixture["duration_ms"],
                 )
 
@@ -143,3 +151,27 @@ class MockLLMProvider(LLMProvider):
         yield TurnFinished(
             text=text, model=spec.model, latency_ms=total_ms + MODEL_TIME_MS
         )
+
+    async def _result_for(
+        self, tool_id: str, fixture: dict[str, Any], spec: RunSpec
+    ) -> tuple[Any, str | None]:
+        """The canned result, except for knowledge_search, which really runs.
+
+        Only the value is real: the duration stays the fixture's, so run totals
+        and the trace rail are still deterministic even though the hits are not.
+        """
+        if tool_id != LIVE_TOOL_ID:
+            # deepcopy on the way out: a caller that mutates a result must not
+            # reach the module-level fixture and poison the next request.
+            return deepcopy(fixture["result"]), None
+
+        tool = next((t for t in spec.tools if t.schema.id == tool_id), None)
+        if tool is None:
+            # The id was in the spec without the instance. Degrade to the
+            # fixture rather than raising, as the id filter above does.
+            return deepcopy(fixture["result"]), None
+
+        outcome = await tool.execute(**deepcopy(fixture["args"]))
+        if not outcome.ok:
+            return None, outcome.error
+        return outcome.value, None

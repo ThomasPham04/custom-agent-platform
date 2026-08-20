@@ -1,4 +1,10 @@
 import { apiUrl } from './api-host';
+import type {
+  DocumentDraft,
+  DocumentPatch,
+  KnowledgeDocument,
+  KnowledgeDocumentSummary,
+} from '../types/knowledge';
 import type { Message } from '../types/message';
 import type { Run } from '../types/run';
 import type { Session } from '../types/session';
@@ -192,3 +198,18 @@ export const runTriggerNow = (id: string): Promise<Run> =>
 
 export const listRunsByTrigger = (triggerId: string): Promise<Run[]> =>
   apiGet<Run[]>(`/api/runs?triggerId=${encodeURIComponent(triggerId)}`);
+
+export const listDocuments = (): Promise<KnowledgeDocumentSummary[]> =>
+  apiGet<KnowledgeDocumentSummary[]>('/api/knowledge/documents');
+
+export const getDocument = (id: string): Promise<KnowledgeDocument> =>
+  apiGet<KnowledgeDocument>(`/api/knowledge/documents/${encodeURIComponent(id)}`);
+
+export const createDocument = (draft: DocumentDraft): Promise<KnowledgeDocument> =>
+  apiPost<KnowledgeDocument>('/api/knowledge/documents', draft);
+
+export const updateDocument = (id: string, patch: DocumentPatch): Promise<KnowledgeDocument> =>
+  apiPatch<KnowledgeDocument>(`/api/knowledge/documents/${encodeURIComponent(id)}`, patch);
+
+export const deleteDocument = (id: string): Promise<void> =>
+  apiDelete(`/api/knowledge/documents/${encodeURIComponent(id)}`);

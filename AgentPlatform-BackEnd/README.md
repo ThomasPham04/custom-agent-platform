@@ -7,9 +7,10 @@ listening on port 4000.
 
 A REST API for the full agent lifecycle: create, read, update, and delete
 agents, each configured with a model, a system prompt, and a set of tools it
-can call. Sending a chat message runs the agent and returns its complete
-reply in one response — no streaming — together with the trace of every tool
-call it made: arguments, result, timing, and outcome. Every run is recorded
+can call. Sending a chat message runs the agent and returns its reply together
+with the trace of every tool call it made: arguments, result, timing, and
+outcome. Two chat routes deliver that identically — one returns the finished
+message as JSON, the other streams the same turn as newline-delimited JSON. Every run is recorded
 and queryable by agent or by conversation, snapshotting the agent's name,
 model, and system prompt as they were at execution time.
 
@@ -133,6 +134,7 @@ reports — the first chat request returns `provider_error` instead.
 | GET | `/api/tools` | `Tool[]` |
 | GET | `/api/models` | `Model[]` |
 | POST | `/api/chat/:agentId/messages` | `{ message, session? }` with `toolCalls[]` |
+| POST | `/api/chat/:agentId/messages/stream` | NDJSON events, ending in the same `message` |
 | GET | `/api/sessions?limit=` | `Session[]`, newest activity first |
 | PATCH | `/api/sessions/:id` | `Session` |
 | DELETE | `/api/sessions/:id` | 204 |
@@ -147,9 +149,17 @@ reports — the first chat request returns `provider_error` instead.
 | GET | `/api/runs?triggerId=&limit=` | `Run[]` for one trigger's activity log |
 | GET | `/api/runs/:id` | `Run` |
 | DELETE | `/api/runs?agentId=` | 204 |
+| GET | `/api/knowledge/documents?limit=` | `KnowledgeDocumentSummary[]`, newest updated first |
+| POST | `/api/knowledge/documents` | `KnowledgeDocument` (201) |
+| GET | `/api/knowledge/documents/:id` | `KnowledgeDocument` |
+| PATCH | `/api/knowledge/documents/:id` | `KnowledgeDocument` |
+| DELETE | `/api/knowledge/documents/:id` | 204 |
 
-There is no streaming: the chat endpoint returns the complete assistant message,
-tool calls included, in one response.
+Chat has two routes that do identical work and differ only in delivery.
+`/messages` returns the complete assistant message, tool calls included, in one
+response. `/messages/stream` returns `application/x-ndjson`, one event per line,
+ending with the same message the JSON route would have returned. The included UI
+uses the streaming route.
 
 Sessions have no create route. A chat message with no `sessionId` starts one, and
 the response carries the new session alongside the message; later messages pass
@@ -157,6 +167,11 @@ that id and the response omits it. Runs can be filtered by agent or by session,
 but not both at once. Deleting a session deletes its runs. Deleting an agent
 deletes its sessions and keeps its runs, so the record of what an agent did
 outlives the agent itself.
+
+Knowledge documents are a single global library, not per-agent: every agent with
+the knowledge search tool attached searches all of them. The list route returns a
+preview and a size rather than the full text; fetch one document to get its body.
+Four samples are seeded into an empty library on first boot and can be deleted.
 
 Errors return `{ error: { code, message } }` and nothing else. FastAPI's default
 422 validation body and its `{"detail": ...}` shape are both remapped. A tool

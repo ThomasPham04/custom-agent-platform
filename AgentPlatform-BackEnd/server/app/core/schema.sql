@@ -114,3 +114,19 @@ CREATE INDEX IF NOT EXISTS triggers_updated_at_idx ON triggers (updated_at DESC)
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS trigger_id TEXT;
 
 CREATE INDEX IF NOT EXISTS runs_trigger_id_idx ON runs (trigger_id, created_at DESC);
+
+-- The knowledge library the knowledge_search tool reads. Deliberately has no
+-- agent_id: one global library, because the tool interface carries no caller
+-- identity to scope by.
+CREATE TABLE IF NOT EXISTS knowledge_documents (
+  id         TEXT PRIMARY KEY,
+  title      TEXT        NOT NULL,
+  body       TEXT        NOT NULL,
+  source     TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+-- GET /api/knowledge/documents is always ordered by this column.
+CREATE INDEX IF NOT EXISTS knowledge_documents_updated_at_idx
+  ON knowledge_documents (updated_at DESC);

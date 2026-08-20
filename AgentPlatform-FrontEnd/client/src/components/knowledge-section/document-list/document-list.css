@@ -1,0 +1,85 @@
+.document-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.document-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.document-list__row:hover {
+  background: var(--hover);
+}
+
+.document-list__open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.document-list__title {
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.document-list__preview {
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.document-list__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--ink-faint);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+}
+
+.document-list__badge {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--shell);
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+}
+
+.document-list__delete {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.document-list__delete:hover {
+  border-color: var(--rule);
+  color: var(--err);
+}
+
+.document-list__open:focus-visible,
+.document-list__delete:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}

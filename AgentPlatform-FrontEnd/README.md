@@ -26,6 +26,20 @@ can be renamed or deleted from the sidebar or from the header of the chat
 itself; deleting one takes its history with it. The last agent used is
 remembered between visits.
 
+**Knowledge.** The library of documents agents can search, reachable from the
+sidebar. A document is added by typing a title and text, or by uploading a
+`.txt` or `.md` file — the file is read in the browser and its name becomes the
+title until you change it. Documents over 100,000 bytes are refused before
+anything is sent. The list shows a preview and a size for each; opening one
+reveals its full text in a side panel where it can be edited or closed with Esc.
+Four samples ship with a fresh workspace, badged as samples, and can be deleted
+like any other document.
+
+Documents are shared by every agent: attach the Knowledge search tool to an
+agent and it can search all of them. What it retrieves shows up in the chat
+trace like any other tool call, with the matching document's title and an
+excerpt.
+
 **Workspace status.** The sidebar reports whether the API is reachable and
 whether it is answering with the mock provider or a live model, read live
 from the backend rather than hardcoded.

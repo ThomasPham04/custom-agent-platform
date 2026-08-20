@@ -96,6 +96,7 @@ Nothing in it is required — every value has a default in the compose file.
 | `GEMINI_API_KEY` | app | Required only when the provider is `adk_gemini` |
 | `TOOL_HTTP_TIMEOUT_MS` | app | Timeout for the `http_request` tool |
 | `LOG_PAYLOAD_MAX_BYTES` | app | Cap on tool payloads stored in run history |
+| `KNOWLEDGE_MAX_BODY_BYTES` | app | Largest knowledge document accepted, in UTF-8 bytes |
 | `PUBLIC_ORIGIN` | compose | Prod overlay only; the API's CORS fallback |
 | `CLOUDFLARE_TUNNEL_TOKEN` | compose | Prod overlay only |
 

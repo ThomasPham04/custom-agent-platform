@@ -91,8 +91,9 @@ SEED_AGENTS: list[Agent] = [
     ),
 ]
 
-# `model` is deliberately absent. agents/ must not import llm/catalog (enforced by tests/test_structure.py), so AgentService receives default_model
-# from container.py and applies it. Do not "fix" this by adding an import.
+# `model` is deliberately absent. agents/ must not import llm/catalog (enforced
+# by tests/test_structure.py), so AgentService receives default_model from
+# container.py and applies it. Do not "fix" this by adding an import.
 AGENT_DEFAULTS = {
     "name": "New agent",
     "icon": "\U0001f9e9",
