@@ -45,7 +45,7 @@ export const MessageList = ({
   }, [messages]);
 
   return (
-    <div className="message-list">
+    <div className="message-list" data-walkthrough="chat-messages">
       <div className="message-list__live sr-only" role="status" aria-live="polite">
         {announcementFor(messages, agent)}
       </div>

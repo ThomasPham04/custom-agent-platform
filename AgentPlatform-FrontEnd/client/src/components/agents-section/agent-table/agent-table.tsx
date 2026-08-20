@@ -176,7 +176,7 @@ export const AgentTable = ({
   onDuplicate,
   onDelete,
 }: AgentTableProps) => (
-  <table className="agent-table" aria-label="Agents">
+  <table className="agent-table" data-walkthrough="agents-table" aria-label="Agents">
     <thead>
       <tr>
         <th scope="col">Name</th>

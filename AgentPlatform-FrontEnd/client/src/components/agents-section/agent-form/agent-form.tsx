@@ -52,7 +52,7 @@ export const AgentForm = ({
         </div>
       </div>
 
-      <div className="agent-form__row">
+      <div className="agent-form__row" data-walkthrough="agent-model">
         <span className="agent-form__label">Model</span>
         <div className="agent-form__value">
           <Select
@@ -66,7 +66,7 @@ export const AgentForm = ({
         </div>
       </div>
 
-      <div className="agent-form__row agent-form__row--tools">
+      <div className="agent-form__row agent-form__row--tools" data-walkthrough="agent-tools">
         <span className="agent-form__label">Tools</span>
         <div className="agent-form__value">
           <div className="agent-form__chips">

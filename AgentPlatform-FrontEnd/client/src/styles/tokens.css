@@ -14,6 +14,14 @@
   --signal-ring: rgba(27, 111, 196, 0.28);
   --signal-hover: #155fa8;
 
+  /*
+    Text and rules drawn on a solid --signal fill. The walkthrough card is the
+    only surface in the app that inverts like this, and no hardcoded colour is
+    allowed outside this file.
+  */
+  --on-signal: rgba(255, 255, 255, 0.82);
+  --on-signal-rule: rgba(255, 255, 255, 0.32);
+
   /* Reserved for tool-call machinery only. Never a button, link, or heading. */
   --trace: #9065b0;
   --trace-ink: #6940a5;

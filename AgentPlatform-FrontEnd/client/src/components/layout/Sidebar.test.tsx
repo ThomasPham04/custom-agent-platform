@@ -4,11 +4,32 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { Sidebar } from './Sidebar';
 import { ToastProvider } from '../ui/toast';
+import { WALKTHROUGHS } from '../../data/walkthroughs';
 import type { Agent } from '../../types/agent';
 import type { Session } from '../../types/session';
 
 const health = vi.hoisted(() => ({ current: { status: 'online', mode: 'mock' } }));
 vi.mock('../../hooks/useApiHealth', () => ({ useApiHealth: () => health.current }));
+
+// The walkthrough hook is mocked for the same reason as useApiHealth: these
+// tests are about the sidebar, not the walkthrough engine, and mocking it also
+// keeps Spotlight out of a suite that isn't about it.
+const walkthroughApi = vi.hoisted(() => ({ start: vi.fn() }));
+vi.mock('../../hooks/useWalkthrough', async () => {
+  const { WALKTHROUGHS: catalog } = await import('../../data/walkthroughs');
+  return {
+    useWalkthroughContext: () => ({
+      active: null,
+      index: 0,
+      step: null,
+      catalog,
+      start: walkthroughApi.start,
+      next: vi.fn(),
+      prev: vi.fn(),
+      skip: vi.fn(),
+    }),
+  };
+});
 
 // The sidebar now reads the shared session list, and useSessionsContext throws
 // outside a provider. Mocked the same way as useApiHealth so these tests stay
@@ -95,6 +116,7 @@ beforeEach(() => {
     adopt: vi.fn(),
     refresh: vi.fn(),
   };
+  walkthroughApi.start.mockClear();
 });
 
 describe('Sidebar', () => {
@@ -269,5 +291,25 @@ describe('Sidebar', () => {
     expect(screen.getByText('connected · live')).toBeInTheDocument();
 
     health.current = { status: 'online', mode: 'mock' };
+  });
+
+  it('offers a walkthrough from the bottom of the sidebar', () => {
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Walkthrough' })).toBeInTheDocument();
+  });
+
+  it('lists every walkthrough on offer', async () => {
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: 'Walkthrough' }));
+    for (const walkthrough of WALKTHROUGHS) {
+      expect(screen.getByRole('button', { name: new RegExp(walkthrough.name) })).toBeInTheDocument();
+    }
+  });
+
+  it('starts the one that was chosen', async () => {
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: 'Walkthrough' }));
+    await userEvent.click(screen.getByRole('button', { name: /Create an agent/ }));
+    expect(walkthroughApi.start).toHaveBeenCalledWith('create-agent');
   });
 });

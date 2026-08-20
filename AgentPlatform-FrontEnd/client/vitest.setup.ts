@@ -20,3 +20,15 @@ if (!window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList;
 }
+
+// jsdom does not implement ResizeObserver, which the walkthrough uses to keep
+// the cutout aligned when a target resizes without a scroll or resize event.
+if (!globalThis.ResizeObserver) {
+  // Cast for the same reason the matchMedia stub above casts: a stub only has
+  // to satisfy the calls this app makes, not the whole DOM interface.
+  globalThis.ResizeObserver = class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as typeof ResizeObserver;
+}

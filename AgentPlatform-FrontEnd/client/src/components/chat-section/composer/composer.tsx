@@ -19,7 +19,7 @@ export const Composer = ({ agentName, disabled, onSend }: ComposerProps) => {
   };
 
   return (
-    <div className="composer">
+    <div className="composer" data-walkthrough="chat-composer">
       <div className="composer__field">
         <AutoTextarea
           label={`Message ${agentName}`}

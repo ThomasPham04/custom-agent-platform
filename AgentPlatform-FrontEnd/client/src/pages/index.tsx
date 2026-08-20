@@ -15,6 +15,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Navigate to="/agents" replace />} />
     <Route path="/agents" element={<AgentsPage />} />
+    <Route path="/agents/new" element={<AgentsPage />} />
     <Route path="/agents/:agentId" element={<AgentsPage />} />
     <Route path="/chat" element={<ChatPage />} />
     {/* One param, two id kinds: sess_* opens that chat, agent_* opens the

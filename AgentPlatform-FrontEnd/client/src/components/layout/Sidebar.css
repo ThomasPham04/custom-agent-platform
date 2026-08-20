@@ -191,7 +191,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-top: auto;
   padding: var(--space-4) var(--space-3);
   border-top: 1px solid var(--rule);
 }
@@ -212,6 +211,45 @@
 }
 
 .sidebar__health {
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+/*
+  Carries the margin-top: auto that used to sit on .sidebar__footer. It is what
+  pins this pair to the bottom of the rail.
+*/
+.sidebar__walkthrough {
+  margin-top: auto;
+  margin-inline: var(--space-3);
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-ui);
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-align: left;
+}
+
+.sidebar__walkthrough:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* popover__item is a 28px row; a name over a summary needs two. */
+.sidebar__walkthrough-option {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  height: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.sidebar__walkthrough-name {
+  font-weight: 500;
+}
+
+.sidebar__walkthrough-summary {
   font-size: var(--text-meta);
   color: var(--ink-muted);
 }

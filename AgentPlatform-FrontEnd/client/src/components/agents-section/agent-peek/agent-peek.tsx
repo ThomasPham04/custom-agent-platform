@@ -111,6 +111,7 @@ export const AgentPeek = ({
       role="dialog"
       aria-modal={isSheet ? 'true' : 'false'}
       aria-label={`Agent ${agent.name}`}
+      data-walkthrough="agent-panel"
     >
       <div className="agent-peek__header">
         <button
@@ -154,6 +155,7 @@ export const AgentPeek = ({
           type="text"
           className="agent-peek__name"
           aria-label="Agent name"
+          data-walkthrough="agent-name"
           value={agent.name}
           onChange={(event) => onChange({ name: event.target.value })}
         />
@@ -210,6 +212,7 @@ export const AgentPeek = ({
                 className="button button--primary button--sm"
                 disabled={saving}
                 onClick={onSaveDraft}
+                data-walkthrough="agent-save"
               >
                 {saving ? 'Saving…' : 'Save agent'}
               </button>

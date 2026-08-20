@@ -6,6 +6,7 @@ import { SessionRow } from './session-row';
 import { useApiHealth, type ApiHealth } from '../../hooks/useApiHealth';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useSessionsContext } from '../../hooks/useSessions';
+import { useWalkthroughContext } from '../../hooks/useWalkthrough';
 import type { Agent } from '../../types/agent';
 import './Sidebar.css';
 
@@ -48,6 +49,9 @@ export const Sidebar = ({
   const [chatsExpanded, setChatsExpanded] = useState(true);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const workspaceRef = useRef<HTMLButtonElement>(null);
+  const walkthroughRef = useRef<HTMLButtonElement>(null);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  const { catalog, start } = useWalkthroughContext();
   const health = useApiHealth();
   const navigate = useNavigate();
   const { sessions, loading } = useSessionsContext();
@@ -63,6 +67,7 @@ export const Sidebar = ({
   return (
     <nav
       ref={navigationRef}
+      data-walkthrough="sidebar"
       className={['sidebar', open ? 'sidebar--open' : ''].filter(Boolean).join(' ')}
       aria-label="Workspace"
       aria-hidden={isDrawer && !open ? 'true' : undefined}
@@ -104,7 +109,7 @@ export const Sidebar = ({
       */}
       <div className="sidebar__group">
         <span className="sidebar__disclosure sidebar__disclosure--spacer" aria-hidden="true" />
-        <NavLink to="/agents" className="sidebar__item" onClick={onClose}>
+        <NavLink to="/agents" className="sidebar__item" data-walkthrough="sidebar-agents" onClick={onClose}>
           <span className="sidebar__item-icon" aria-hidden="true">
             ▤
           </span>
@@ -148,7 +153,7 @@ export const Sidebar = ({
       </div>
 
       {chatsExpanded && (
-        <ul className="sidebar__children">
+        <ul className="sidebar__children" data-walkthrough="sidebar-chats">
           {sessions.map((item) => (
             <li key={item.id}>
               <SessionRow session={item} agent={agentsById.get(item.agentId)} onClose={onClose} />
@@ -161,6 +166,46 @@ export const Sidebar = ({
           )}
         </ul>
       )}
+
+      <button
+        ref={walkthroughRef}
+        type="button"
+        className="sidebar__walkthrough"
+        onClick={() => setWalkthroughOpen(true)}
+      >
+        Walkthrough
+      </button>
+
+      <Popover
+        open={walkthroughOpen}
+        onClose={() => setWalkthroughOpen(false)}
+        anchor={walkthroughRef}
+        label="Walkthroughs"
+        width={248}
+      >
+        {catalog.map((walkthrough) => (
+          <button
+            key={walkthrough.id}
+            type="button"
+            className="popover__item sidebar__walkthrough-option"
+            onClick={() => {
+              setWalkthroughOpen(false);
+              // The drawer is in the way of everything a walkthrough points at.
+              onClose();
+              /*
+                Focus the trigger before starting: the provider captures whatever is
+                focused, and this option button unmounts with the popover, leaving it
+                with a disconnected element and nowhere to return focus to.
+              */
+              walkthroughRef.current?.focus();
+              start(walkthrough.id);
+            }}
+          >
+            <span className="sidebar__walkthrough-name">{walkthrough.name}</span>
+            <span className="sidebar__walkthrough-summary">{walkthrough.summary}</span>
+          </button>
+        ))}
+      </Popover>
 
       <div className="sidebar__footer">
         <span className={`sidebar__dot sidebar__dot--${health.status}`} aria-hidden="true" />

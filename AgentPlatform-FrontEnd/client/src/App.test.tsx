@@ -34,6 +34,9 @@ const json = (body: unknown, status = 200) =>
 beforeEach(() => {
   viewport.narrow = false;
   window.history.pushState({}, '', '/agents');
+  // This suite is about the shell, not the walkthrough: suppress the
+  // first-visit auto-start so its overlay doesn't steal focus mid-test.
+  localStorage.setItem('agentPlatform.walkthroughSeen', '1');
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -42,6 +45,13 @@ beforeEach(() => {
       if (url.includes('/api/tools')) return json([]);
       // Sessions are a distinct shape; the catch-all below would serve agents here.
       if (url.includes('/api/sessions')) return json([]);
+      /*
+        Triggers are a distinct shape too, and getting this wrong is not a quiet
+        failure: AgentTriggers renders scheduleLabel for every row, which reads
+        trigger.weekdays, and an agent served here has no such field. That threw
+        inside render and took the whole agent panel down with it.
+      */
+      if (url.includes('/api/triggers')) return json([]);
       return json([agent]);
     }),
   );
@@ -118,6 +128,9 @@ describe('new agent draft', () => {
         if (url.includes('/api/tools')) return json([]);
         // Sessions are a distinct shape; the catch-all below would serve agents here.
         if (url.includes('/api/sessions')) return json([]);
+        // Triggers likewise: an agent served here has no weekdays, and
+        // scheduleLabel reads it while rendering every row.
+        if (url.includes('/api/triggers') && (init?.method ?? 'GET') === 'GET') return json([]);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           const body = init?.body ? JSON.parse(String(init.body)) : null;
@@ -221,6 +234,37 @@ describe('new agent draft', () => {
     await waitFor(() => expect(screen.getByRole('row', { name: /Billing Bot/ })).toBeInTheDocument());
     expect(attempts).toBe(2);
   });
+
+  it('opens a draft panel directly at /agents/new and closes it when the route changes', async () => {
+    stubApi(() => json(created, 201));
+    window.history.pushState({}, '', '/agents/new');
+    render(<App />);
+
+    const name = await screen.findByRole('textbox', { name: 'Agent name' });
+    expect(name).toHaveValue('New agent');
+    expect(screen.getByRole('button', { name: 'Save agent' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close panel' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.location.pathname).toBe('/agents');
+  });
+
+  it('creates no agent when /agents/new is visited and abandoned', async () => {
+    const calls = stubApi(() => json(created, 201));
+    window.history.pushState({}, '', '/agents/new');
+    render(<App />);
+
+    const name = await screen.findByRole('textbox', { name: 'Agent name' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Ghost Bot');
+    await userEvent.click(screen.getByRole('button', { name: 'Close panel' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls).toEqual([]);
+    expect(screen.getByText('1 agent')).toBeInTheDocument();
+    expect(screen.queryByText('Ghost Bot')).not.toBeInTheDocument();
+  });
 });
 
 describe('existing agent manual save', () => {
@@ -244,6 +288,9 @@ describe('existing agent manual save', () => {
         if (url.includes('/api/health')) return json({ status: 'ok', mode: 'mock' });
         if (url.includes('/api/tools')) return json([tool]);
         if (url.includes('/api/sessions')) return json([]);
+        // Triggers likewise: an agent served here has no weekdays, and
+        // scheduleLabel reads it while rendering every row.
+        if (url.includes('/api/triggers') && (init?.method ?? 'GET') === 'GET') return json([]);
         const method = init?.method ?? 'GET';
         if (method === 'PATCH') {
           const body = JSON.parse(String(init?.body)) as Record<string, unknown>;

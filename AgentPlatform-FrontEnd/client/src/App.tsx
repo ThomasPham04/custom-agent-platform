@@ -12,6 +12,7 @@ import { ToastProvider } from './components/ui/toast';
 import { BREAKPOINT_SIDEBAR, useMediaQuery } from './hooks/useMediaQuery';
 import { AgentsProvider, useAgentsContext } from './hooks/useAgents';
 import { SessionsProvider } from './hooks/useSessions';
+import { WalkthroughProvider } from './hooks/useWalkthrough';
 import AppRoutes from './pages';
 import './App.css';
 
@@ -105,7 +106,9 @@ const App = () => (
       <AgentsProvider>
         {/* One session list for the whole app: the sidebar and the chat page share it. */}
         <SessionsProvider>
-          <Shell />
+          <WalkthroughProvider>
+            <Shell />
+          </WalkthroughProvider>
         </SessionsProvider>
       </AgentsProvider>
     </ToastProvider>

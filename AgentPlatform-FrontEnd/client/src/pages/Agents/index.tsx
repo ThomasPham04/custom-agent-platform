@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { AgentPeek } from '../../components/agents-section/agent-peek';
 import { AgentTable } from '../../components/agents-section/agent-table';
 import { Button } from '../../components/ui/button';
@@ -86,6 +86,7 @@ const SavedAgentEditor = ({
 
 const AgentsPage = () => {
   const { agentId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { show } = useToast();
   const {
@@ -106,7 +107,20 @@ const AgentsPage = () => {
   const [focusNameId, setFocusNameId] = useState<string | null>(null);
   // The draft lives here and nowhere else, so abandoning it costs one setState
   // and leaves no row on the server and no entry in the shared agent list.
+  // Route-driven so the walkthrough (and a deep link) can open it from outside
+  // this component: /agents/new means "draft open", anything else means closed.
   const [draft, setDraft] = useState<AgentDraft | null>(null);
+  const isNewRoute = location.pathname === '/agents/new';
+
+  // A draft and an open agent are the same slot on screen, so opening one
+  // closes the other. Idempotent under StrictMode's double-invoke: the
+  // functional update only creates a draft when one doesn't already exist.
+  useEffect(() => {
+    setDraft((current) => {
+      if (!isNewRoute) return null;
+      return current ?? newAgentDraft();
+    });
+  }, [isNewRoute]);
 
   const query = filter.trim().toLowerCase();
 
@@ -119,10 +133,7 @@ const AgentsPage = () => {
   }, [agents, query]);
 
   const onCreate = () => {
-    // A draft and an open agent are the same slot on screen, so the panel that
-    // was open closes first.
-    navigate('/agents');
-    setDraft(newAgentDraft());
+    navigate('/agents/new');
   };
 
   const onSaveDraft = async () => {
@@ -198,7 +209,7 @@ const AgentsPage = () => {
           </p>
           )}
 
-        <div className="agents__viewbar">
+        <div className="agents__viewbar" data-walkthrough="agents-viewbar">
           <span className="agents__count mono">
             {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
           </span>
@@ -210,7 +221,7 @@ const AgentsPage = () => {
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
-          <Button variant="primary" onClick={onCreate}>
+          <Button variant="primary" data-walkthrough="agents-new" onClick={onCreate}>
             New agent
           </Button>
         </div>
@@ -265,7 +276,7 @@ const AgentsPage = () => {
           onChange={(patch) => setDraft((current) => (current ? { ...current, ...patch } : current))}
           onDelete={() => {}}
           onSaveDraft={() => void onSaveDraft()}
-          onClose={() => setDraft(null)}
+          onClose={() => navigate('/agents')}
         />
       )}
 

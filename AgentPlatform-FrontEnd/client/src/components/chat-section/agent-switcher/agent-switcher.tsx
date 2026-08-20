@@ -57,7 +57,7 @@ export const AgentSwitcher = ({ agents, selected, onSelect }: AgentSwitcherProps
 
   return (
     <>
-      <button ref={anchor} type="button" className="agent-switcher" onClick={openSwitcher}>
+      <button ref={anchor} type="button" className="agent-switcher" data-walkthrough="chat-agent-switcher" onClick={openSwitcher}>
         <span className="agent-switcher__icon" aria-hidden="true">
           {selected?.icon ?? '▤'}
         </span>

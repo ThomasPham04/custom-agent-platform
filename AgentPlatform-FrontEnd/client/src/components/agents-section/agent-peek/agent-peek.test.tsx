@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRef, useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -33,6 +33,24 @@ const defaults = {
   onDelete: () => {},
   onClose: () => {},
 };
+
+/*
+  The panel embeds AgentTriggers, which fetches on mount. Left unstubbed it
+  renders "Can't reach the server" — a second role="alert" that collides with
+  the save-error assertions below. An empty list is the honest default: these
+  tests are about the panel, not about schedules.
+*/
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ),
+  );
+});
 
 afterEach(() => vi.unstubAllGlobals());
 

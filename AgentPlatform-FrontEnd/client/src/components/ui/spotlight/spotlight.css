@@ -1,0 +1,142 @@
+/*
+  One element paints the dim and the hole together: a 9999px box-shadow spread
+  covers the viewport everywhere except the cutout's own box. Four surrounding
+  panels would need seam arithmetic, and an SVG mask a second coordinate system.
+*/
+.spotlight {
+  position: fixed;
+  inset: 0;
+  /* Above Popover, which sits at 40. */
+  z-index: 60;
+}
+
+/*
+  Both variants lack a cutout to paint the box-shadow trick against, so both
+  need the scrim painted directly on the overlay itself: centered has no
+  target to cut a hole around, and pending does not know the hole's shape yet.
+*/
+.spotlight--centered,
+.spotlight--pending {
+  background: var(--scrim);
+}
+
+.spotlight__cutout {
+  position: fixed;
+  border: 2px solid var(--signal-ring);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 9999px var(--scrim);
+  pointer-events: none;
+  animation: spotlight-pulse var(--dur-slow) var(--ease);
+}
+
+/*
+  One pulse on arrival so the eye finds the target after a route change. Not a
+  loop. tokens.css collapses --dur-slow to 1ms under prefers-reduced-motion, so
+  this needs no media query of its own.
+*/
+@keyframes spotlight-pulse {
+  from {
+    box-shadow:
+      0 0 0 9999px var(--scrim),
+      0 0 0 0 var(--signal-ring);
+  }
+  to {
+    box-shadow:
+      0 0 0 9999px var(--scrim),
+      0 0 0 12px transparent;
+  }
+}
+
+.spotlight__card {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  /* Long copy on a landscape phone must scroll, not clip silently. */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: var(--space-6);
+  background: var(--signal);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  color: var(--paper);
+}
+
+.spotlight--centered .spotlight__card {
+  top: 50%;
+  left: 50%;
+  width: 380px;
+  transform: translate(-50%, -50%);
+}
+
+.spotlight__skip {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--on-signal);
+}
+
+.spotlight__skip:hover {
+  color: var(--paper);
+}
+
+.spotlight__title {
+  margin: 0 var(--space-7) var(--space-3) 0;
+  font-size: var(--text-heading);
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.spotlight__body {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-ui);
+  line-height: 1.5;
+  color: var(--on-signal);
+}
+
+.spotlight__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.spotlight__count {
+  font-size: var(--text-meta);
+  color: var(--on-signal);
+}
+
+.spotlight__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.spotlight__button {
+  height: 28px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--on-signal-rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--text-ui);
+  font-weight: 500;
+  color: var(--paper);
+}
+
+.spotlight__button:hover:not(:disabled) {
+  border-color: var(--paper);
+}
+
+.spotlight__button:disabled {
+  opacity: 0.4;
+}
+
+.spotlight__button--primary {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--signal);
+}

@@ -18,6 +18,21 @@ vi.mock('../../../hooks/useSessions', () => ({
   }),
 }));
 
+// Same reasoning: the sidebar also reads the walkthrough context, which throws
+// outside its provider. This file is about the chevron, not the walkthrough.
+vi.mock('../../../hooks/useWalkthrough', () => ({
+  useWalkthroughContext: () => ({
+    active: null,
+    index: 0,
+    step: null,
+    catalog: [],
+    start: vi.fn(),
+    next: vi.fn(),
+    prev: vi.fn(),
+    skip: vi.fn(),
+  }),
+}));
+
 /**
  * U+2304 is missing from the UI font stack, so the browser substituted whatever
  * font had it — a small "v" sitting below the baseline. Every chevron is drawn
