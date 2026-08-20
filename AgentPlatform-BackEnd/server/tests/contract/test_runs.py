@@ -133,3 +133,21 @@ async def test_delete_for_an_unknown_agent_is_idempotent(client):
     res = client.delete("/api/runs?agentId=agent_missing")
 
     assert res.status_code == 204
+
+
+def test_runs_can_be_filtered_by_session(client):
+    response = client.get("/api/runs?sessionId=sess_missing")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_supplying_both_filters_is_a_client_error(client):
+    """The two filters can disagree. Silently honouring one would hide it."""
+    response = client.get("/api/runs?agentId=agent_support&sessionId=sess_1")
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "code": "bad_request",
+            "message": "Pass agentId or sessionId, not both.",
+        }
+    }

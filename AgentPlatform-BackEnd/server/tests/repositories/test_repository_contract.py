@@ -5,8 +5,11 @@ fails and the other passes, the port has been broken, which is precisely the
 failure this file exists to catch.
 """
 
+from datetime import UTC, datetime
+
 from app.modules.agents.schemas import Agent
 from app.modules.runs.schemas import Run, RunToolCall
+from app.modules.sessions.schemas import Session
 
 
 def make_agent(agent_id: str, updated_at: str = "2026-08-04T12:00:00+00:00") -> Agent:
@@ -29,6 +32,7 @@ def make_run(
     agent_id: str = "agent_a",
     created_at: str = "2026-08-04T12:00:00+00:00",
     with_calls: bool = True,
+    session_id: str | None = None,
 ) -> Run:
     return Run(
         id=run_id,
@@ -41,7 +45,7 @@ def make_run(
         status="done",
         error=None,
         latency_ms=298,
-        session_id=None,
+        session_id=session_id,
         created_at=created_at,
         tool_calls=[
             RunToolCall(
@@ -236,3 +240,173 @@ async def test_delete_by_agent_is_idempotent_for_an_unknown_agent(run_repo):
 
     assert removed == 0
     assert [r.id for r in await run_repo.list(agent_id=None, limit=50)] == ["run_b1"]
+
+
+async def test_list_by_session_returns_only_that_session_newest_first(run_repo):
+    await run_repo.append(
+        make_run("run_1a", session_id="sess_1", created_at="2026-08-01T12:00:00+00:00")
+    )
+    await run_repo.append(
+        make_run("run_1b", session_id="sess_1", created_at="2026-08-09T12:00:00+00:00")
+    )
+    await run_repo.append(
+        make_run("run_2a", session_id="sess_2", created_at="2026-08-05T12:00:00+00:00")
+    )
+
+    listed = await run_repo.list_by_session("sess_1", limit=50)
+
+    assert [r.id for r in listed] == ["run_1b", "run_1a"]
+
+
+async def test_list_by_session_respects_limit(run_repo):
+    await run_repo.append(
+        make_run("run_old", session_id="sess_1", created_at="2026-08-01T12:00:00+00:00")
+    )
+    await run_repo.append(
+        make_run("run_new", session_id="sess_1", created_at="2026-08-09T12:00:00+00:00")
+    )
+
+    listed = await run_repo.list_by_session("sess_1", limit=1)
+
+    assert [r.id for r in listed] == ["run_new"]
+
+
+async def test_list_by_session_carries_tool_calls_in_seq_order(run_repo):
+    """The Postgres path stitches children back in a second query; this is the
+    part most likely to be wrong."""
+    await run_repo.append(make_run("run_a", session_id="sess_1", with_calls=True))
+
+    listed = await run_repo.list_by_session("sess_1", limit=50)
+
+    assert [c.seq for c in listed[0].tool_calls] == [0, 1]
+    assert [c.tool_id for c in listed[0].tool_calls] == ["current_time", "http_request"]
+
+
+async def test_delete_by_session_removes_only_that_sessions_runs(run_repo):
+    await run_repo.append(make_run("run_1a", session_id="sess_1"))
+    await run_repo.append(make_run("run_1b", session_id="sess_1"))
+    await run_repo.append(make_run("run_2a", session_id="sess_2"))
+
+    removed = await run_repo.delete_by_session("sess_1")
+
+    assert removed == 2
+    assert await run_repo.list_by_session("sess_1", limit=50) == []
+    assert [r.id for r in await run_repo.list_by_session("sess_2", limit=50)] == ["run_2a"]
+
+
+async def test_delete_by_session_is_idempotent_for_an_unknown_session(run_repo):
+    await run_repo.append(make_run("run_2a", session_id="sess_2"))
+
+    removed = await run_repo.delete_by_session("sess_missing")
+
+    assert removed == 0
+    assert [r.id for r in await run_repo.list_by_session("sess_2", limit=50)] == ["run_2a"]
+
+
+async def test_assign_session_attaches_the_given_runs(run_repo):
+    """What the startup backfill relies on to rescue history predating
+    sessions (spec §6)."""
+    await run_repo.append(make_run("run_a", session_id=None))
+    await run_repo.append(make_run("run_b", session_id=None))
+    await run_repo.append(make_run("run_c", session_id=None))
+
+    await run_repo.assign_session(["run_a", "run_b"], "sess_1")
+
+    listed = await run_repo.list_by_session("sess_1", limit=50)
+    assert {r.id for r in listed} == {"run_a", "run_b"}
+    assert (await run_repo.get("run_c")).session_id is None
+
+
+async def test_assign_session_ignores_an_unknown_run_id(run_repo):
+    await run_repo.append(make_run("run_a", session_id=None))
+
+    # Must not raise: the backfill hands over exactly the ids it just read.
+    await run_repo.assign_session(["run_a", "run_missing"], "sess_1")
+
+    assert (await run_repo.get("run_a")).session_id == "sess_1"
+
+
+async def test_list_orphans_returns_only_session_less_runs(run_repo):
+    await run_repo.append(make_run("run_a", session_id=None))
+    await run_repo.append(make_run("run_b", session_id="sess_1"))
+
+    orphans = await run_repo.list_orphans(limit=50)
+
+    assert [r.id for r in orphans] == ["run_a"]
+
+
+async def test_list_orphans_is_oldest_first(run_repo):
+    """The inverse of list(): the backfill drains the table from the front,
+    so an already-migrated run can never reoccupy a later window."""
+    await run_repo.append(
+        make_run("run_new", created_at="2026-08-09T12:00:00+00:00", session_id=None)
+    )
+    await run_repo.append(
+        make_run("run_old", created_at="2026-08-01T12:00:00+00:00", session_id=None)
+    )
+
+    orphans = await run_repo.list_orphans(limit=50)
+
+    assert [r.id for r in orphans] == ["run_old", "run_new"]
+
+
+async def test_list_orphans_respects_the_limit(run_repo):
+    await run_repo.append(
+        make_run("run_old", created_at="2026-08-01T12:00:00+00:00", session_id=None)
+    )
+    await run_repo.append(
+        make_run("run_new", created_at="2026-08-09T12:00:00+00:00", session_id=None)
+    )
+
+    orphans = await run_repo.list_orphans(limit=1)
+
+    assert [r.id for r in orphans] == ["run_old"]
+
+
+# --- sessions ---------------------------------------------------------------
+
+
+async def test_sessions_round_trip(session_repo):
+    await session_repo.create(
+        Session(
+            id="sess_a",
+            agent_id="agent_support",
+            title="Refund question",
+            created_at=datetime(2026, 8, 16, 9, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 8, 16, 9, 0, tzinfo=UTC),
+        )
+    )
+    stored = await session_repo.get("sess_a")
+    assert stored.agent_id == "agent_support"
+    assert stored.title == "Refund question"
+
+
+async def test_sessions_list_orders_by_recent_activity(session_repo):
+    for index, hour in ((1, 8), (2, 10)):
+        await session_repo.create(
+            Session(
+                id=f"sess_{index}",
+                agent_id="agent_support",
+                title=f"Chat {index}",
+                created_at=datetime(2026, 8, 16, hour, tzinfo=UTC),
+                updated_at=datetime(2026, 8, 16, hour, tzinfo=UTC),
+            )
+        )
+    assert [s.id for s in await session_repo.list(limit=50)] == ["sess_2", "sess_1"]
+
+
+async def test_rename_of_an_unknown_session_returns_none(session_repo):
+    assert await session_repo.rename("sess_missing", "x") is None
+
+
+async def test_delete_by_agent_counts_removed_rows(session_repo):
+    await session_repo.create(
+        Session(
+            id="sess_a",
+            agent_id="agent_support",
+            title="A",
+            created_at=datetime(2026, 8, 16, 9, tzinfo=UTC),
+            updated_at=datetime(2026, 8, 16, 9, tzinfo=UTC),
+        )
+    )
+    assert await session_repo.delete_by_agent("agent_support") == 1
