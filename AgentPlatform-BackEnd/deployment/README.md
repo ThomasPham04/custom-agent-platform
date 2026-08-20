@@ -129,6 +129,67 @@ It is a separate file on purpose. `docker-compose.yml` has to stay zero-config s
 that a fresh clone runs with one command — a base file provisioning certificates
 for a domain it does not own would fail everywhere else.
 
+## Automatic production deploys
+
+`.github/workflows/deploy-production.yml` deploys every successful push to
+`main`. It first runs the frontend test suite and production build on a
+GitHub-hosted runner. Only then does it run the production Compose command on a
+repository-scoped self-hosted runner installed on the Docker host. Deployments
+are serialized, so a new push waits for any active deploy rather than cancelling
+an in-progress Compose operation.
+
+### One-time runner setup
+
+1. On the production host, install a current GitHub Actions self-hosted runner
+   from **Repository settings → Actions → Runners → New self-hosted runner**.
+   Register it to this repository only, select Linux, and add the
+   `production` label during setup.
+2. Run the runner as a dedicated service account with permission to use Docker.
+   Confirm that account can run `docker compose version` without `sudo`.
+3. Store the Compose environment file outside the Actions checkout, because
+   `actions/checkout` removes ignored files by default:
+
+   ```bash
+   sudo install -d -m 750 /etc/agent-platform
+   sudo cp .env.example /etc/agent-platform/production.env
+   sudo chmod 640 /etc/agent-platform/production.env
+   ```
+
+   Set the production values in `/etc/agent-platform/production.env`, including
+   `PUBLIC_ORIGIN` and `CLOUDFLARE_TUNNEL_TOKEN`. Make the file readable by the
+   runner service account and keep it off all Git working trees.
+4. Protect `main`: require pull-request review and required checks before merge.
+   The production runner can run Docker commands on the host, so it must never
+   execute untrusted pull-request workflows. This workflow triggers only on
+   trusted pushes to `main`.
+
+The deployment job passes `/etc/agent-platform/production.env` explicitly with
+`--env-file`, validates the merged Compose configuration, and runs:
+
+```bash
+docker compose --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  up -d --build --wait --wait-timeout 120
+```
+
+It then confirms the services are listed by Compose and that nginx responds at
+the published `web:80` port. A redirect to the configured password gate is a
+valid response.
+
+### Manual rollback
+
+This deployment builds from the checked-out source, so retain known-good commit
+SHAs. To roll back after a failed or unsuitable release, check out one on the
+production host and apply the same production command:
+
+```bash
+git checkout <known-good-commit>
+cd AgentPlatform-BackEnd/deployment
+docker compose --env-file /etc/agent-platform/production.env \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  up -d --build --wait --wait-timeout 120
+```
+
 **Gate a public instance, or keep it on `mock`.** The API has no authentication
 of its own, so an ungated instance running `adk_gemini` lets anyone spend your
 Gemini credit. Either set `WEB_PASSWORD` in `.env` — nginx then demands a cookie
