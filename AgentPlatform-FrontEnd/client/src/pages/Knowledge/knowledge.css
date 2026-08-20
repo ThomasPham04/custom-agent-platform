@@ -1,5 +1,12 @@
 /* Shell rules transcribed from agents.css so the two pages read as one
    product: same padding scale, same title treatment, same breakpoint. */
+.knowledge-surface {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .knowledge {
   flex: 1;
   min-width: 0;

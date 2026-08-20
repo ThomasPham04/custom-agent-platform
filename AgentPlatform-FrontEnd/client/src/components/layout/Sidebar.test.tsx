@@ -138,6 +138,15 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /Chat/ })).toBeInTheDocument();
   });
 
+  it('uses vector icons for the workspace navigation', () => {
+    renderSidebar();
+
+    for (const name of ['Agents', 'Knowledge', 'Chat']) {
+      expect(screen.getByRole('link', { name: new RegExp(`^${name}$`) }).querySelector('svg'))
+        .toHaveAttribute('aria-hidden', 'true');
+    }
+  });
+
   it('links to the knowledge library', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /Knowledge/ })).toHaveAttribute(

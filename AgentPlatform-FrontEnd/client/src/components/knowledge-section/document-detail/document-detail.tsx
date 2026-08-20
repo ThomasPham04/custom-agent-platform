@@ -1,8 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { useModalFocus } from '../../../hooks/useModalFocus';
-import type { DocumentDraft, KnowledgeDocument } from '../../../types/knowledge';
-import { DocumentForm } from '../document-form/document-form';
-import './document-detail.css';
+import { useEffect, useRef } from "react";
+import { BREAKPOINT_SHEET, useMediaQuery } from "../../../hooks/useMediaQuery";
+import { useModalFocus } from "../../../hooks/useModalFocus";
+import type {
+  DocumentDraft,
+  KnowledgeDocument,
+} from "../../../types/knowledge";
+import { DocumentForm } from "../document-form/document-form";
+import "./document-detail.css";
 
 interface DocumentDetailProps {
   document: KnowledgeDocument;
@@ -10,24 +14,45 @@ interface DocumentDetailProps {
   onClose: () => void;
 }
 
-export const DocumentDetail = ({ document, onSave, onClose }: DocumentDetailProps) => {
+export const DocumentDetail = ({
+  document,
+  onSave,
+  onClose,
+}: DocumentDetailProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const isSheet = useMediaQuery(BREAKPOINT_SHEET);
 
-  // The same hook the Agents peek uses, rather than a second implementation:
-  // it traps Tab inside the panel and returns focus to whatever opened it.
-  useModalFocus({ active: true, containerRef: panelRef });
+  /*
+    Focus is trapped only in the sheet, which is the one shape that covers the
+    page. Beside the list the panel is a column like any other, and trapping
+    Tab there would strand a keyboard user inside an editor they can see past.
+    Same rule, same hook, as the agent panel.
+  */
+  useModalFocus({
+    active: isSheet,
+    containerRef: panelRef,
+    isolateOutside: true,
+  });
 
-  // Esc closes the peek, matching the Agents peek and the popover.
+  // Esc closes the peek, matching the agent panel and the popover.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === "Escape") onClose();
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   return (
-    <div className="document-detail" ref={panelRef} role="dialog" aria-label={document.title}>
+    <div
+      className={["document-detail", isSheet ? "document-detail--sheet" : ""]
+        .filter(Boolean)
+        .join(" ")}
+      ref={panelRef}
+      role="dialog"
+      aria-modal={isSheet ? "true" : "false"}
+      aria-label={document.title}
+    >
       <header className="document-detail__header">
         <h2 className="document-detail__title">{document.title}</h2>
         <button
@@ -36,7 +61,21 @@ export const DocumentDetail = ({ document, onSave, onClose }: DocumentDetailProp
           aria-label="Close"
           onClick={onClose}
         >
-          ✕
+          <svg
+            viewBox="0 0 14 14"
+            width="12"
+            height="12"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M3 3l8 8M11 3l-8 8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
       </header>
       {/*
@@ -46,6 +85,7 @@ export const DocumentDetail = ({ document, onSave, onClose }: DocumentDetailProp
       */}
       <DocumentForm
         key={document.id}
+        variant="panel"
         initial={{ title: document.title, body: document.body }}
         submitLabel="Save changes"
         onSubmit={onSave}

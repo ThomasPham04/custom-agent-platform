@@ -1,44 +1,61 @@
+/*
+  A column beside the list, not a sheet of paper floating over it: the same
+  shape and the same width as the agent panel, so the two editing surfaces in
+  the product are recognisably the same thing.
+*/
 .document-detail {
-  position: fixed;
-  top: var(--topbar-height);
-  right: 0;
-  bottom: 0;
-  z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
-  width: min(var(--peek-width), 100vw);
-  padding: var(--space-7);
-  overflow-y: auto;
+  flex: 0 0 var(--peek-width);
+  width: var(--peek-width);
+  height: 100%;
   border-left: 1px solid var(--rule);
   background: var(--paper);
   box-shadow: var(--shadow-peek);
+  animation: document-detail-in var(--dur-slow) var(--ease);
+}
+
+@keyframes document-detail-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .document-detail {
+    animation: none;
+  }
 }
 
 .document-detail__header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-5);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-7) var(--space-5);
 }
 
 .document-detail__title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-peek-title);
   font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .document-detail__close {
-  flex: none;
-  padding: var(--space-3) var(--space-4);
-  border: none;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-sm);
-  background: none;
   color: var(--ink-muted);
-  font-size: var(--text-ui);
-  cursor: pointer;
 }
 
 .document-detail__close:hover {
@@ -46,21 +63,50 @@
   color: var(--ink);
 }
 
-.document-detail__close:focus-visible {
-  outline: 2px solid var(--signal);
-  outline-offset: 2px;
-}
+/* Under 700px the list has no room to give, so the panel becomes a sheet —
+   the same fallback, and the same handle, as the agent panel. */
+@media (max-width: 700px) {
+  .document-detail--sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 55;
+    flex: none;
+    width: 100%;
+    height: 92vh;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-sheet);
+    animation: document-detail-sheet-in var(--dur-slow) var(--ease);
+  }
 
-/* The peek slides in, except for readers who asked it not to. */
-@media (prefers-reduced-motion: no-preference) {
-  .document-detail {
-    animation: document-detail-in 160ms ease-out;
+  @keyframes document-detail-sheet-in {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+
+  .document-detail--sheet .document-detail__header {
+    position: relative;
+    padding-top: var(--space-7);
+  }
+
+  .document-detail--sheet .document-detail__header::before {
+    content: "";
+    position: absolute;
+    top: var(--space-3);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--rule);
   }
 }
 
-@keyframes document-detail-in {
-  from {
-    transform: translateX(12px);
-    opacity: 0;
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .document-detail--sheet {
+    animation: none;
   }
 }

@@ -1,11 +1,48 @@
 .document-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+}
+
+/* On the page the form is a card. In the peek the panel already draws the
+   frame, so the same markup goes flat and fills the column instead. */
+.document-form--card {
+  gap: var(--space-6);
   padding: var(--space-6);
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--paper);
+}
+
+.document-form--panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.document-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.document-form--panel .document-form__fields {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--space-7) var(--space-6);
+  overflow-y: auto;
+}
+
+/* Tight between a caption and its field, looser between one field and the
+   next, so the groups read as groups without a rule between them. */
+.document-form__fields > .document-form__head:not(:first-child),
+.document-form__fields > .document-form__label:not(:first-child) {
+  margin-top: var(--space-5);
+}
+
+.document-form__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
 }
 
 .document-form__label {
@@ -14,6 +51,19 @@
   color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* The label says what the field is; the counter says how much room is left.
+   Faint enough to ignore until it matters, and it turns red when it does. */
+.document-form__count {
+  font-size: var(--text-meta);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.document-form__count--over {
+  color: var(--err);
 }
 
 .document-form__input,
@@ -35,11 +85,17 @@
   resize: vertical;
 }
 
+/* In the peek the text is the document, so it takes every pixel the column
+   can spare rather than sitting in a fixed box above a void. */
+.document-form--panel .document-form__textarea {
+  flex: 1;
+  min-height: 220px;
+  resize: none;
+}
+
 .document-form__input:focus-visible,
 .document-form__textarea:focus-visible,
-.document-form__file:focus-visible,
-.document-form__submit:focus-visible,
-.document-form__cancel:focus-visible {
+.document-form__file:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
@@ -47,6 +103,27 @@
 .document-form__file {
   font-size: var(--text-ui);
   color: var(--ink-muted);
+}
+
+/* The browser's own control is the one foreign object in the app. Dressing
+   its button is enough to bring it in line — the input keeps its semantics. */
+.document-form__file::file-selector-button {
+  height: 26px;
+  margin-right: var(--space-4);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.document-form__file::file-selector-button:hover {
+  background: var(--hover);
 }
 
 .document-form__message {
@@ -60,42 +137,14 @@
 
 .document-form__actions {
   display: flex;
+  justify-content: flex-end;
   gap: var(--space-4);
-  margin-top: var(--space-3);
 }
 
-.document-form__submit {
-  padding: var(--space-4) var(--space-6);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--signal);
-  color: var(--paper);
-  font-family: var(--font-ui);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.document-form__submit:hover:not(:disabled) {
-  background: var(--signal-hover);
-}
-
-.document-form__submit:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.document-form__cancel {
-  padding: var(--space-4) var(--space-6);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: var(--text-ui);
-  cursor: pointer;
-}
-
-.document-form__cancel:hover {
-  background: var(--hover);
+/* Pinned: the fields scroll under it, so Save is reachable from any scroll
+   position — the same arrangement as the agent panel's footer. */
+.document-form--panel .document-form__actions {
+  flex: 0 0 auto;
+  padding: var(--space-5) var(--space-7);
+  border-top: 1px solid var(--rule);
 }

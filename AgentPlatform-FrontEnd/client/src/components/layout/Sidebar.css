@@ -143,8 +143,10 @@
 .sidebar__item-icon {
   flex: 0 0 auto;
   width: 16px;
-  font-size: var(--text-label);
-  text-align: center;
+}
+
+.sidebar__item-icon svg {
+  display: block;
 }
 
 .sidebar__item-text {

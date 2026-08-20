@@ -22,6 +22,41 @@ interface SidebarProps {
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
+type WorkspaceIcon = 'agents' | 'knowledge' | 'chat';
+
+const WorkspaceIcon = ({ name }: { name: WorkspaceIcon }) => {
+  const paths = {
+    agents: (
+      <>
+        <rect x="2" y="2.5" width="12" height="3" rx="0.75" />
+        <rect x="2" y="7" width="12" height="3" rx="0.75" />
+        <rect x="2" y="11.5" width="12" height="2" rx="0.75" />
+      </>
+    ),
+    knowledge: (
+      <path d="M2.5 3.25A2.25 2.25 0 0 1 4.75 1h3.5v12h-3.5A2.25 2.25 0 0 0 2.5 15.25Zm11 0A2.25 2.25 0 0 0 11.25 1h-3.5v12h3.5a2.25 2.25 0 0 1 2.25 2.25Z" />
+    ),
+    chat: <path d="M2.25 2.5h11.5v8.25h-7l-3.5 2.75v-2.75h-1Zm2.5 3.25h6.5M4.75 8h4" />,
+  } satisfies Record<WorkspaceIcon, React.ReactNode>;
+
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      aria-hidden="true"
+      focusable="false"
+      fill={name === 'agents' ? 'currentColor' : 'none'}
+      stroke={name === 'agents' ? 'none' : 'currentColor'}
+      strokeWidth="1.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {paths[name]}
+    </svg>
+  );
+};
+
 /**
  * The mode comes from /api/health, never from a constant here: the API decides
  * whether it is serving mock fixtures or a live model, and a hardcoded label
@@ -91,7 +126,7 @@ export const Sidebar = ({
         <span className="sidebar__disclosure sidebar__disclosure--spacer" aria-hidden="true" />
         <NavLink to="/agents" className="sidebar__item" data-walkthrough="sidebar-agents" onClick={onClose}>
           <span className="sidebar__item-icon" aria-hidden="true">
-            ▤
+            <WorkspaceIcon name="agents" />
           </span>
           Agents
         </NavLink>
@@ -108,7 +143,7 @@ export const Sidebar = ({
           onClick={onClose}
         >
           <span className="sidebar__item-icon" aria-hidden="true">
-            ▦
+            <WorkspaceIcon name="knowledge" />
           </span>
           Knowledge
         </NavLink>
@@ -132,7 +167,7 @@ export const Sidebar = ({
         </button>
         <NavLink to="/chat" className="sidebar__item" onClick={onClose}>
           <span className="sidebar__item-icon" aria-hidden="true">
-            ✉
+            <WorkspaceIcon name="chat" />
           </span>
           Chat
         </NavLink>
