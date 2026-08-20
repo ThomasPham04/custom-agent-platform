@@ -235,7 +235,18 @@ export const Sidebar = ({
         <span className={`sidebar__dot sidebar__dot--${health.status}`} aria-hidden="true" />
         <span className="sidebar__health mono">{healthText(health)}</span>
         <a
-          className="sidebar__github"
+          className="sidebar__footer-link sidebar__footer-link--report"
+          href="/documents/ai-agent-platform-report.pdf"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open AI Agent Platform report"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 2.5L17.5 8H14ZM8 13h8v1.5H8Zm0 3h8v1.5H8Zm0-6h3v1.5H8Z" />
+          </svg>
+        </a>
+        <a
+          className="sidebar__footer-link"
           href="https://github.com/ThomasPham04/custom-agent-platform"
           target="_blank"
           rel="noreferrer"

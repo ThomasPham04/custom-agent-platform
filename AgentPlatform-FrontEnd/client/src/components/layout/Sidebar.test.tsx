@@ -146,6 +146,19 @@ describe('Sidebar', () => {
     );
   });
 
+  it('opens the platform report in a new browser tab', () => {
+    renderSidebar();
+
+    expect(screen.getByRole('link', { name: 'Open AI Agent Platform report' })).toHaveAttribute(
+      'href',
+      '/documents/ai-agent-platform-report.pdf',
+    );
+    expect(screen.getByRole('link', { name: 'Open AI Agent Platform report' })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
+  });
+
   it('marks the current surface for assistive tech', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /^Agents/ })).toHaveAttribute('aria-current', 'page');

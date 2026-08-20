@@ -207,7 +207,7 @@
   color: var(--ink-muted);
 }
 
-.sidebar__github {
+.sidebar__footer-link {
   display: grid;
   place-items: center;
   width: 24px;
@@ -217,14 +217,18 @@
   color: var(--ink-faint);
 }
 
-.sidebar__github:hover,
-.sidebar__github:focus-visible {
+.sidebar__footer-link--report {
+  margin-left: auto;
+}
+
+.sidebar__footer-link:hover,
+.sidebar__footer-link:focus-visible {
   background: var(--active);
   color: var(--ink);
   text-decoration: none;
 }
 
-.sidebar__github svg {
+.sidebar__footer-link svg {
   width: 15px;
   height: 15px;
   fill: currentColor;
