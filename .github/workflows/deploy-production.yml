@@ -19,8 +19,8 @@ jobs:
       run:
         working-directory: AgentPlatform-FrontEnd/client
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -37,7 +37,7 @@ jobs:
       run:
         working-directory: AgentPlatform-BackEnd/deployment
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate and deploy
         env:
           DEPLOY_ENV_FILE: /etc/agent-platform/production.env
