@@ -4,6 +4,7 @@ import { AgentPeek } from '../../components/agents-section/agent-peek';
 import { AgentTable } from '../../components/agents-section/agent-table';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/empty-state';
+import { Magnifier } from '../../components/ui/magnifier';
 import { useToast } from '../../components/ui/toast';
 import { useAgentsContext } from '../../hooks/useAgents';
 import type { SaveAgentResult } from '../../hooks/useAgents';
@@ -222,14 +223,17 @@ const AgentsPage = () => {
           <span className="agents__count mono">
             {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
           </span>
-          <input
-            type="search"
-            className="agents__filter"
-            aria-label="Filter agents"
-            placeholder="Filter…"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          />
+          <div className="agents__filter">
+            <input
+              type="search"
+              className="agents__filter-input"
+              aria-label="Filter agents"
+              placeholder="Filter…"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+            <Magnifier className="agents__filter-icon" />
+          </div>
           <Button variant="primary" data-walkthrough="agents-new" onClick={onCreate}>
             New agent
           </Button>
