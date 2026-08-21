@@ -1,0 +1,121 @@
+<!--
+  Source for public/og-card.png — the link-preview card social apps render when
+  someone pastes this deployment's URL.
+
+  Regenerate after any change here (Chrome is the only rasteriser that reads the
+  variable woff2 in node_modules, so this is not a vitest job). Run it from
+  client/, and run `npm ci` first if node_modules is cold:
+
+    google-chrome --headless --disable-gpu --hide-scrollbars \
+      --force-device-scale-factor=1 --window-size=1200,630 \
+      --screenshot=public/og-card.png scripts/og-card.html
+
+  1200x630 is the size Facebook, Messenger, iMessage, Slack and Discord all
+  crop toward. Type is sized for the ~500px it is actually displayed at, not
+  for the 1200 it is authored at.
+
+  No colour, font or radius is written here. The card links the app's own
+  src/styles/tokens.css over file:// and declares the two @font-face families
+  under the exact names --font-ui and --font-mono ask for, so the same rule the
+  React app follows holds here: every value comes from a token. That is also
+  why this file lives in scripts/ and not public/ — it reads ../src and
+  ../node_modules, neither of which is in the served output.
+
+  The rail geometry mirrors src/components/chat-section/trace-rail/
+  trace-rail.css scaled 2.4x, including the square nodes: "square, not round:
+  this is machinery".
+
+  The run depicted is real. current_time 118ms, http_request 412ms and the
+  answer text are the agent_support fixture in
+  server/app/modules/llm/providers/mock.py, which is contract, not decoration.
+-->
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<style>
+/* The families --font-ui and --font-mono name first. Declaring them under
+   those names is what lets the tokens resolve to the real webfont instead of
+   falling through to the system stack. */
+@font-face{font-family:'Inter Variable';src:url('../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')format('woff2-variations');font-weight:100 900;font-style:normal}
+@font-face{font-family:'JetBrains Mono Variable';src:url('../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2')format('woff2-variations');font-weight:100 800;font-style:normal}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1200px;height:630px}
+body{
+  background:var(--shell); font-family:var(--font-ui);
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+  padding:62px 74px 56px; display:flex; flex-direction:column;
+}
+
+.brand{display:flex;align-items:center;gap:14px}
+.brand span{
+  font-size:21px;font-weight:620;letter-spacing:.145em;
+  text-transform:uppercase;color:var(--ink-muted)
+}
+
+/* The request, flush left: this half is the person. */
+.ask{
+  margin-top:42px;
+  font-size:60px;font-weight:650;line-height:1.16;letter-spacing:-.021em;
+  color:var(--ink)
+}
+
+/* The agent's turn, indented under one rail — the same geometry as
+   trace-rail.css, scaled 2.4x. Faint line, solid square nodes, solid cap. */
+.turn{margin-top:46px;padding-left:36px;position:relative}
+.turn::before{                       /* the rail */
+  content:'';position:absolute;left:0;top:24px;height:112px;
+  width:4px;border-radius:var(--radius-pill);
+  background:color-mix(in srgb,var(--trace) 34%,transparent)
+}
+.turn::after{                        /* the cap: machinery ends, answer begins */
+  content:'';position:absolute;left:-5px;top:129px;
+  width:14px;height:14px;border-radius:2px;background:var(--trace)
+}
+.call{position:relative;display:flex;align-items:baseline;gap:16px;height:68px}
+.call::before{                       /* square, not round: this is machinery */
+  content:'';position:absolute;left:-41px;top:17px;
+  width:14px;height:14px;border-radius:2px;background:var(--trace)
+}
+.name{font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--trace-ink)}
+.args{font-family:var(--font-mono);font-size:21px;font-weight:400;color:var(--ink-faint)}
+.leader{
+  flex:1;height:1px;align-self:center;margin:0 6px;
+  background:repeating-linear-gradient(90deg,var(--rule) 0 4px,transparent 4px 9px)
+}
+.ms{
+  font-family:var(--font-mono);font-size:29px;font-weight:500;
+  color:var(--ink-muted);font-variant-numeric:tabular-nums
+}
+.answer{
+  margin-top:38px;max-width:1010px;
+  font-size:30px;font-weight:450;line-height:1.42;color:var(--ink-muted)
+}
+</style></head><body>
+
+  <div class="brand">
+    <!-- The app's mark. Same geometry as the favicon in index.html, but
+         inline rather than a data URI, so its fills can be tokens too. -->
+    <svg width="30" height="30" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="6" fill="var(--ink)"/>
+      <rect x="8" y="9" width="16" height="2.5" rx="1.25" fill="var(--paper)"/>
+      <rect x="8" y="15" width="16" height="2.5" rx="1.25" fill="var(--paper)"/>
+      <rect x="8" y="21" width="9" height="2.5" rx="1.25" fill="var(--trace)"/>
+    </svg>
+    <span>Agent Platform</span>
+  </div>
+
+  <div class="ask">What time is it in Tokyo,<br>and is the status endpoint up?</div>
+
+  <div class="turn">
+    <div class="call">
+      <div class="name">current_time</div><div class="args">Asia/Tokyo</div>
+      <div class="leader"></div><div class="ms">118 ms</div>
+    </div>
+    <div class="call">
+      <div class="name">http_request</div><div class="args">GET /health</div>
+      <div class="leader"></div><div class="ms">412 ms</div>
+    </div>
+    <div class="answer">It's 9:03 PM in Tokyo, and the status endpoint<br>is healthy — 200 in 41 ms.</div>
+  </div>
+
+</body></html>

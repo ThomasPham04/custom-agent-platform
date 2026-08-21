@@ -490,6 +490,17 @@ compose network, or a second tunnel hostname pointed straight at the API — ski
 it entirely. Cloudflare Access is still the answer when you need per-person
 identity; application-level auth is not implemented.
 
+**Three paths answer without the cookie, on purpose.** `/login.html` and
+`/tokens.css` are the login page and the stylesheet it draws itself with.
+`/og-card.png` is the link-preview card, and it has to be public: a crawler —
+Messenger, iMessage, Slack, Discord — sends no cookie and no JavaScript, so a
+gated card is no card at all and a pasted link renders bare. What a stranger
+learns from it is the card image, which depicts a **mock** run, plus the Open
+Graph title and description in `index.html` and `public/login.html`. Nothing
+behind the gate is reachable through any of the three. If the deployment's
+existence should itself be private, delete the `location = /og-card.png` block
+and those `og:` tags, and use Cloudflare Access rather than `WEB_PASSWORD`.
+
 **Credentials are plain environment variables.** `GEMINI_API_KEY` and the tunnel
 token are visible to `docker inspect` and to any process inside the container.
 Docker secrets or a secret manager is the real fix.

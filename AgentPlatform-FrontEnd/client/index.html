@@ -10,6 +10,43 @@
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2337352F'/%3E%3Crect x='8' y='9' width='16' height='2.5' rx='1.25' fill='%23FFFFFF'/%3E%3Crect x='8' y='15' width='16' height='2.5' rx='1.25' fill='%23FFFFFF'/%3E%3Crect x='8' y='21' width='9' height='2.5' rx='1.25' fill='%239065B0'/%3E%3C/svg%3E"
     />
     <title>Agent Platform</title>
+    <!--
+      Link preview. Pasting this deployment's URL into Messenger, iMessage,
+      Slack or Discord renders public/og-card.png with the title and
+      description below.
+
+      Crawlers run no JavaScript and send no cookies, so these have to be in the
+      served HTML rather than set by React — and the same block has to exist in
+      public/login.html, because with WEB_PASSWORD set a crawler is redirected
+      there and never reaches this file. The two copies must agree; they are
+      duplicated for the same reason the favicon above is.
+
+      __OG_ORIGIN__ is not a build-time value. og:url and og:image must be
+      absolute — a crawler has no base to resolve a relative path against — but
+      one image serves localhost:8080 and the tunnel hostname both, so nginx
+      substitutes the origin the client actually used (see the sub_filter in
+      nginx.conf). Under `npm run dev` or `vite preview` there is no nginx and
+      the placeholder stays literal, which is harmless: no crawler reads those.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Agent Platform" />
+    <meta property="og:title" content="Agent Platform" />
+    <meta
+      property="og:description"
+      content="Create an agent, give it tools, and watch the trace — every tool call, its arguments, and how long it took."
+    />
+    <meta property="og:url" content="__OG_ORIGIN__/" />
+    <meta property="og:image" content="__OG_ORIGIN__/og-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A question, the two tools the agent called with their durations, and the answer."
+    />
+    <!-- summary_large_image is what promotes the card from a thumbnail to the
+         full-bleed 1200x630 crop. Everything else falls back to the og: tags. -->
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>
