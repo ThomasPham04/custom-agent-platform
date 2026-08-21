@@ -66,9 +66,24 @@
   background: var(--active);
 }
 
-.agent-peek__name {
+/*
+  The field tracks the name it holds (field-sizing, with a fixed floor where
+  that is unsupported) so the required mark stays beside the title instead of
+  drifting out to the close button.
+*/
+.agent-peek__name-field {
+  display: flex;
   flex: 1;
+  align-items: baseline;
+  gap: 3px;
   min-width: 0;
+}
+
+.agent-peek__name {
+  flex: 0 1 auto;
+  field-sizing: content;
+  min-width: 8ch;
+  max-width: 100%;
   border: 0;
   background: transparent;
   font-size: var(--text-peek-title);
@@ -206,4 +221,27 @@
   .agent-peek--sheet {
     animation: none;
   }
+}
+
+.agent-peek__required {
+  flex: 0 0 auto;
+  color: var(--err);
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.agent-peek__name[aria-invalid='true'] {
+  box-shadow: inset 0 -1px 0 0 var(--err);
+}
+
+/*
+  Sits under the header rather than inside it: the header is a single flex row
+  and the name field must keep the width it has.
+*/
+.agent-peek__name-error {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-3);
+  padding: 0 var(--space-7);
+  font-size: var(--text-meta);
+  color: var(--err);
 }

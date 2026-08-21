@@ -11,6 +11,7 @@ import type { SaveAgentResult } from '../../hooks/useAgents';
 import { useTools } from '../../hooks/useTools';
 import { newAgentDraft } from '../../lib/agent-draft';
 import { agentPatch, hasAgentChanges } from '../../lib/agent-edit';
+import { hasFieldErrors, validateAgent } from '../../lib/agent-validation';
 import { apiUrl } from '../../lib/api-host';
 import type { Agent, AgentDraft, AgentPatch } from '../../types/agent';
 import type { Tool } from '../../types/tool';
@@ -54,11 +55,24 @@ const SavedAgentEditor = ({
   const [edited, setEdited] = useState(agent);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  // Latched by the first rejected save, so the panel stays quiet while a field
+  // is merely half-typed. After that the messages track the value live.
+  const [checked, setChecked] = useState(false);
   const dirty = hasAgentChanges(baseline, edited);
+  const errors = checked ? validateAgent(edited) : {};
 
   const onSave = async () => {
+    if (saving) return;
+
+    const found = validateAgent(edited);
+    if (hasFieldErrors(found)) {
+      setChecked(true);
+      return;
+    }
+    setChecked(false);
+
     const patch = agentPatch(baseline, edited);
-    if (Object.keys(patch).length === 0 || saving) return;
+    if (Object.keys(patch).length === 0) return;
 
     const submitted = edited;
     setSaving(true);
@@ -82,6 +96,7 @@ const SavedAgentEditor = ({
       dirty={dirty}
       saving={saving}
       saveError={saveError}
+      errors={errors}
       focusName={focusName}
       onNameFocused={onNameFocused}
       operationError={operationError}
@@ -125,6 +140,7 @@ const AgentsPage = () => {
   const [draft, setDraft] = useState<AgentDraft | null>(null);
   const isNewRoute = location.pathname === '/agents/new';
   const [draftTriggers, setDraftTriggers] = useState<TriggerDraft[]>([]);
+  const [draftChecked, setDraftChecked] = useState(false);
 
   // A draft and an open agent are the same slot on screen, so opening one
   // closes the other. Idempotent under StrictMode's double-invoke: the
@@ -134,7 +150,10 @@ const AgentsPage = () => {
       if (!isNewRoute) return null;
       return current ?? newAgentDraft();
     });
-    if (!isNewRoute) setDraftTriggers([]);
+    if (!isNewRoute) {
+      setDraftTriggers([]);
+      setDraftChecked(false);
+    }
   }, [isNewRoute]);
 
   const query = filter.trim().toLowerCase();
@@ -153,6 +172,14 @@ const AgentsPage = () => {
 
   const onSaveDraft = async () => {
     if (!draft) return;
+
+    const found = validateAgent(draft);
+    if (hasFieldErrors(found)) {
+      setDraftChecked(true);
+      return;
+    }
+    setDraftChecked(false);
+
     const created = await saveDraft(draft, draftTriggers);
     if (!created) return;
     setDraft(null);
@@ -308,6 +335,7 @@ const AgentsPage = () => {
           onDraftTriggersChange={setDraftTriggers}
           focusName
           saving={creating}
+          errors={draftChecked ? validateAgent(draft) : {}}
           operationError={
             operationError?.kind === 'create' ? operationError.message : undefined
           }

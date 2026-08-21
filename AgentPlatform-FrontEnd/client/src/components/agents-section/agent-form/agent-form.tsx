@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Chip } from '../../ui/chip';
 import { Select } from '../../ui/select';
 import { AutoTextarea } from '../../ui/textarea';
@@ -6,6 +6,7 @@ import { ToolPicker } from '../tool-picker/tool-picker';
 import { MODELS } from '../../../config/models';
 import { formatRelativeTime } from '../../../lib/format';
 import { toolLabel } from '../../../hooks/useTools';
+import type { AgentFieldErrors } from '../../../lib/agent-validation';
 import type { Agent, AgentPatch, AgentStatus } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
 import './agent-form.css';
@@ -17,6 +18,8 @@ interface AgentFormProps {
   triggerField?: ReactNode;
   /** False for an unsaved draft, which has no history to date. */
   showTimestamps?: boolean;
+  /** Set by a rejected save; empty until the reader has tried to commit. */
+  errors?: AgentFieldErrors;
 }
 
 const STATUS_OPTIONS = [
@@ -27,42 +30,79 @@ const STATUS_OPTIONS = [
 const MODEL_OPTIONS = MODELS.map((model) => ({ value: model.id, label: model.label }));
 const SYSTEM_PROMPT_MAX_LENGTH = 500;
 
+/*
+  Decorative: every control it marks also carries `required`, which is what a
+  screen reader announces. A read-aloud "star" on top of that is noise.
+*/
+const RequiredMark = () => (
+  <span className="agent-form__required" aria-hidden="true">
+    *
+  </span>
+);
+
 export const AgentForm = ({
   agent,
   tools,
   onChange,
   triggerField,
   showTimestamps = true,
+  errors = {},
 }: AgentFormProps) => {
   const toolButtonRef = useRef<HTMLButtonElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const fieldId = useId();
+  const statusErrorId = `${fieldId}-status-error`;
+  const modelErrorId = `${fieldId}-model-error`;
+  const promptErrorId = `${fieldId}-prompt-error`;
 
   return (
     <div className="agent-form">
       <div className="agent-form__row">
-        <span className="agent-form__label">Status</span>
+        <span className="agent-form__label">
+          Status
+          <RequiredMark />
+        </span>
         <div className="agent-form__value">
           <Select
             label="Status"
             hideLabel
+            required
+            invalid={Boolean(errors.status)}
+            describedBy={errors.status ? statusErrorId : undefined}
             value={agent.status}
             options={STATUS_OPTIONS}
             onChange={(value) => onChange({ status: value as AgentStatus })}
           />
+          {errors.status && (
+            <p className="agent-form__error" id={statusErrorId} role="alert">
+              {errors.status}
+            </p>
+          )}
         </div>
       </div>
 
       <div className="agent-form__row" data-walkthrough="agent-model">
-        <span className="agent-form__label">Model</span>
+        <span className="agent-form__label">
+          Model
+          <RequiredMark />
+        </span>
         <div className="agent-form__value">
           <Select
             label="Model"
             hideLabel
             mono
+            required
+            invalid={Boolean(errors.model)}
+            describedBy={errors.model ? modelErrorId : undefined}
             value={agent.model}
             options={MODEL_OPTIONS}
             onChange={(value) => onChange({ model: value })}
           />
+          {errors.model && (
+            <p className="agent-form__error" id={modelErrorId} role="alert">
+              {errors.model}
+            </p>
+          )}
         </div>
       </div>
 
@@ -129,21 +169,36 @@ export const AgentForm = ({
 
       <hr className="agent-form__divider" />
 
-      <h2 className="agent-form__heading">System prompt</h2>
+      <h2 className="agent-form__heading">
+        System prompt
+        <RequiredMark />
+      </h2>
       <AutoTextarea
         label="System prompt"
         hideLabel
         mono
         minRows={8}
         fixed
+        required
+        invalid={Boolean(errors.systemPrompt)}
+        describedBy={errors.systemPrompt ? promptErrorId : undefined}
         maxLength={SYSTEM_PROMPT_MAX_LENGTH}
         placeholder="Describe how this agent should behave, and when to reach for a tool."
         value={agent.systemPrompt}
         onChange={(value) => onChange({ systemPrompt: value })}
       />
-      <p className="agent-form__count mono">
-        {agent.systemPrompt.length}/{SYSTEM_PROMPT_MAX_LENGTH} characters
-      </p>
+      <div className="agent-form__meta">
+        {errors.systemPrompt ? (
+          <p className="agent-form__error" id={promptErrorId} role="alert">
+            {errors.systemPrompt}
+          </p>
+        ) : (
+          <span />
+        )}
+        <p className="agent-form__count mono">
+          {agent.systemPrompt.length}/{SYSTEM_PROMPT_MAX_LENGTH} characters
+        </p>
+      </div>
 
       <hr className="agent-form__divider" />
 

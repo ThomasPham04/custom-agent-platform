@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { AgentForm } from '../agent-form/agent-form';
 import { AgentTriggers } from '../agent-triggers/agent-triggers';
 import { DraftAgentTriggers } from '../agent-triggers/draft-agent-triggers';
@@ -7,6 +7,7 @@ import { Popover } from '../../ui/popover';
 import { AGENT_ICONS } from '../../../lib/agent-icons';
 import { BREAKPOINT_SHEET, useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useModalFocus } from '../../../hooks/useModalFocus';
+import { hasFieldErrors, type AgentFieldErrors } from '../../../lib/agent-validation';
 import type { Agent, AgentPatch } from '../../../types/agent';
 import type { Tool } from '../../../types/tool';
 import type { TriggerDraft } from '../../../types/trigger';
@@ -27,6 +28,12 @@ interface AgentPeekProps {
   operationError?: string;
   onRetryOperation?: () => void;
   /**
+   * Required-field failures from the last save attempt. Empty until the reader
+   * has pressed Save, so a half-filled panel is never scolded while it is
+   * still being filled in.
+   */
+  errors?: AgentFieldErrors;
+  /**
    * A draft exists only in this panel. It has no history to date, nothing on
    * the server to delete, and no autosave — so it commits through Save instead.
    */
@@ -36,6 +43,13 @@ interface AgentPeekProps {
   onDraftTriggersChange?: (drafts: TriggerDraft[]) => void;
   saving?: boolean;
 }
+
+/*
+  Restates the field errors next to the button that was pressed, because the
+  system-prompt message can sit below the fold of a scrolled panel. Deliberately
+  not role="alert" — the field messages are the announcement.
+*/
+const SUMMARY = 'Fill in the required fields before saving.';
 
 const OperationReadout = ({
   message,
@@ -71,6 +85,7 @@ export const AgentPeek = ({
   onNameFocused,
   operationError,
   onRetryOperation,
+  errors = {},
   mode = 'saved',
   onSaveDraft,
   draftTriggers = [],
@@ -85,6 +100,9 @@ export const AgentPeek = ({
   const [iconOpen, setIconOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const isSheet = useMediaQuery(BREAKPOINT_SHEET);
+  const fieldId = useId();
+  const nameErrorId = `${fieldId}-name-error`;
+  const invalid = hasFieldErrors(errors);
 
   useModalFocus({
     active: isSheet,
@@ -156,15 +174,23 @@ export const AgentPeek = ({
           </div>
         </Popover>
 
-        <input
-          ref={nameRef}
-          type="text"
-          className="agent-peek__name"
-          aria-label="Agent name"
-          data-walkthrough="agent-name"
-          value={agent.name}
-          onChange={(event) => onChange({ name: event.target.value })}
-        />
+        <span className="agent-peek__name-field">
+          <input
+            ref={nameRef}
+            type="text"
+            className="agent-peek__name"
+            aria-label="Agent name"
+            data-walkthrough="agent-name"
+            required
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={errors.name ? nameErrorId : undefined}
+            value={agent.name}
+            onChange={(event) => onChange({ name: event.target.value })}
+          />
+          <span className="agent-peek__required" aria-hidden="true">
+            *
+          </span>
+        </span>
 
         <button
           type="button"
@@ -184,11 +210,18 @@ export const AgentPeek = ({
         </button>
       </div>
 
+      {errors.name && (
+        <p className="agent-peek__name-error" id={nameErrorId} role="alert">
+          {errors.name}
+        </p>
+      )}
+
       <div className="agent-peek__body">
         <AgentForm
           agent={agent}
           tools={tools}
           onChange={onChange}
+          errors={errors}
           showTimestamps={!isDraft}
           triggerField={
             isDraft ? (
@@ -208,6 +241,7 @@ export const AgentPeek = ({
       <div className="agent-peek__footer">
         {isDraft ? (
           <div className="agent-peek__commit">
+            {invalid && <p className="agent-peek__save agent-peek__save--error">{SUMMARY}</p>}
             {operationError && (
               <p className="agent-peek__save agent-peek__save--error" role="alert">
                 <span className="mono">{operationError}</span>
@@ -230,6 +264,7 @@ export const AgentPeek = ({
           </div>
         ) : (
           <div className="agent-peek__commit">
+            {invalid && <p className="agent-peek__save agent-peek__save--error">{SUMMARY}</p>}
             {saveError && (
               <p className="agent-peek__save agent-peek__save--error" role="alert">
                 <span className="mono">Couldn&rsquo;t save. {saveError}</span>

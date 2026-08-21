@@ -38,3 +38,8 @@
   color: var(--ink-faint);
   cursor: default;
 }
+
+.textarea__control[aria-invalid='true'] {
+  border-color: var(--err);
+  background: var(--paper);
+}

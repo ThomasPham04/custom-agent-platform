@@ -24,6 +24,21 @@ const count = (value: number) => value.toLocaleString("en-US");
 
 const titleFromFilename = (name: string) => name.replace(/\.[^.]+$/, "");
 
+/** Both fields are mandatory; these are the messages that say so. */
+const MISSING_TITLE = "Give the document a title.";
+const MISSING_BODY = "Add some text to search.";
+
+/*
+  Decorative: the field it marks also carries `required`, which is what a screen
+  reader announces. It sits beside the label rather than inside it so the label's
+  text stays exactly "Title" / "Text".
+*/
+const RequiredMark = () => (
+  <span className="document-form__required" aria-hidden="true">
+    *
+  </span>
+);
+
 /**
  * FileReader rather than `file.text()`: jsdom's File does not implement the
  * Blob text method, so the shorter call works in every browser and in none of
@@ -67,11 +82,16 @@ export const DocumentForm = ({
   const [source, setSource] = useState<DocumentSource>("typed");
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
+  // Latched by the first rejected submit. Until then a half-filled form is not
+  // scolded; after it, the messages follow the fields live.
+  const [checked, setChecked] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   // Scoped ids: the page can show the add form and the detail panel at once,
   // and two elements sharing an id would break both labels' associations.
   const ids = useId();
   const bodyBytes = byteLength(body);
+  const missingTitle = checked && !title.trim();
+  const missingBody = checked && !body.trim();
   // The peek footer is shared furniture with the agent panel, which sets its
   // actions at sm. On the page the form stands alone and takes the page size.
   const size = variant === "panel" ? "button--sm" : "button--md";
@@ -107,14 +127,14 @@ export const DocumentForm = ({
     event.preventDefault();
     const trimmedTitle = title.trim();
     const trimmedBody = body.trim();
-    if (!trimmedTitle) {
-      setMessage("Give the document a title.");
+    if (!trimmedTitle || !trimmedBody) {
+      // Reported on the fields themselves, so the shared line stays free for
+      // failures that belong to no single field.
+      setChecked(true);
+      setMessage(undefined);
       return;
     }
-    if (!trimmedBody) {
-      setMessage("Add some text to search.");
-      return;
-    }
+    setChecked(false);
     // Typing and pasting can pass the cap the file picker already guards, and
     // the counter has been red for a while by the time this fires.
     if (byteLength(trimmedBody) > MAX_BODY_BYTES) {
@@ -137,13 +157,17 @@ export const DocumentForm = ({
   return (
     <form
       className={`document-form document-form--${variant}`}
+      noValidate
       onSubmit={submit}
     >
       <div className="document-form__fields">
         <div className="document-form__head">
-          <label className="document-form__label" htmlFor={`${ids}-title`}>
-            Title
-          </label>
+          <span className="document-form__caption">
+            <label className="document-form__label" htmlFor={`${ids}-title`}>
+              Title
+            </label>
+            <RequiredMark />
+          </span>
           <span className="document-form__count mono">
             {count(title.length)}/{count(MAX_TITLE_LENGTH)} characters
           </span>
@@ -152,14 +176,29 @@ export const DocumentForm = ({
           id={`${ids}-title`}
           className="document-form__input"
           maxLength={MAX_TITLE_LENGTH}
+          required
+          aria-invalid={missingTitle || undefined}
+          aria-describedby={missingTitle ? `${ids}-title-error` : undefined}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
+        {missingTitle && (
+          <p
+            className="document-form__error"
+            id={`${ids}-title-error`}
+            role="alert"
+          >
+            {MISSING_TITLE}
+          </p>
+        )}
 
         <div className="document-form__head">
-          <label className="document-form__label" htmlFor={`${ids}-body`}>
-            Text
-          </label>
+          <span className="document-form__caption">
+            <label className="document-form__label" htmlFor={`${ids}-body`}>
+              Text
+            </label>
+            <RequiredMark />
+          </span>
           {/*
             Bytes, not characters: the cap is on storage, so an emoji spends
             four of these and one of the title's. Each counter names its unit
@@ -180,12 +219,24 @@ export const DocumentForm = ({
           id={`${ids}-body`}
           className="document-form__textarea"
           rows={12}
+          required
+          aria-invalid={missingBody || undefined}
+          aria-describedby={missingBody ? `${ids}-body-error` : undefined}
           value={body}
           onChange={(event) => {
             setBody(event.target.value);
             setSource("typed");
           }}
         />
+        {missingBody && (
+          <p
+            className="document-form__error"
+            id={`${ids}-body-error`}
+            role="alert"
+          >
+            {MISSING_BODY}
+          </p>
+        )}
 
         <label className="document-form__label" htmlFor={`${ids}-file`}>
           Upload a .txt or .md file

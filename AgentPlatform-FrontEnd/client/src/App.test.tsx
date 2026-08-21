@@ -18,7 +18,7 @@ const agent: Agent = {
   icon: 'A',
   description: '',
   model: 'gemini-3.1-flash-lite',
-  systemPrompt: '',
+  systemPrompt: 'Be terse.',
   toolIds: [],
   status: 'active',
   createdAt: '2026-08-01T00:00:00.000Z',
@@ -206,6 +206,8 @@ describe('new agent draft', () => {
     const name = screen.getByRole('textbox', { name: 'Agent name' });
     await userEvent.clear(name);
     await userEvent.type(name, 'Billing Bot');
+    // The system prompt is mandatory, so a draft cannot commit without one.
+    await userEvent.type(screen.getByRole('textbox', { name: 'System prompt' }), 'Be terse.');
     await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
 
     await waitFor(() => expect(screen.getByRole('row', { name: /Billing Bot/ })).toBeInTheDocument());
@@ -215,7 +217,7 @@ describe('new agent draft', () => {
       name: 'Billing Bot',
       status: 'draft',
       toolIds: [],
-      systemPrompt: '',
+      systemPrompt: 'Be terse.',
     });
   });
 
@@ -254,6 +256,7 @@ describe('new agent draft', () => {
     const name = screen.getByRole('textbox', { name: 'Agent name' });
     await userEvent.clear(name);
     await userEvent.type(name, 'Billing Bot');
+    await userEvent.type(screen.getByRole('textbox', { name: 'System prompt' }), 'Be terse.');
     await userEvent.click(screen.getByRole('button', { name: 'Save agent' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Create failed.');

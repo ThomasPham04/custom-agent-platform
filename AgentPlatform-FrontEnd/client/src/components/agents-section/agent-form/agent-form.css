@@ -84,3 +84,27 @@
   background: var(--paper);
   border-color: var(--rule);
 }
+
+/* The one place --err is allowed to sit inside a label: it marks a field. */
+.agent-form__required {
+  margin-left: 2px;
+  color: var(--err);
+}
+
+.agent-form__error {
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--err);
+}
+
+/* Keeps the character count on the right while an error reads from the left. */
+.agent-form__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.agent-form__meta .agent-form__error {
+  margin-top: var(--space-3);
+}

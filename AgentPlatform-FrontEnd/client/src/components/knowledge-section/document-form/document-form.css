@@ -148,3 +148,29 @@
   padding: var(--space-5) var(--space-7);
   border-top: 1px solid var(--rule);
 }
+
+/* Holds the caption and its required mark together on the left of the head row,
+   leaving the counter on the right. */
+.document-form__caption {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.document-form__required {
+  color: var(--err);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+
+.document-form__input[aria-invalid='true'],
+.document-form__textarea[aria-invalid='true'] {
+  border-color: var(--err);
+}
+
+/* Sits under its own field, unlike __message, which speaks for the whole form. */
+.document-form__error {
+  margin: 0;
+  font-size: var(--text-meta);
+  color: var(--err);
+}

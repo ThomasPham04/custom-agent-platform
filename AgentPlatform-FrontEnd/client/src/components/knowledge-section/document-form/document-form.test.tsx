@@ -36,6 +36,38 @@ describe("DocumentForm", () => {
     );
   });
 
+  it("marks the title and the text mandatory", () => {
+    render(<DocumentForm submitLabel="Add document" onSubmit={vi.fn(ok)} />);
+
+    expect(screen.getByLabelText("Title")).toBeRequired();
+    expect(screen.getByLabelText("Text")).toBeRequired();
+  });
+
+  it("points at the field it is complaining about", async () => {
+    render(<DocumentForm submitLabel="Add document" onSubmit={vi.fn(ok)} />);
+
+    await userEvent.type(screen.getByLabelText("Text"), "Some text");
+    await userEvent.click(screen.getByRole("button", { name: "Add document" }));
+
+    expect(screen.getByLabelText("Title")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText("Text")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("clears the complaint as soon as the field is filled in", async () => {
+    render(<DocumentForm submitLabel="Add document" onSubmit={vi.fn(ok)} />);
+
+    await userEvent.type(screen.getByLabelText("Text"), "Some text");
+    await userEvent.click(screen.getByRole("button", { name: "Add document" }));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Title"), "A title");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("submits a typed draft", async () => {
     const onSubmit = vi.fn(ok);
     render(<DocumentForm submitLabel="Add document" onSubmit={onSubmit} />);

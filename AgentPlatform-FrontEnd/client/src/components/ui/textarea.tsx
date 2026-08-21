@@ -14,6 +14,11 @@ interface AutoTextareaProps {
   maxLength?: number;
   placeholder?: string;
   disabled?: boolean;
+  /** Marks the control mandatory for assistive tech; the visible * is the caller's. */
+  required?: boolean;
+  invalid?: boolean;
+  /** Id of the element describing why the value is rejected. */
+  describedBy?: string;
   id?: string;
   onBlur?: () => void;
   onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -31,6 +36,9 @@ export const AutoTextarea = ({
   maxLength,
   placeholder,
   disabled,
+  required,
+  invalid,
+  describedBy,
   id,
   onBlur,
   onKeyDown,
@@ -70,6 +78,9 @@ export const AutoTextarea = ({
         maxLength={maxLength}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         onChange={(event) =>
           onChange(maxLength === undefined ? event.target.value : event.target.value.slice(0, maxLength))
         }
