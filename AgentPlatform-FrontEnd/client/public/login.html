@@ -13,22 +13,12 @@
     />
     <title>Agent Platform</title>
     <!--
-      Link preview. Pasting this deployment's URL into Messenger, iMessage,
-      Slack or Discord renders public/og-card.png with the title and
-      description below.
+      Link preview. Crawlers run no JavaScript and send no cookies, so these
+      must be in the served HTML, and duplicated into public/login.html, where
+      the gate redirects them. Keep the two copies equal.
 
-      Crawlers run no JavaScript and send no cookies, so these have to be in the
-      served HTML rather than set by React — and the same block has to exist in
-      public/login.html, because with WEB_PASSWORD set a crawler is redirected
-      there and never reaches this file. The two copies must agree; they are
-      duplicated for the same reason the favicon above is.
-
-      __OG_ORIGIN__ is not a build-time value. og:url and og:image must be
-      absolute — a crawler has no base to resolve a relative path against — but
-      one image serves localhost:8080 and the tunnel hostname both, so nginx
-      substitutes the origin the client actually used (see the sub_filter in
-      nginx.conf). Under `npm run dev` or `vite preview` there is no nginx and
-      the placeholder stays literal, which is harmless: no crawler reads those.
+      nginx rewrites the origin per request (sub_filter in nginx.conf), so the
+      absolute URLs below need no hostname baked into the build.
     -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Agent Platform" />
@@ -46,8 +36,7 @@
       property="og:image:alt"
       content="A question, the two tools the agent called with their durations, and the answer."
     />
-    <!-- summary_large_image is what promotes the card from a thumbnail to the
-         full-bleed 1200x630 crop. Everything else falls back to the og: tags. -->
+    <!-- Promotes the card from thumbnail to the full-bleed 1200x630 crop. -->
     <meta name="twitter:card" content="summary_large_image" />
     <!--
       Every value on this page comes from a token, the same rule the React app

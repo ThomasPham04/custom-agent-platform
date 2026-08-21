@@ -1,35 +1,20 @@
 <!--
-  Source for public/og-card.png — the link-preview card social apps render when
-  someone pastes this deployment's URL.
-
-  Regenerate after any change here (Chrome is the only rasteriser that reads the
-  variable woff2 in node_modules, so this is not a vitest job). Run it from
-  client/, and run `npm ci` first if node_modules is cold:
+  Source for public/og-card.png, the link-preview card. Regenerate from
+  client/ after any change here (npm ci first if node_modules is cold):
 
     google-chrome --headless --disable-gpu --hide-scrollbars \
       --force-device-scale-factor=1 --window-size=1200,630 \
       --screenshot=public/og-card.png scripts/og-card.html
 
-  1200x630 is the size Facebook, Messenger, iMessage, Slack and Discord all
-  crop toward. Type is sized for the ~500px it is actually displayed at, not
-  for the 1200 it is authored at.
+  1200x630 is what the social apps crop toward, but type is sized for the
+  ~500px it displays at. No colour or font is written here: the card links the
+  app's own tokens.css and declares the two @font-face families under the names
+  --font-ui and --font-mono ask for. That is why it lives in scripts/ and not
+  public/ — it reads ../src and ../node_modules, neither of which is served.
 
-  No colour, font or radius is written here. The card links the app's own
-  src/styles/tokens.css over file:// and declares the two @font-face families
-  under the exact names --font-ui and --font-mono ask for, so the same rule the
-  React app follows holds here: every value comes from a token. That is also
-  why this file lives in scripts/ and not public/ — it reads ../src and
-  ../node_modules, neither of which is in the served output.
-
-  The rail geometry mirrors src/components/chat-section/trace-rail/
-  trace-rail.css scaled 2.4x, including the square nodes: "square, not round:
-  this is machinery".
-
-  The run depicted is real. current_time 118ms, http_request 412ms and the
-  answer text are the agent_support fixture in
-  server/app/modules/llm/providers/mock.py, which is contract, not decoration.
--->
-<!doctype html><html><head><meta charset="utf-8">
+  The rail mirrors trace-rail.css at 2.4x, square nodes included. The run
+  depicted is the agent_support fixture in llm/providers/mock.py.
+--><!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="../src/styles/tokens.css">
 <style>
 /* The families --font-ui and --font-mono name first. Declaring them under
