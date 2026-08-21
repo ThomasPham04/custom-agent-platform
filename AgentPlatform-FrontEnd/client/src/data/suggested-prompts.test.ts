@@ -18,7 +18,7 @@ describe('suggestedPrompts', () => {
   it('prefers tool-derived prompts over the generic fallbacks', () => {
     const prompts = suggestedPrompts(['current_time', 'http_request']);
     expect(prompts[0]).toContain('Tokyo');
-    expect(prompts[1]).toContain('status.example.com');
+    expect(prompts[1]).toContain('https://google.com');
   });
 
   it('falls back to generic prompts for an agent with no tools', () => {

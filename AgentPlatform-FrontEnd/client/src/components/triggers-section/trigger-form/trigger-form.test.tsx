@@ -16,6 +16,36 @@ const daily: TriggerDraft = {
 };
 
 describe('TriggerForm', () => {
+  it('edits the message the firing sends', () => {
+    const onChange = vi.fn();
+    render(<TriggerForm draft={daily} onChange={onChange} />);
+
+    const message = screen.getByRole('textbox', { name: 'Message' });
+    expect(message).toHaveValue('Check support.');
+
+    fireEvent.change(message, { target: { value: 'Fetch the status endpoint.' } });
+    expect(onChange).toHaveBeenLastCalledWith({ message: 'Fetch the status endpoint.' });
+  });
+
+  it('caps the message at 500 characters and counts what is used', () => {
+    const onChange = vi.fn();
+    render(<TriggerForm draft={{ ...daily, message: 'x'.repeat(498) }} onChange={onChange} />);
+
+    const message = screen.getByRole('textbox', { name: 'Message' });
+    expect(message).toHaveAttribute('maxLength', '500');
+    expect(screen.getByText('498/500 characters')).toBeInTheDocument();
+
+    // maxLength stops typing but not a programmatic write, so the handler
+    // truncates as well — the server takes 20,000 and would accept the overrun.
+    fireEvent.change(message, { target: { value: 'y'.repeat(600) } });
+    expect(onChange).toHaveBeenLastCalledWith({ message: 'y'.repeat(500) });
+  });
+
+  it('keeps the weekday checkboxes in a group named Days', () => {
+    render(<TriggerForm draft={daily} onChange={() => {}} />);
+    expect(screen.getByRole('group', { name: 'Days' })).toBeInTheDocument();
+  });
+
   it('edits daily time, weekdays, and timezone', async () => {
     const onChange = vi.fn();
     render(<TriggerForm draft={daily} onChange={onChange} />);
@@ -60,6 +90,7 @@ describe('TriggerForm', () => {
 
   it('disables every control while an action is pending', () => {
     render(<TriggerForm draft={daily} disabled onChange={() => {}} />);
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBeDisabled();
     expect(screen.getByRole('combobox', { name: 'Repeats' })).toBeDisabled();
     expect(screen.getByLabelText('Time')).toBeDisabled();
     expect(screen.getByLabelText('Mon')).toBeDisabled();

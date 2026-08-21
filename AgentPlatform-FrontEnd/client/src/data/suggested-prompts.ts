@@ -1,7 +1,7 @@
 /** Keyed by tool id so a prompt actually exercises the tool it belongs to. */
 const TOOL_PROMPTS: Record<string, string> = {
   current_time: 'What time is it in Tokyo right now?',
-  http_request: 'Is https://status.example.com/health responding?',
+  http_request: 'Is https://google.com responding?',
   calculator: 'What is 184320 divided by 1024, times 0.87?',
   knowledge_search: 'What does our policy say about the refund window?',
 };

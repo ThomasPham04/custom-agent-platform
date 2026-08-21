@@ -82,6 +82,8 @@ The service reads the environment, or a `.env` file beside `pyproject.toml`.
 | `GEMINI_API_KEY` | empty | Required when the provider is `adk_gemini` |
 | `TOOL_HTTP_TIMEOUT_MS` | `5000` | Timeout for the `http_request` tool |
 | `LOG_PAYLOAD_MAX_BYTES` | `32768` | Cap on tool payloads stored in run history |
+| `MAX_BODY_BYTES` | `262144` | Cap on any request body, enforced by middleware |
+| `KNOWLEDGE_MAX_BODY_BYTES` | `100000` | Largest knowledge document accepted, in UTF-8 bytes; keep it below `MAX_BODY_BYTES` |
 | `TRIGGERS_ENABLED` | `true` | `false` stops the scheduler clock; the REST surface, including fire-now, still works |
 | `TRIGGER_TICK_SECONDS` | `30` | How often the scheduler polls for due triggers |
 | `TRIGGER_MAX_PER_TICK` | `20` | Cap on triggers fired in a single poll |
@@ -115,11 +117,12 @@ imports it in mock mode. Live Gemini needs it, and needs it on every command:
 uv run --extra adk uvicorn app.main:app --port 4000 --reload
 ```
 
-`uv run` re-syncs the environment to the default dependency set on each
-invocation, so a plain `uv run` removes the extra again even after
-`uv sync --extra adk`. Because the ADK import is deferred until a turn
-executes, dropping it does not stop the service or change what `/api/health`
-reports — the first chat request returns `provider_error` instead.
+A plain `uv sync` re-syncs the environment to the default dependency set and
+removes the extra again, undoing an earlier `uv sync --extra adk`; `uv run`
+leaves an extra that is already installed alone. Because the ADK import is
+deferred until a turn executes, dropping it does not stop the service or change
+what `/api/health` reports — the first chat request returns `provider_error`
+instead.
 
 ## Endpoints
 

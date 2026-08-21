@@ -8,6 +8,8 @@ from app.modules.agents.repositories.memory import MemoryAgentRepository
 from app.modules.agents.seeds import SEED_AGENTS
 from app.modules.execution.schemas import MessageRequest
 from app.modules.execution.service import ExecutionService
+from app.modules.knowledge.repositories.memory import MemoryKnowledgeRepository
+from app.modules.knowledge.seeds import SEED_DOCUMENTS
 from app.modules.llm.provider import (
     LLMProvider,
     ModelInfo,
@@ -17,8 +19,6 @@ from app.modules.llm.provider import (
 )
 from app.modules.runs.repositories.memory import MemoryRunRepository
 from app.modules.sessions.repositories.memory import MemorySessionRepository
-from app.modules.knowledge.repositories.memory import MemoryKnowledgeRepository
-from app.modules.knowledge.seeds import SEED_DOCUMENTS
 from app.modules.tools.registry import ToolRegistry, default_tools
 
 pytestmark = pytest.mark.anyio

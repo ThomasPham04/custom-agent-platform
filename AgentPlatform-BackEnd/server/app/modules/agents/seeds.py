@@ -32,12 +32,19 @@ SEED_AGENTS: list[Agent] = [
         system_prompt=(
             "You are the support agent for a subscription product.\n"
             "\n"
-            "Answer in two sentences or fewer. Quote exact policy numbers rather than\n"
-            "paraphrasing them. When a question needs the current time or a live status\n"
-            "check, call the tool instead of guessing. If you cannot answer from the\n"
-            "tools and the policy text, say so and offer to escalate."
+            "Answer in two sentences or fewer. Search the knowledge library before\n"
+            "answering a billing or account question, and quote a policy only when a\n"
+            "search returns it — never cite a section number you have not read. When\n"
+            "a question needs the current time or a live status check, call the tool\n"
+            "instead of guessing. If the tools and the documents do not answer the\n"
+            "question, say so and offer to escalate."
         ),
-        tool_ids=["current_time", "http_request"],
+        # knowledge_search is third deliberately. The mock stops at MAX_CALLS=2 in
+        # declared order, so this agent's fixture trace stays ['current_time',
+        # 'http_request'] and its transcribed answer still matches. A live model
+        # picks freely, and gains the policy library it was already being told to
+        # quote from.
+        tool_ids=["current_time", "http_request", "knowledge_search"],
         status="active",
         created_at=_at(720),
         updated_at=_at(2),

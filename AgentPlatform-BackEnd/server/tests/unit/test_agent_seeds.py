@@ -39,6 +39,23 @@ def test_seeds_are_ordered_newest_updated_first():
     assert updated == sorted(updated, reverse=True)
 
 
+def test_support_bot_can_search_the_policy_library():
+    """Regression: the prompt demanded exact policy numbers while
+    knowledge_search was not attached, so a live model had to invent one.
+    knowledge_search sits third so the mock's two-call cap still yields
+    ['current_time', 'http_request'] (contract reference §6)."""
+    support = next(a for a in SEED_AGENTS if a.id == "agent_support")
+    assert support.tool_ids == ["current_time", "http_request", "knowledge_search"]
+
+
+def test_no_agent_is_told_to_cite_policy_it_cannot_read():
+    """The invariant behind the regression above: an agent whose prompt talks
+    about policy must be able to reach the document library."""
+    for agent in SEED_AGENTS:
+        if "polic" in agent.system_prompt.lower():
+            assert "knowledge_search" in agent.tool_ids, agent.id
+
+
 def test_drafter_has_an_empty_system_prompt():
     """Exercises the empty-prompt render in agent-form."""
     drafter = next(a for a in SEED_AGENTS if a.id == "agent_drafter")

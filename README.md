@@ -32,11 +32,6 @@ read-only walkthroughs for the workspace, agent configuration, the knowledge
 library, and testing an agent. It also links to the [platform
 report](documents/ai-agent-platform-report.pdf), which opens in a separate tab.
 
-**Switch providers without touching code.** The default LLM provider is a
-deterministic mock, so the whole platform runs offline with no credentials and
-the trace still renders end to end. Point it at live Gemini instead by setting
-two environment variables.
-
 ## Layout
 
 | Folder | What it is |
@@ -81,9 +76,6 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 It installs to `~/.local/bin`; open a new shell afterwards so it is on `PATH`.
 Verify with `uv --version`.
 
-**Node 24** is easiest through a version manager, so the pin travels with the
-project rather than with your machine:
-
 ```bash
 # macOS / Linux, via nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -93,7 +85,7 @@ nvm install 24 && nvm use 24
 winget install OpenJS.NodeJS.LTS
 ```
 
-npm ships with Node — nothing separate to install. Verify with `node --version`
+Verify with `node --version`
 (expect `v24.x`) and `npm --version`.
 
 Then install each side's dependencies:
@@ -105,7 +97,7 @@ cd AgentPlatform-FrontEnd/client && npm ci
 
 `uv sync` creates `.venv` from the lockfile; `uv run` executes inside it, so
 there is nothing to activate by hand. `npm ci` installs from
-`package-lock.json` exactly.
+`package-lock.json`.
 
 ## Run it in development
 
@@ -135,10 +127,6 @@ uv run uvicorn app.main:app --port 4000 --reload
 Check it with `http://localhost:4000/api/health`, which returns the status and
 the active provider mode.
 
-Port 4000 is not a preference. The Vite dev proxy, the nginx config, and the
-container healthcheck all target it, so the service has to bind that port for
-the rest of the stack to find it.
-
 ### 2. Frontend, on port 5173
 
 Windows PowerShell:
@@ -167,7 +155,7 @@ Set it to an absolute origin only when the API is hosted somewhere else.
 
 ## Run it in containers
 
-For LAN development, run the isolated development stack from
+For local development, run the isolated development stack from
 `AgentPlatform-BackEnd/deployment`:
 
 ```bash
@@ -184,7 +172,7 @@ development never starts the Cloudflare Tunnel.
 
 Set `WEB_PASSWORD` in
 `/etc/agent-platform-development/development.env` before allowing any users
-beyond your trusted LAN users. The password gate protects both the UI and
+beyond your trusted local users. The password gate protects both the UI and
 `/api`.
 
 ## Optional configuration
@@ -205,29 +193,18 @@ The values in `.env.example` are the container ones, where the database host is
 the compose service name `db`. Running the API outside Docker against a local
 database means changing that host to `localhost`.
 
-**Execute against real Gemini** instead of the mock provider. This needs a
-Google API key and the optional `adk` extra:
+**Execute against real Gemini** instead of the mock provider.
 
 ```
 LLM_PROVIDER=adk_gemini
 GEMINI_API_KEY=your-key
 ```
 
-Pass `--extra adk` on every `uv run`, not just once:
+Run the backend:
 
 ```bash
 uv run --extra adk uvicorn app.main:app --port 4000 --reload
 ```
-
-`uv run` re-syncs the environment to the default dependency set each time it is
-invoked, so a plain `uv run` uninstalls the extra again. The service still
-starts and still reports live mode, because the ADK import is deferred until a
-turn actually executes — the failure surfaces on the first chat request as a
-`provider_error`, not at startup.
-
-`GET /api/health` then reports `"mode": "live"` rather than `"mock"`, and the UI
-header shows it. Live mode calls a billed API and needs credit on the account;
-the mock provider is what keeps the default path free and offline.
 
 See `AgentPlatform-BackEnd/README.md` and `AgentPlatform-FrontEnd/README.md`
 for details on each side.

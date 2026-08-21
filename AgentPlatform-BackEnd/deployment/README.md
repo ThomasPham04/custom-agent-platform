@@ -82,7 +82,7 @@ workflow, use [Publishing it on a domain](#publishing-it-on-a-domain) instead.
 | --- | --- |
 | `db` | `postgres:16-alpine`, with its data in the `pgdata` volume |
 | `api` | Builds from `AgentPlatform-BackEnd/server` and listens on 4000 |
-| `web` | Builds the client and serves it through nginx on 8080 |
+| `web` | Builds the client and serves it through nginx on port 80, published on the host as `WEB_PORT` |
 
 Startup is ordered by healthchecks rather than by luck: `api` waits for `db` to
 report `pg_isready`, and `web` waits for `api` to answer `GET /api/health`.
@@ -127,13 +127,18 @@ LLM_PROVIDER=adk_gemini
 GEMINI_API_KEY=your-key
 ```
 
-Then rebuild the API image so the `adk` extra is installed, and restart:
+Then recreate the API container so it reads the edited file:
 
 ```bash
 docker compose -p agent-platform-development \
   --env-file /etc/agent-platform-development/development.env \
   -f docker-compose.yml up -d --build api
 ```
+
+The image needs no change for this: the Dockerfile installs `".[adk]"`
+unconditionally, so every build already carries the extra whatever the provider
+is set to. What the command replaces is the container's stored environment,
+which a restart would have reused.
 
 `GET /api/health` reports `"mode": "live"` instead of `"mock"`, and the header in
 the UI shows it.
@@ -369,8 +374,8 @@ Three steps, in this order:
    only specific email addresses, which costs the viewer a one-time code but
    gives you per-person identity and revocation. `WEB_PASSWORD` also covers the
    published host port; Access does not.
-3. **Switch the provider and rebuild**, so the `adk` extra is present in the
-   image:
+3. **Switch the provider and recreate the containers**, so they read the
+   edited file — the `adk` extra is in the image either way:
 
    ```bash
    # /etc/agent-platform/production.env
