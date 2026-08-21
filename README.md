@@ -30,7 +30,11 @@ runs.
 **Learn the platform from the workspace.** The sidebar offers guided,
 read-only walkthroughs for the workspace, agent configuration, the knowledge
 library, and testing an agent. It also links to the [platform
-report](documents/ai-agent-platform-report.pdf), which opens in a separate tab.
+report](AgentPlatform-FrontEnd/client/public/documents/ai-agent-platform-report.pdf),
+which opens in a separate tab. That path is the only copy of the report in the
+repository: it sits in Vite's `public/` directory because that is what the web
+image builds and nginx serves at `/report`, so a compiled PDF belongs there and
+nowhere else.
 
 ## Layout
 

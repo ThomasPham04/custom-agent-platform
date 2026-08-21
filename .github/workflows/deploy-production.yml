@@ -3,6 +3,11 @@ name: Deploy production
 on:
   push:
     branches: [main]
+  # Redeploy the current main without inventing a commit. Needed whenever a
+  # push lands on main without producing a successful deploy — a failed
+  # verify job, a cancelled run, or a commit pushed by a workflow using the
+  # default GITHUB_TOKEN, which by design does not trigger `push`.
+  workflow_dispatch:
 
 permissions:
   contents: read
